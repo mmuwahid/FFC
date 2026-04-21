@@ -1,6 +1,102 @@
 # FFC Todo
 
-## NEXT SESSION — S016 (logo rollout + Step 1 scaffold elaboration + Step 2 migrations)
+## NEXT SESSION — S017 (Step 2 migrations + CRLF chore + lesson retraction)
+
+**Cold-start checklist:**
+- Read `CLAUDE.md` (S016 summary at top — status now reads `Phase 1 implementation — Step 1 of V2.8 COMPLETE`), `sessions/INDEX.md` (S016 row), `sessions/S016/session-log.md` (full close — Step 1 live, 2 commits `c7b2b74` + `dd0c00b`).
+- Memory auto-loads all prior rules plus S016 lessons (legacy-peer-deps via `.npmrc`, Windows `&`-in-path `.cmd` wrapper breakage, `gh` CLI works fine on both PCs).
+- **Home-PC workspace is OneDrive working tree + `C:/Users/User/FFC-git/` external `.git/`.** `git status` / `git log` / `git push` all run from the OneDrive path.
+- **`git pull` before starting** — sync from work PC if anything was pushed there.
+- If not yet done: reconnect Supabase MCP in Claude settings with a PAT scoped to the FFC org (optional — `npx supabase` CLI is the fallback).
+
+**Status at S016 close:**
+- Step 1 of V2.8 **FULLY COMPLETE and LIVE** at https://ffc-gilt.vercel.app. Elaborated scaffold: Supabase client singleton, plain-object React Context (Rule #8), ErrorBoundary, safe-area CSS, 3 layouts, 14 page stubs, auth-aware router, PWA SW via vite-plugin-pwa, inline splash.
+- 2 commits shipped: `c7b2b74` Step 1 (36 files, +8,344/−422) · `dd0c00b` `.npmrc` fix (Vercel `npm install` peer-dep workaround).
+- Home-PC workspace aligned to separate-git-dir architecture (matches work PC).
+- `gh` CLI confirmed working on both PCs (S015 lesson stale).
+- 47 non-ffc/ files still show as modified in `git status` — pure CRLF drift, zero content drift. Deferred to S017 chore commit.
+- `_wip/` still empty. Design spec unchanged at ~3,100 lines.
+
+### S017 agenda
+
+1. **`git pull` + `git status`** at session start. Verify clean (modulo the 47-file CRLF drift which S017 item 2 absorbs).
+
+2. **Chore commit: renormalise line endings** across the 47 pre-existing CRLF-drift files (mockups/, planning/, docs/, archive/, sessions/S009–S014, tasks/). Safe now that `core.autocrlf=true` is set. Single commit, gets out of the way before Step 2 touches anything.
+
+3. **Step 2 of V2.8 — 11 migration files + super-admin seed.** Full plan:
+   - Either reconnect Supabase MCP (Claude settings → MCP connectors → Supabase → PAT with FFC-org scope) OR `npx supabase link --project-ref hylarwwsedjxwavuwjrn` (DB password from password manager).
+   - Write SQL files in `supabase/migrations/` per V2.8 §2.9 authoritative order (copy from design spec §2):
+     - `0001_enums.sql` (18 enums)
+     - `0002_base.sql` (profiles, seasons, app_settings)
+     - `0003_match_data.sql` (matchdays, match_players, match_guests, match_events)
+     - `0004_poll_ref.sql` (poll_votes, ref_tokens, pending_signups)
+     - `0005_operational.sql` (admin_audit_log, draft_sessions, draft_picks, formations, notifications, player_bans, push_subscriptions, scheduled_reminders)
+     - `0006_views.sql` (v_match_commitments, v_captain_eligibility, etc.)
+     - `0007_helpers.sql` (effective_format, roster_cap, log_admin_action)
+     - `0008_rpcs.sql` (20 SECURITY DEFINER RPCs)
+     - `0009_rls.sql` (RLS policies — 3 roles: player / admin / super_admin)
+     - `0010_grants.sql` (`GRANT ... TO authenticated, anon;`)
+     - `0011_seed_super_admin.sql` (insert `m.muwahid@gmail.com` as super_admin + seed 7 app_settings rows)
+   - `npx supabase db push` (or `apply_migration` per file via MCP).
+   - **Generate TS types:** `npx supabase gen types typescript --linked > ffc/src/lib/database.types.ts` (or via MCP `generate_typescript_types`).
+   - **Verify on Supabase Studio:** 20 tables in `public` schema · RLS enabled on every table · 20 RPC functions visible under Database → Functions · 7 `app_settings` rows seeded · `profiles` has 1 row with `role='super_admin'`, email `m.muwahid@gmail.com`.
+   - **Smoke-test Edge Function:** deploy `supabase/functions/hello/index.ts` via `npx supabase functions deploy hello`; invoke via `curl`.
+   - **Acceptance (Step 2):** `SELECT * FROM seasons` returns one row · `SELECT role, email FROM profiles` returns `super_admin | m.muwahid@gmail.com` · `ffc/src/lib/database.types.ts` exists and compiles against the `supabase` singleton import.
+
+4. **Retract S015 `gh` CLI lesson** in `tasks/lessons.md` — append a "Corrected at S016" note since `gh auth status` works on both home and work PCs. Leave the original lesson text but annotate it as network-specific rather than tool-wide.
+
+5. **Local Windows `&`-in-path build fix (nice-to-have).** Two options:
+   - Document in CLAUDE.md: "On Windows, use `node ./node_modules/<pkg>/bin/<bin>` instead of `npm run <script>` — `.cmd` wrappers truncate at `&` in path."
+   - Or rewrite `package.json` build script: `"build": "node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build"` (works on both Windows and Vercel's Linux).
+   - Recommend: both. Document + rewrite.
+
+6. **Logo rollout** if user has exported transparent PNG/SVG from `shared/FF_LOGO_FINAL.pdf` (512/192/180/32 PNG + SVG master + WhatsApp OG 1200×630). Wire into `ffc/public/` + update `manifest.webmanifest` icons array + replace the CSS-gradient crest on Welcome.
+
+7. **(Optional) Start Step 3 of V2.8 — First feature slice** (only if scope permits; likely its own session):
+   - Auth (email/password + Google OAuth via Supabase Auth).
+   - Welcome screen as React component — port from `mockups/welcome.html`.
+   - Self-signup pending flow — `pending_signups` INSERT.
+   - Admin approval via `approve_signup` RPC.
+   - Ref tokens generation (SMS stub for Phase 2).
+   - §3.7 Poll screen state machine up to State 3 (voted, pre-lock).
+   - **Acceptance (Step 3):** super-admin approves a pending signup; approved player signs in and commits a poll vote; `committed_at` row visible in `poll_votes`.
+
+8. **Brand palette re-alignment** — still deferred unless user surfaces it.
+
+9. **Close S017** — session log · INDEX row · CLAUDE.md bump · todo.md S018 plan · lessons.md row.
+
+## Completed in S016 (21/APR/2026, Home PC — full close)
+- [x] Cold-start briefing produced (resume-session skill); INDEX + S015 log + todo.md NEXT SESSION read; user chose "start with Step 1 of V2.8".
+- [x] **Home-PC workspace alignment** — moved a temp clone's `.git/` to `C:/Users/User/FFC-git/`, set `core.worktree` to the OneDrive path, rewrote `<OneDrive>/.git` pointer from `C:/Users/UNHOEC03/FFC-git` → `C:/Users/User/FFC-git`, set `core.autocrlf=true`, removed duplicate clone working tree. Verified: `git status` runs from OneDrive path, 24 "modifications" are pure CRLF drift (zero content diff via `--ignore-cr-at-eol`).
+- [x] **Step 1 — runtime deps** installed: `@supabase/supabase-js@^2.104.0`, `react-router-dom@^7.14.2`. Dev deps: `vite-plugin-pwa@^1.2.0` + `workbox-window@^7.4.0` (with `--legacy-peer-deps` — peer decl still caps at vite@^7, scaffold is on vite@8.0.9).
+- [x] **Step 1 — library layer** — `ffc/src/lib/{supabase.ts, env.d.ts, AppContext.tsx, ErrorBoundary.tsx}`.
+- [x] **Step 1 — layouts** — `ffc/src/layouts/{PublicLayout,RoleLayout,RefLayout}.tsx`.
+- [x] **Step 1 — page stubs (14)** — `ffc/src/pages/{Welcome,Login,Signup,Poll,Leaderboard,Profile,MatchDetail,Settings,RefEntry,NotFound}.tsx` + `ffc/src/pages/admin/{AdminHome,AdminPlayers,AdminMatches,FormationPlanner}.tsx`. Shared `components/StubPage.tsx` helper.
+- [x] **Step 1 — router** — `ffc/src/router.tsx` with `createBrowserRouter`, auth-aware index route, three layouts nesting.
+- [x] **Step 1 — global CSS rewrite** — `ffc/src/index.css` (safe-area tokens, dark default, light via `:root.theme-light` opt-in, layout primitives).
+- [x] **Step 1 — `index.html` rewrite** — `viewport-fit=cover`, apple-mobile-web-app meta, light+dark theme-color meta, inline `#ffc-splash`.
+- [x] **Step 1 — PWA wiring** — `ffc/public/manifest.webmanifest` + `ffc/vite.config.ts` with `VitePWA` (`generateSW`, `manifest:false`, `cacheId=ffc-<ISO-timestamp>` bumps per build).
+- [x] **Step 1 — entry points** — `ffc/src/App.tsx` reduced to Error/Provider/Router tree; `ffc/src/main.tsx` dropped Step-0 logs, imports supabase for fail-fast, PROD-only SW register via workbox-window with `messageSkipWaiting`.
+- [x] **Deleted Vite template cruft** — `src/App.css`, `src/assets/*`, `public/icons.svg`.
+- [x] **Local build verified** via `node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build` — 327 KB JS gzip 98 KB + PWA SW + 5 precached entries. `npm run build` broke on Windows `&`-in-path issue — workaround documented.
+- [x] **Local preview acceptance** via `preview_start ffc-dev` on port 5174 — Welcome + Poll + login routed correctly, 4-tab bottom nav on authed routes, zero console errors. Screenshots captured.
+- [x] **First commit `c7b2b74`** — Step 1 scaffold (36 files, +8,344/−422). Required explicit user authorisation for direct-to-main push; verified established workflow.
+- [x] **First Vercel deploy ERRORED** — 7s fail with ERESOLVE on vite-plugin-pwa peer dep.
+- [x] **Second commit `dd0c00b`** — `ffc/.npmrc` with `legacy-peer-deps=true`. Redeploy Ready in 15s.
+- [x] **Live verification via curl** — `/` 200 (2088B), `/manifest.webmanifest` 200, `/sw.js` 200. HTML contains all expected meta tags + inline splash.
+- [x] **`gh` CLI retraction** — confirmed `gh auth status` shows `mmuwahid` auth'd with `repo`/`workflow`/`gist`/`read:org` scopes on home PC; user confirmed same on work PC. S015 Go-binary TLS lesson is network-specific, not tool-wide.
+- [x] **User asked about URLs matching planning mockups** — clarified Step 1 scope (shell only; real screens in Step 3+).
+- [x] S016 session log · INDEX row · CLAUDE.md bump · todo.md S017 plan · lessons.md update — (this block).
+- [ ] Logo rollout — DEFERRED (asset export still pending).
+- [ ] Step 2 (11 migrations) — DEFERRED to S017 per user instruction.
+- [ ] CRLF renormalisation of 47 drift files — DEFERRED to S017 as its own chore commit.
+- [ ] `gh` CLI lesson retraction in `lessons.md` — DEFERRED to S017.
+- [ ] `package.json` build script Windows workaround — DEFERRED to S017.
+- [ ] Brand palette re-alignment — continues deferred.
+
+---
+
+## (Previous) NEXT SESSION — S016 (logo rollout + Step 1 scaffold elaboration + Step 2 migrations) [SUPERSEDED — see S017 above]
 
 **Cold-start checklist:**
 - Read `CLAUDE.md` (S015 summary at top — status now reads `Phase 1 implementation — Step 0 infrastructure LIVE`), `sessions/INDEX.md` (S015 row), `sessions/S015/session-log.md` (full close — Step 0 complete, 5 commits, https://ffc-gilt.vercel.app live).

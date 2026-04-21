@@ -1,6 +1,6 @@
 # FFC
 
-**Status:** Phase 1 implementation — **Step 0 of V2.8 COMPLETE** (21/APR/2026, S015). GitHub + Supabase + Vercel wired end-to-end; https://ffc-gilt.vercel.app live with env vars verified resolving in production build. Next gate: Step 1 (elaborate Vite scaffold with PadelHub boot patterns) + Step 2 (write & run 11 migration files). See `planning/FFC-masterplan-V2.8.md` → "Implementation sequencing notes".
+**Status:** Phase 1 implementation — **Step 1 of V2.8 COMPLETE** (21/APR/2026, S016). Elaborated Vite scaffold with PadelHub boot patterns live at https://ffc-gilt.vercel.app: Supabase client singleton, plain-object React Context (Rule #8), ErrorBoundary, safe-area-aware global CSS (dark default), three layouts (Public/Role/Ref), 14 page stubs wired through auth-aware react-router tree, PWA service worker via `vite-plugin-pwa`, inline splash. Welcome page has real content; all other screens are placeholder stubs (spec-ref + title) until Step 3. Next gate: Step 2 (write & run 11 migration files + super-admin seed + TS types). See `planning/FFC-masterplan-V2.8.md` → "Implementation sequencing notes".
 
 FFC is a mobile-first PWA for managing a weekly 7v7 friends football league: Monday poll → Thursday game cycle, with match history, leaderboard, seasons, awards, and WhatsApp share integration.
 
@@ -65,27 +65,47 @@ Working across work PC (`UNHOEC03`) and home PC.
 - **GitHub CLI (`gh`) is blocked by TLS cert-interception on this network** — Go binaries don't use Windows cert store. Use Chrome for repo/PR creation; raw `git` for everything else. See lessons.md S015 entries.
 
 ## Latest session
-**S015 (21/APR/2026 home — Phase 1 implementation kickoff · Step 0 of V2.8 FULLY COMPLETE · infrastructure live end-to-end).** GitHub + Supabase + Vercel all wired; https://ffc-gilt.vercel.app live with env vars verified resolving in production build (lengths 40 / 46 confirm zero newline drift).
+**S016 (21/APR/2026 home — Step 1 of V2.8 FULLY COMPLETE · elaborated scaffold live end-to-end · home-PC workspace aligned to separate-git-dir architecture).** https://ffc-gilt.vercel.app now serves a real PWA shell — not the placeholder Vite template. Welcome page renders under PublicLayout; 13 spec-ref stubs wired through auth-aware react-router tree under PublicLayout / RoleLayout (4-tab bottom nav, 5-tab when admin) / RefLayout.
 
-**What landed:**
-- **Workspace migration** — OneDrive → `C:/Users/UNHOEC03/FFC/` (32 MB, 77 files copied; OneDrive kept as read-only snapshot). Git replaces OneDrive as cross-PC + collaborator sync mechanism.
-- **GitHub** — `github.com/mmuwahid/FFC` (private), 5 commits on `main` (initial 52-file design bundle `1c03b7b` → Vite scaffold `caa3e0a` → env-var boot logs `9f6fb76` → `.vercel` gitignore bump `b0579d8` → length-canary re-acceptance `22a3209`).
-- **Supabase** — project `ffc` (ref `hylarwwsedjxwavuwjrn`) in NEW FFC org, region `ap-south-1` Mumbai, Free tier, Healthy. Security settings: Data API on, automatic RLS on, automatic table exposure OFF.
-- **Vercel** — project `ffc` (`prj_2NszuyOepArCTUAJCOxH8NsAAeSv`) on `team_HYo81T72HYGzt54bLoeLYkZx`, Git-connected, Root Directory `ffc`, framework auto-detected as Vite, Node 24.x.
-- **6 env vars wired cleanly** (`VITE_SUPABASE_URL` × 3 envs, `VITE_SUPABASE_ANON_KEY` × 3 envs) via `vercel env add --value --yes` pattern.
-- **Anon key upgraded** from legacy JWT (`eyJhbGci…`) → new publishable (`sb_publishable_EbFLhm6kXbTJBqrge-A7vw_0LswX2EB`) to eliminate pending tech debt.
-- **Vite scaffold minimal** — `npm create vite@latest ffc -- --template react-ts` pulled React 19.2.5 + Vite 8.0.9 + TS 6.0.2. Stack line in this file updated from "React 18" → "React 19".
-- **Step 0 acceptance verified twice** via DevTools console (first pass with JWT, second with publishable + length canary).
+**What landed in S016:**
 
-**Durable lessons captured** (see `tasks/lessons.md` S015 entries):
-- PowerShell `echo "x" \| pipe` appends `\n` — use `vercel env add ... --value "<v>" --yes` instead.
-- Go-compiled `gh` CLI fails TLS on networks with SSL-interception (Windows cert store not consulted). Sidestep via Chrome + raw `git` (schannel backend).
-- Vercel CLI `--yes` alone doesn't accept "all preview branches" — empty-string positional arg required: `vercel env add <NAME> preview "" --value <v> --yes`.
-- README-referenced paths must not be inside gitignored directories (first commit had mockup link pointing to `.superpowers/` which is excluded).
+- **Home-PC workspace aligned** to the separate-git-dir architecture agreed in S015 follow-up commit `fa1c0a8` (OneDrive working tree + external per-PC `.git/`). Moved `.git/` out of a temp clone to `C:/Users/User/FFC-git/`; rewrote the OneDrive `.git` pointer from the work-PC path `C:/Users/UNHOEC03/FFC-git` to `C:/Users/User/FFC-git`; set `core.worktree` + `core.autocrlf=true`. Verified via `git status` from OneDrive path showing `On branch main · up to date with origin/main`; the 24 pre-existing "modifications" confirmed pure CRLF drift (zero content diff via `git diff --ignore-cr-at-eol --name-only`).
 
-**Stats at S015 close:** design spec unchanged (~3,100 lines). Repo state: 5 commits, 71 files tracked, production alias `ffc-gilt.vercel.app`.
+- **Step 1 — library layer.** `ffc/src/lib/supabase.ts` (client singleton, fails fast on missing env) · `ffc/src/lib/env.d.ts` (typed `ImportMetaEnv`) · `ffc/src/lib/AppContext.tsx` (plain-object Context per Rule #8 — `{ session, role, loading, signOut }`, subscribes to `onAuthStateChange`, role stays null until Step 2 lands profiles) · `ffc/src/lib/ErrorBoundary.tsx` (class boundary with reset button + fallback prop).
 
-**Next: S016** — (a) Logo rollout if user has exported transparent PNG/SVG from `shared/FF_LOGO_FINAL.pdf`. (b) **Step 1 of V2.8** — elaborate Vite scaffold with PadelHub boot patterns (`vite-plugin-pwa`, Supabase client singleton, `ErrorBoundary`, safe-area CSS, inline splash, plain-object Context, route skeleton with auth-aware layouts). (c) **Step 2 of V2.8** — write & run 11 migration files per §2.9 order, seed super-admin, generate TS types. Palette re-alignment still deferred. See `sessions/S015/session-log.md`.
+- **Step 1 — layouts (3).** `PublicLayout` (topbar only) · `RoleLayout` (topbar + 4-tab bottom nav: Home/Leaderboard/Profile/Settings; 5th Admin tab appears when `role ∈ {admin, super_admin}`) · `RefLayout` (stripped shell for `/ref/:token`). All safe-area-aware via CSS primitives.
+
+- **Step 1 — pages (14).** `Welcome.tsx` (real content: FFC crest placeholder + "Friends, football, Thursdays." + Sign in / Request to join CTAs) + 13 stubs (Login · Signup · Poll §3.7 · Leaderboard §3.13 · Profile §3.14 · MatchDetail §3.15 · Settings §3.16 · RefEntry §3.4 · NotFound + admin/AdminHome · AdminPlayers §3.17 · AdminMatches §3.18 · FormationPlanner §3.19). Shared `StubPage` helper. One file per stub — each grows into a real screen in future sessions.
+
+- **Step 1 — router.** `ffc/src/router.tsx` with `createBrowserRouter`. Index route is `<HomeRoute />` which conditionally renders `<Navigate to="/poll" replace />` when authed, `<Welcome />` otherwise. `/match/:id`, `/profile/:id`, `/admin/matches/:id/formation`, `/ref/:token` all param-reading. 404 fallback wired outside layouts.
+
+- **Step 1 — global CSS rewrite.** `ffc/src/index.css` replaced Vite template styling entirely: safe-area tokens at `:root` (following `docs/platform/iphone-safe-area.md`), dark palette default + `:root.theme-light` opt-in + `:root.theme-auto` media variant, typography + reset (100svh shell, `overscroll-behavior-y:none`), layout primitives (`.app-shell` / `.app-topbar` sticky / `.app-bottom-nav` fixed with safe-area padding / `.app-main` / `.app-loading` / `.app-error`). Root width capped 560px centered.
+
+- **Step 1 — index.html + manifest + vite config.** `index.html` now ships `viewport-fit=cover`, apple-mobile-web-app meta (capable/status-bar-style=black-translucent/title), light+dark theme-color meta, inline `#ffc-splash` painted pre-JS (CSS gradient FFC crest, hides on React commit via `requestAnimationFrame`). `public/manifest.webmanifest` (standalone/portrait/theme `#0e1826`/categories sports+social). `vite.config.ts` added `VitePWA` with `generateSW`, `manifest:false`, `workbox.cacheId=ffc-<ISO-timestamp>` (Rule #19 auto-satisfied), `clientsClaim:true`, `cleanupOutdatedCaches:true`, `navigateFallback:/index.html` (SPA routing).
+
+- **Step 1 — entry points.** `ffc/src/App.tsx` reduced to `<ErrorBoundary><AppProvider><RouterProvider router={router} /></AppProvider></ErrorBoundary>`. `ffc/src/main.tsx` dropped Step-0 console.logs; imports `./lib/supabase` for fail-fast env validation; PROD-only SW registration via `new Workbox('/sw.js')` with `messageSkipWaiting` on `waiting` event (no forced reload — new SW takes over on next navigation).
+
+- **Deleted Vite template cruft:** `src/App.css`, `src/assets/{hero.png,react.svg,vite.svg}`, `public/icons.svg`.
+
+- **Two commits shipped:** `c7b2b74` Step 1 scaffold (36 files, +8,344 / −422) → first Vercel auto-deploy ERRORED in 7s with ERESOLVE (`vite-plugin-pwa@1.2.0` peers `vite<=7`, scaffold on `vite@8.0.9`). `dd0c00b` fix: `ffc/.npmrc` with `legacy-peer-deps=true` → redeploy Ready in 15s. Live alias `ffc-gilt.vercel.app` updated.
+
+- **Verification end-to-end.** Local preview via `preview_start ffc-dev` on port 5174: Welcome renders under PublicLayout, `/login` stays PublicLayout, `/poll` flips to RoleLayout with 4-tab bottom nav, zero console errors, Welcome + Poll screenshots captured. Live curl: `GET /` → 200 (2088 B) with all expected meta tags + inline splash; `GET /manifest.webmanifest` → 200; `GET /sw.js` → 200.
+
+**Durable lessons captured** (see `tasks/lessons.md` S016 entries):
+- For any `--legacy-peer-deps` workaround accepted during a local install, commit an `.npmrc` with `legacy-peer-deps=true` in the same PR. CI installs ignore ambient `--flag` use.
+- Test `gh auth status` at session start — takes <2s. S015's "gh blocked by Go-binary TLS wall" lesson was specific to one network at one moment; user confirmed `gh` works on both home PC (`gh auth status` shows `mmuwahid` auth'd with full `repo` scope) AND work PC now. Retracted.
+- On Windows + OneDrive path with `&` in it (FFC's "11 - AI & Digital"), `.bin/*.cmd` batch wrappers truncate at `&`. Use `node ./node_modules/<pkg>/bin/<bin>` direct invocation, not `npm run <script>`. Vercel's Linux builds are unaffected.
+
+**Direct-to-main workflow re-confirmed.** Every commit since repo creation goes to `main`; Vercel auto-deploys. User explicitly authorised S016 pushes during close-out.
+
+**Stats at S016 close:** repo +37 files on `main` vs S015 close. Design spec unchanged (~3,100 lines). `_wip/` still empty.
+
+**Next: S017** — (a) `git pull` at session start; home PC workspace is OneDrive working tree + `C:/Users/User/FFC-git/` external git dir. (b) **Step 2 of V2.8** — write & run 11 migration files per V2.8 §2.9 order (`0001_enums.sql` → `0011_seed_super_admin.sql`); reconnect Supabase MCP with FFC-org PAT OR `npx supabase link --project-ref hylarwwsedjxwavuwjrn` + `npx supabase db push`; generate TS types → `ffc/src/lib/database.types.ts`; deploy hello-world Edge Function. Acceptance: `SELECT * FROM seasons` returns 1 row; `SELECT role, email FROM profiles` returns super-admin row. (c) **Chore commit: renormalise line endings** on the 47 pre-existing CRLF-drift files (`core.autocrlf=true` now set). (d) **Retract S015 `gh` CLI lesson** in `tasks/lessons.md`. (e) **`package.json` build script Windows workaround** (or document in this file). (f) Logo rollout if assets ready. See `sessions/S016/session-log.md`.
+
+---
+
+### Prior: S015 (21/APR/2026 home — Phase 1 implementation kickoff · Step 0 of V2.8 FULLY COMPLETE · infrastructure live end-to-end).
+GitHub + Supabase + Vercel all wired; https://ffc-gilt.vercel.app live with env vars verified resolving in production build (lengths 40 / 46 confirm zero newline drift). Workspace initially migrated OneDrive → `C:/Users/UNHOEC03/FFC/` (later reversed at S015 follow-up commit `fa1c0a8` — separate-git-dir architecture adopted instead). GitHub `mmuwahid/FFC` private, 5 commits on `main`. Supabase project `hylarwwsedjxwavuwjrn` in new FFC org, `ap-south-1` Mumbai, Healthy. Vercel `prj_2NszuyOepArCTUAJCOxH8NsAAeSv` Git-connected Root Directory `ffc`. 6 env vars wired (URL × 3, publishable key × 3 — legacy JWT retired). React 19.2.5 + Vite 8.0.9 + TS 6.0.2 (scaffold default). Four lessons captured (PowerShell echo-pipe newlines; Go-binary TLS wall — RETRACTED at S016; Vercel preview empty-string arg; README paths in gitignored dirs). See full narrative in `sessions/S015/session-log.md`.
 
 ---
 
