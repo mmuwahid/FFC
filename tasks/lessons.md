@@ -54,3 +54,28 @@ FFC inherits **all lessons** from `Padel Battle APP/tasks/lessons.md` — read t
 - [21/APR/2026] (S015) **Swap infrastructure hygiene debt early, before it has dependents.** Legacy JWT anon key → publishable key swap was nearly free pre-code (6 CLI commands, 1 redeploy). Swapping later would mean auditing every runtime `createClient` call site. **Why worth remembering:** "will work for now" is a debt trap when migration cost grows linearly with app size and the debt has zero upside. Apply to: auth provider choice, DB naming conventions, key formats, build tool versions — anything that threads through the codebase once committed.
 - [21/APR/2026] (S015) **Define a concrete post-condition per infrastructure milestone, not just "it deployed."** Step 0 acceptance was: "DevTools console shows exact URL + anon key prefix + exact lengths (40 / 46)" — not just "deploy works." Latter is necessary but insufficient — env vars might not resolve, build might use wrong Node version, Root Directory might be mis-set. **Why worth remembering:** milestone drift ("the thing deployed, let's move on") costs 3× more to diagnose later when a symptom surfaces downstream. Each milestone deserves a 10-second visible check.
 - [21/APR/2026] (S015) **`npm create vite@latest` as of April 2026 defaults to React 19 + TypeScript 6 + Vite 8.** If a stack doc says "React 18" and the scaffold pulls React 19, update the doc rather than downgrading. Scaffold defaults track the ecosystem; locking to a stale major means fighting the tooling forever. **Why worth remembering:** stack docs drift fastest when the project hasn't started. Treat them as living hypotheses until first commit, then honour them.
+- [21/APR/2026] (S015 follow-up) **`SSL_CERT_FILE` fix for Go-binary CA-pool TLS failures on Windows.** When a Go CLI (`gh`, `docker`, `kubectl`, `terraform`, etc.) fails with `x509: certificate signed by unknown authority` but Chrome + raw `git` work fine, the issue is Go's bundled CA pool not containing your network's TLS-intercepting cert. **Durable fix** (persists across PowerShell sessions): export Windows's trusted-root store to a PEM bundle, point `SSL_CERT_FILE` at it, persist as User env var.
+  ```powershell
+  $pemBundle = ""
+  Get-ChildItem Cert:\LocalMachine\Root | ForEach-Object {
+      $bytes = $_.Export([Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+      $b64 = [Convert]::ToBase64String($bytes, [Base64FormattingOptions]::InsertLineBreaks)
+      $pemBundle += "-----BEGIN CERTIFICATE-----`n$b64`n-----END CERTIFICATE-----`n"
+  }
+  [System.IO.File]::WriteAllText("C:\windows-roots.pem", $pemBundle)
+  [System.Environment]::SetEnvironmentVariable("SSL_CERT_FILE", "C:\windows-roots.pem", "User")
+  # Close and reopen the terminal; gh auth login now works via web OAuth.
+  ```
+  **Why worth remembering:** unblocks every Go-compiled CLI on the machine in one shot — not just `gh`. Regenerate the PEM any time Windows trusted roots change (~yearly). User (Mohammed) validated this at S015 follow-up.
+- [21/APR/2026] (S015 follow-up) **`git init --separate-git-dir=<external>` lets you keep working tree inside OneDrive without corrupting `.git/`.** For this user's "same files visible on every PC via OneDrive + git history for collab/safety" workflow, this is the correct architecture. `.git` in the working tree becomes a 34-byte pointer FILE containing `gitdir: <external path>`; the real git-dir lives at the external path (e.g. `C:/Users/<user>/<name>-git/`). OneDrive syncs working-tree files + the tiny pointer file; git's object database stays per-PC and is never touched by OneDrive's incremental sync. Setup on each PC:
+  ```bash
+  cd <onedrive path>
+  git init --separate-git-dir=C:/Users/<user>/<name>-git
+  git config user.name "..."
+  git config user.email "..."
+  git remote add origin <github url>
+  git fetch origin
+  git reset --mixed origin/main
+  git branch --set-upstream-to=origin/main main
+  ```
+  GitHub stays authoritative for collaborators; OneDrive syncs the working tree for the single user across their own PCs. **Why worth remembering:** this is a much cleaner solution than migrating the whole workspace out of OneDrive (as S015 initially did). Revisit any time OneDrive + git seem mutually exclusive — they're not.
