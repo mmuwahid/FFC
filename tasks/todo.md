@@ -1,60 +1,126 @@
 # FFC Todo
 
-## NEXT SESSION — S015 (Phase 1 implementation kickoff)
+## NEXT SESSION — S016 (logo rollout + Step 1 scaffold elaboration + Step 2 migrations)
 
 **Cold-start checklist:**
-- Read `CLAUDE.md` (S014 summary at top — status now reads `Design Phase 1 APPROVED — implementation ready`), `sessions/INDEX.md` (S014 row), `sessions/S014/session-log.md` (full close — masterplan V2.8 + approval + collaborator brief docx).
-- Memory auto-loads all prior rules. `project_ffc.md` description now reflects approved state + S015 plan.
-- **Design gate is cleared.** S015 is the first code session.
+- Read `CLAUDE.md` (S015 summary at top — status now reads `Phase 1 implementation — Step 0 infrastructure LIVE`), `sessions/INDEX.md` (S015 row), `sessions/S015/session-log.md` (full close — Step 0 complete, 5 commits, https://ffc-gilt.vercel.app live).
+- Memory auto-loads all prior rules plus S015 additions (Windows `echo | pipe` newline trap, Go-binary TLS issue, Vercel preview empty-branch arg).
+- **Workspace location changed.** All work now happens in `C:/Users/UNHOEC03/FFC/` (NOT the OneDrive path). The OneDrive copy is read-only snapshot.
+- **`git pull` before starting** and `git commit && git push` when stopping — git is now the cross-PC + collaborator sync mechanism.
+- If you haven't reconnected the Supabase MCP with FFC-scoped PAT, do it early (Claude settings → MCP connectors) or plan to use `npx supabase` CLI exclusively.
 
-**Status at S014 close:**
-- Design Phase 1 **FORMALLY APPROVED** on 21/APR/2026. CLAUDE.md status header flipped. Memory updated.
-- Masterplan **V2.8 landed** (378 lines): 11-file migration order + implementation sequencing with acceptance criteria per step.
-- Collaborator brief Word doc at `docs/FFC-Collaborator-Brief.docx` (14.2 MB · 10 mockup screenshots embedded).
-- Design spec unchanged at ~3,100 lines · 20 tables · 20 RPCs · 18 enums · 19 notification kinds · 7 app_settings keys · 9 approved mockups.
-- `_wip/` is empty; `shared/` has `FF_LOGO_FINAL.pdf` + `COLORS.pdf` (transparent PNG/SVG export still pending from user).
+**Status at S015 close:**
+- Step 0 of V2.8 sequencing **FULLY COMPLETE**. GitHub + Supabase + Vercel all wired; `ffc-gilt.vercel.app` live; 6 env vars verified resolving in production build (lengths 40 / 46, no newline drift).
+- Workspace migrated OneDrive → `C:/Users/UNHOEC03/FFC/`.
+- GitHub: `mmuwahid/FFC` (private), 5 commits on `main`.
+- Supabase: project `hylarwwsedjxwavuwjrn` (`ffc` on new FFC org, region `ap-south-1` Mumbai, Healthy). Legacy JWT anon key retired in favour of `sb_publishable_EbFLhm6kXbTJBqrge-A7vw_0LswX2EB`.
+- Vercel: `prj_2NszuyOepArCTUAJCOxH8NsAAeSv` (`ffc` on `team_HYo81T72HYGzt54bLoeLYkZx`), Git-connected, Root Directory `ffc`, framework Vite, Node 24.x.
+- Stack correction: React 19.2.5 (not 18 — Vite scaffold default). CLAUDE.md Stack line bumped.
+- `_wip/` empty. Design spec unchanged at ~3,100 lines.
 - Brand palette re-alignment still on backburner.
 
-### S015 agenda
+### S016 agenda
 
 1. **Logo rollout** (unblocks when user delivers assets to `shared/`):
    - Transparent PNG at 512 · 192 · 180 · 32 + SVG master (from `shared/FF_LOGO_FINAL.pdf`).
    - Wire into `welcome.html` + all 9 phone-frame mockups (replacing JPG stopgap on `3-7-poll-screen.html`).
-   - Add PWA manifest `icons[]` block to implementation (Vite scaffold).
-   - Prep WhatsApp OG image 1200×630.
+   - Add PWA manifest `icons[]` block to `public/manifest.webmanifest`.
+   - Prep WhatsApp OG image 1200×630 at `ffc/public/og-image.png`.
    - If logo not yet exported at session start: skip and proceed to item 2; revisit later in session.
 
-2. **Phase 1 implementation kickoff — Steps 0–2 of V2.8 sequencing:**
-   - **GitHub repo** `mmuwahid/FFC` (private until MVP). Enforce committer identity: `git -c user.name="Mohammed Muwahid" -c user.email="m.muwahid@gmail.com"`. First commit can be a README + `.gitignore`.
-   - **Supabase project** — create NEW org (must be separate from PadelHub's `nkvqbwdsoxylkqhubhig`). Record `project_ref` + anon key + service role key securely.
-   - **Vercel project** on team `team_HYo81T72HYGzt54bLoeLYkZx`. Link to the GitHub repo. Wire env vars: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (Edge Function use only).
-   - **Acceptance (Step 0):** `git push` triggers Vercel preview build on a blank Vite scaffold; env vars resolve.
-   - **Vite scaffold** inside `ffc/` using PadelHub boot patterns:
-     - Vite + React 18 + PWA plugin (service worker + `manifest.webmanifest`)
-     - Inline splash HTML (kills cold-start flash)
-     - `index.css` global safe-area CSS + dark-theme default
-     - Plain-object React Context (no `useMemo` cascades — CLAUDE.md Rule #8)
-     - `ErrorBoundary` at route layout level
-     - Supabase client singleton + `onAuthStateChange` subscription
-   - **Acceptance (Step 1):** welcome screen renders; mock auth state change flips route layouts.
-   - **Run 11 migration files** in order via `npx supabase db push` (global install broken on work PC — always `npx`):
-     - `0001_enums.sql` → `0002_base.sql` → `0003_match_data.sql` → `0004_poll_ref.sql` → `0005_operational.sql` → `0006_views.sql` → `0007_helpers.sql` → `0008_rpcs.sql` → `0009_rls.sql` → `0010_grants.sql` → `0011_seed_super_admin.sql`.
-     - Verify on Supabase SQL editor: 20 tables · 20 RPC functions · RLS enabled on every table · 7 `app_settings` rows seeded · super-admin row present.
-   - **Acceptance (Step 2):** `SELECT * FROM seasons` returns one row; `SELECT * FROM profiles WHERE role='super_admin'` returns `m.muwahid@gmail.com`.
-   - Smoke-test: `npx supabase` CLI works + hello-world Edge Function deploys.
+2. **Step 1 of V2.8 — Elaborate Vite scaffold with PadelHub boot patterns:**
+   - **Install deps:**
+     - `@supabase/supabase-js` (runtime)
+     - `vite-plugin-pwa` + `workbox-window` (PWA / service worker)
+     - `react-router-dom` (routing)
+     - `@types/node` already in scaffold
+   - **`ffc/src/lib/supabase.ts`** — client singleton. Reads `import.meta.env.VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`. Export `supabase` singleton; never construct a second one.
+   - **`ffc/src/lib/env.d.ts`** — typed `ImportMetaEnv` for VITE_ vars.
+   - **Inline splash HTML** in `index.html` body — kills cold-start flash; hides itself when React mounts.
+   - **`ffc/src/index.css`** — global safe-area CSS (hardcoded simulation values for dev, `env(safe-area-inset-*)` for PWA). Follow `docs/platform/iphone-safe-area.md` pattern.
+   - **Plain-object React Context** for app state (CLAUDE.md Rule #8 — no `useMemo` cascades).
+   - **`ErrorBoundary`** at route layout level.
+   - **Route skeleton** — auth-aware layouts per §3.0 IA: 4-tab player / 5-tab admin / anon ref shells; 16 routes.
+   - **`onAuthStateChange`** subscription flips layouts on login/logout.
+   - **Replace** the Step-0 temp console.logs in `main.tsx` with actual Supabase client init.
+   - **Service worker** via `vite-plugin-pwa` — cache-first, bump `CACHE_NAME` on every deploy (Rule #19).
+   - **Acceptance (Step 1):** welcome screen renders on `ffc-gilt.vercel.app`; mock auth state change flips route layouts; service worker registers; no console errors.
 
-3. **First feature slice — Step 3 of V2.8 sequencing** (if scope permits in the same session — likely its own session):
+3. **Step 2 of V2.8 — 11 migration files + super-admin seed:**
+   - **Reconnect Supabase MCP** (optional — Claude settings → MCP connectors → Supabase → PAT with FFC-org scope) to unlock `generate_typescript_types` + `apply_migration`. Otherwise use `npx supabase db push`.
+   - **`npx supabase link --project-ref hylarwwsedjxwavuwjrn`** (will prompt for DB password from password manager).
+   - Write SQL files in `supabase/migrations/` per V2.8 §2.9 order (copy from design spec §2):
+     - `0001_enums.sql` (18 enums)
+     - `0002_base.sql` (profiles, seasons, app_settings)
+     - `0003_match_data.sql` (matchdays, match_players, match_guests, match_events)
+     - `0004_poll_ref.sql` (poll_votes, ref_tokens, pending_signups)
+     - `0005_operational.sql` (admin_audit_log, draft_sessions, draft_picks, formations, notifications)
+     - `0006_views.sql` (v_match_commitments, v_captain_eligibility, etc.)
+     - `0007_helpers.sql` (effective_format, roster_cap, log_admin_action)
+     - `0008_rpcs.sql` (20 SECURITY DEFINER RPCs)
+     - `0009_rls.sql` (RLS policies — 3 roles)
+     - `0010_grants.sql` (`GRANT ... TO authenticated, anon;`)
+     - `0011_seed_super_admin.sql` (insert `m.muwahid@gmail.com` as super_admin, seed 7 app_settings rows)
+   - **`npx supabase db push`** (or apply migrations via MCP).
+   - **Generate TS types:** `npx supabase gen types typescript --linked > ffc/src/lib/database.types.ts` (or via MCP `generate_typescript_types`).
+   - **Verify on Supabase Studio:**
+     - 20 tables in `public` schema
+     - RLS enabled on every table (there's a CLI assertion too)
+     - 20 RPC functions visible under Database → Functions
+     - 7 `app_settings` rows seeded
+     - `profiles` has 1 row with `role='super_admin'`, email `m.muwahid@gmail.com`
+   - **Smoke-test Edge Function:** deploy `supabase/functions/hello/index.ts` via `npx supabase functions deploy hello`; invoke via `curl`.
+   - **Acceptance (Step 2):** `SELECT * FROM seasons` returns one row; `SELECT role, email FROM profiles` returns `super_admin | m.muwahid@gmail.com`; typescript types file exists and compiles.
+
+4. **(Optional) Step 3 of V2.8 — First feature slice** (only if scope permits; likely its own session):
    - Auth (email/password + Google OAuth via Supabase Auth).
-   - Welcome screen (ship existing mockup as React component — wire CSS contracts from mockup).
+   - Welcome screen as React component — port from `mockups/welcome.html`.
    - Self-signup pending flow — `pending_signups` INSERT.
    - Admin approval via `approve_signup` RPC.
-   - Ref tokens generation + SMS stub (Phase 2 = real SMS).
+   - Ref tokens generation (SMS stub for Phase 2).
    - §3.7 Poll screen state machine up to State 3 (voted, pre-lock).
-   - **Acceptance (Step 3):** super-admin approves a pending signup; approved player signs in and commits a poll vote; `committed_at` row visible in `poll_votes` with correct ordering.
+   - **Acceptance (Step 3):** super-admin approves a pending signup; approved player signs in and commits a poll vote; `committed_at` row visible in `poll_votes`.
 
-4. **Brand palette re-alignment** — still deferred unless user surfaces it.
+5. **Brand palette re-alignment** — still deferred unless user surfaces it.
 
-5. **Close S015** — session log · INDEX row · CLAUDE.md bump · todo.md S016 plan.
+6. **Close S016** — session log · INDEX row · CLAUDE.md bump · todo.md S017 plan.
+
+## Completed in S015 (21/APR/2026, Home PC — full close)
+- [x] Cold-start briefing produced (session-resume skill); INDEX + S014 log + todo.md NEXT SESSION read; 5-item agenda presented
+- [x] **Framing decisions locked** — Supabase org (user created new FFC org manually) · git repo location (separate path outside OneDrive for git-only sync) · repo scope (everything — fullest context for future collaborator) · migration safety (copy + keep OneDrive as snapshot)
+- [x] **Workspace migration** — `cp -r` OneDrive FFC folder → `C:/Users/UNHOEC03/FFC/` (32 MB, 77 files, verified counts match)
+- [x] **Repo scaffolding** — `.gitignore` + `README.md` written; 10 approved mockups copied from `.superpowers/` to `mockups/` (fixes gitignored path in README)
+- [x] **`git init` + initial commit `1c03b7b`** — 52 files, 20,746 insertions; committer `Mohammed Muwahid <m.muwahid@gmail.com>`
+- [x] **GitHub repo** created at `github.com/mmuwahid/FFC` (private, via Chrome — `gh` CLI blocked by TLS cert wall on Go binaries); remote wired + first push succeeded via `schannel` backend
+- [x] **Supabase project** `ffc` created by user in new FFC org — ref `hylarwwsedjxwavuwjrn`, region `ap-south-1` Mumbai, Free tier, Data API on, automatic RLS on, automatic table-exposure OFF
+- [x] **Supabase keys saved** to password manager — DB password · publishable key · legacy anon JWT · secret key · legacy service_role JWT
+- [x] **Vite scaffold `caa3e0a`** — `npm create vite@latest ffc -- --template react-ts` → React 19.2.5 + Vite 8.0.9 + TypeScript 6.0.2 (18 files)
+- [x] **`npx vercel login`** via device OAuth worked first try (Node's HTTP client reads Windows cert store for npm registry calls, unlike Go binaries)
+- [x] **`npx vercel link --yes --project ffc`** (rejected `FFC` uppercase, retried lowercase) — Vercel project `prj_2NszuyOepArCTUAJCOxH8NsAAeSv` created on `team_HYo81T72HYGzt54bLoeLYkZx`
+- [x] **`npx vercel git connect <url> --yes`** connected the GitHub repo for auto-deploy
+- [x] **`npx vercel --yes`** first CLI deploy — production READY in 30s at `ffc-gilt.vercel.app`
+- [x] **Root Directory `ffc`** set via Vercel dashboard (required for GitHub push-triggered builds with subdirectory Vite app)
+- [x] **Env vars wired** — first attempt via `echo | pipe` contaminated values with trailing `\n`; recovered via interactive re-entry + discovered `vercel env add --value --yes` flag combo (with `""` positional arg for preview branch)
+- [x] **Step 0 first acceptance `9f6fb76`** — console logs verify env vars resolve in GitHub-triggered production build (legacy JWT format)
+- [x] **Anon key swap** — retired legacy JWT, moved all 3 environments to new publishable `sb_publishable_EbFLhm6kXbTJBqrge-A7vw_0LswX2EB` format via `--value --yes` + empty-branch CLI pattern
+- [x] **Step 0 re-acceptance `22a3209`** — added value-length canary to console logs; verified exact lengths 40 (URL) + 46 (anon key) — zero newline drift, publishable key resolving cleanly
+- [x] **`b0579d8`** — `.vercel/` added to `ffc/.gitignore` (auto-added by `vercel link`)
+- [x] S015 session log written · INDEX row added · CLAUDE.md bumped · lessons.md updated · todo.md S016 plan (this block)
+- [ ] **Logo rollout** — DEFERRED to S016 (still blocked on user asset export)
+- [ ] **Step 1 (scaffold elaboration)** — DEFERRED to S016 (clean handoff)
+- [ ] **Step 2 (11 migrations)** — DEFERRED to S016 (substantial session of its own)
+- [ ] **Brand palette re-alignment** — continues deferred
+
+---
+
+## (Previous) NEXT SESSION — S015 (Phase 1 implementation kickoff) [SUPERSEDED — see S016 above]
+
+### Previously-planned S015 agenda (Step 0 executed; Steps 1–2 + logo deferred — see "Completed in S015" block above):
+1. Logo rollout — **DEFERRED** (user asset export still pending)
+2. Step 0 of V2.8 (GitHub + Supabase + Vercel wiring) — **DONE** ✅
+3. Step 1 of V2.8 (scaffold elaboration) — **DEFERRED to S016** (minimal Vite scaffold landed; full boot patterns in next session)
+4. Step 2 of V2.8 (11 migrations) — **DEFERRED to S016**
+5. Close S015 — **DONE** ✅
 
 ## Completed in S014 (21/APR/2026, Home PC — full close)
 - [x] Cold-start briefing produced (session-resume skill); INDEX + S013 log + todo.md NEXT SESSION read; 5-item agenda presented

@@ -1,17 +1,18 @@
 # FFC
 
-**Status:** Design Phase 1 APPROVED — implementation ready. Formally approved by user on 21/APR/2026 (S014) after masterplan V2.8 consolidation landed. Code not yet started. Next gate: repo + Supabase project + Vite scaffold (see `planning/FFC-masterplan-V2.8.md` → "Implementation sequencing notes").
+**Status:** Phase 1 implementation — **Step 0 of V2.8 COMPLETE** (21/APR/2026, S015). GitHub + Supabase + Vercel wired end-to-end; https://ffc-gilt.vercel.app live with env vars verified resolving in production build. Next gate: Step 1 (elaborate Vite scaffold with PadelHub boot patterns) + Step 2 (write & run 11 migration files). See `planning/FFC-masterplan-V2.8.md` → "Implementation sequencing notes".
 
 FFC is a mobile-first PWA for managing a weekly 7v7 friends football league: Monday poll → Thursday game cycle, with match history, leaderboard, seasons, awards, and WhatsApp share integration.
 
 ## Stack
-- **Frontend:** React 18 + Vite PWA
+- **Frontend:** React 19 + Vite 8 + TypeScript 6 (PWA via `vite-plugin-pwa` — to be added in Step 1)
 - **Backend:** Supabase (Postgres + RLS + Auth + Edge Functions + Storage)
 - **Auth:** email/password + Google OAuth
-- **Deploy:** Vercel (GitHub auto-deploy)
-- **Repo (to be created):** `github.com/mmuwahid/FFC`
-- **Supabase project:** TBD (separate from PadelHub's `nkvqbwdsoxylkqhubhig`)
-- **Vercel team:** reuse `team_HYo81T72HYGzt54bLoeLYkZx` (new project)
+- **Deploy:** Vercel (GitHub auto-deploy from `main`, Root Directory = `ffc`)
+- **Repo:** `github.com/mmuwahid/FFC` (private)
+- **Supabase project:** `hylarwwsedjxwavuwjrn` (`ffc` on new FFC org, region `ap-south-1` Mumbai, Free tier)
+- **Vercel project:** `prj_2NszuyOepArCTUAJCOxH8NsAAeSv` (`ffc` on `team_HYo81T72HYGzt54bLoeLYkZx`)
+- **Live URL:** https://ffc-gilt.vercel.app
 
 ## Philosophy
 - **Reuse PadelHub patterns** — every critical rule from `Padel Battle APP/tasks/lessons.md` applies here too. READ IT BEFORE WRITING CODE.
@@ -57,11 +58,38 @@ FFC/
 
 ## Cross-PC protocol
 Working across work PC (`UNHOEC03`) and home PC.
-- **Before any work on a new PC:** verify local folder matches git repo (`git status --short`, `diff -rq`). OneDrive sync is NOT reliable enough by itself — trust git.
-- **Git identity for FFC commits:** `git -c user.name="Mohammed Muwahid" -c user.email="m.muwahid@gmail.com"` (not the work PC default — Vercel rejects unknown committers on Hobby plan).
+- **Workspace moved out of OneDrive as of S015.** Primary path is now `C:/Users/UNHOEC03/FFC/` on each PC. OneDrive folder retained as read-only snapshot during transition; do NOT edit it.
+- **Sync via git, not OneDrive.** `git pull` at start of session on each PC; `git commit && git push` at end. OneDrive is explicitly NOT the sync mechanism anymore (silent `.git/` corruption risk, can't share with collaborators).
+- **Git identity for FFC commits:** `git -c user.name="Mohammed Muwahid" -c user.email="m.muwahid@gmail.com"` (repo-local config already set on home PC — verify + set on work PC too).
+- **First time on a new PC:** `git clone https://github.com/mmuwahid/FFC.git C:/Users/UNHOEC03/FFC` (Windows) — `schannel` backend handles TLS via OS cert store.
+- **GitHub CLI (`gh`) is blocked by TLS cert-interception on this network** — Go binaries don't use Windows cert store. Use Chrome for repo/PR creation; raw `git` for everything else. See lessons.md S015 entries.
 
 ## Latest session
-**S014 (21/APR/2026 home — masterplan V2.8 · formal Phase 1 approval · collaborator Word brief with 10 embedded mockups — FULL CLOSE).** Three deliverables landed, design gate fully cleared, next session (S015) begins implementation.
+**S015 (21/APR/2026 home — Phase 1 implementation kickoff · Step 0 of V2.8 FULLY COMPLETE · infrastructure live end-to-end).** GitHub + Supabase + Vercel all wired; https://ffc-gilt.vercel.app live with env vars verified resolving in production build (lengths 40 / 46 confirm zero newline drift).
+
+**What landed:**
+- **Workspace migration** — OneDrive → `C:/Users/UNHOEC03/FFC/` (32 MB, 77 files copied; OneDrive kept as read-only snapshot). Git replaces OneDrive as cross-PC + collaborator sync mechanism.
+- **GitHub** — `github.com/mmuwahid/FFC` (private), 5 commits on `main` (initial 52-file design bundle `1c03b7b` → Vite scaffold `caa3e0a` → env-var boot logs `9f6fb76` → `.vercel` gitignore bump `b0579d8` → length-canary re-acceptance `22a3209`).
+- **Supabase** — project `ffc` (ref `hylarwwsedjxwavuwjrn`) in NEW FFC org, region `ap-south-1` Mumbai, Free tier, Healthy. Security settings: Data API on, automatic RLS on, automatic table exposure OFF.
+- **Vercel** — project `ffc` (`prj_2NszuyOepArCTUAJCOxH8NsAAeSv`) on `team_HYo81T72HYGzt54bLoeLYkZx`, Git-connected, Root Directory `ffc`, framework auto-detected as Vite, Node 24.x.
+- **6 env vars wired cleanly** (`VITE_SUPABASE_URL` × 3 envs, `VITE_SUPABASE_ANON_KEY` × 3 envs) via `vercel env add --value --yes` pattern.
+- **Anon key upgraded** from legacy JWT (`eyJhbGci…`) → new publishable (`sb_publishable_EbFLhm6kXbTJBqrge-A7vw_0LswX2EB`) to eliminate pending tech debt.
+- **Vite scaffold minimal** — `npm create vite@latest ffc -- --template react-ts` pulled React 19.2.5 + Vite 8.0.9 + TS 6.0.2. Stack line in this file updated from "React 18" → "React 19".
+- **Step 0 acceptance verified twice** via DevTools console (first pass with JWT, second with publishable + length canary).
+
+**Durable lessons captured** (see `tasks/lessons.md` S015 entries):
+- PowerShell `echo "x" \| pipe` appends `\n` — use `vercel env add ... --value "<v>" --yes` instead.
+- Go-compiled `gh` CLI fails TLS on networks with SSL-interception (Windows cert store not consulted). Sidestep via Chrome + raw `git` (schannel backend).
+- Vercel CLI `--yes` alone doesn't accept "all preview branches" — empty-string positional arg required: `vercel env add <NAME> preview "" --value <v> --yes`.
+- README-referenced paths must not be inside gitignored directories (first commit had mockup link pointing to `.superpowers/` which is excluded).
+
+**Stats at S015 close:** design spec unchanged (~3,100 lines). Repo state: 5 commits, 71 files tracked, production alias `ffc-gilt.vercel.app`.
+
+**Next: S016** — (a) Logo rollout if user has exported transparent PNG/SVG from `shared/FF_LOGO_FINAL.pdf`. (b) **Step 1 of V2.8** — elaborate Vite scaffold with PadelHub boot patterns (`vite-plugin-pwa`, Supabase client singleton, `ErrorBoundary`, safe-area CSS, inline splash, plain-object Context, route skeleton with auth-aware layouts). (c) **Step 2 of V2.8** — write & run 11 migration files per §2.9 order, seed super-admin, generate TS types. Palette re-alignment still deferred. See `sessions/S015/session-log.md`.
+
+---
+
+### Prior: S014 (21/APR/2026 home — masterplan V2.8 · formal Phase 1 approval · collaborator Word brief with 10 embedded mockups — FULL CLOSE).
 
 **Item 1 — Masterplan V2.8 landed** (`planning/FFC-masterplan-V2.8.md` · 378 lines · within the 350–500 target). Consolidates all S009–S013 deltas on top of V2.7. Structure: revision history (5 S013 delta groups) · §§1–15 carryover pointing to V2.7 for unchanged sections · **§16 NEW — 5v5/7v7 Multi-Format Support** (decisions table + data-model table + format-awareness convention table + UI parameterisation table) · Section 2 delta with SQL for new helpers (`effective_format` · `roster_cap` · `log_admin_action`) + CHECK expansion · 10-drift reconciliation table · **authoritative 11-file migration order** (supersedes V2.7's list) · **implementation sequencing notes** — 4 ordered steps each with acceptance criterion. Heavy use of markdown tables per `feedback_table_presentation.md`. V2.7 and prior preserved untouched.
 
