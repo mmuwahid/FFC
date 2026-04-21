@@ -1,0 +1,20 @@
+{
+  "name": "FFC",
+  "short_name": "FFC",
+  "description": "FFC — weekly 7-a-side with the same crew.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0e1826",
+  "theme_color": "#0e1826",
+  "categories": ["sports", "social"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

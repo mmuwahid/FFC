@@ -2,11 +2,46 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>FFC</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ffc</title>
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="FFC" />
+    <meta name="theme-color" content="#0e1826" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#e63349" media="(prefers-color-scheme: light)" />
+    <meta name="description" content="FFC — weekly 7-a-side with the same crew." />
+
+    <!-- Inline splash: painted immediately, hidden once React mounts.
+         Kills the cold-start white flash on cold loads. -->
+    <style>
+      html, body { margin: 0; background: #0e1826; color: #e7ecf5;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
+      #ffc-splash {
+        position: fixed; inset: 0;
+        display: grid; place-items: center;
+        background: #0e1826;
+        z-index: 9999;
+        transition: opacity 240ms ease-out;
+      }
+      #ffc-splash.hide { opacity: 0; pointer-events: none; }
+      #ffc-splash-crest {
+        width: 96px; height: 96px; border-radius: 24px;
+        background: linear-gradient(135deg, #e63349, #8a1830);
+        display: grid; place-items: center;
+        color: #fff; font-weight: 800; font-size: 32px; letter-spacing: 0.06em;
+        box-shadow: 0 10px 30px rgba(230, 51, 73, 0.35);
+      }
+    </style>
   </head>
   <body>
+    <div id="ffc-splash" aria-hidden="true">
+      <div id="ffc-splash-crest">FFC</div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
