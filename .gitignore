@@ -1,0 +1,71 @@
+# ── Dependencies ──
+node_modules/
+.pnpm-store/
+
+# ── Build artifacts ──
+dist/
+build/
+.next/
+out/
+.vite/
+.turbo/
+
+# ── Environment / secrets ──
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+*.pem
+*.key
+!public/**/*.key   # allow public-key assets if any
+
+# ── Vercel ──
+.vercel/
+
+# ── Supabase ──
+.branches/
+.temp/
+supabase/.temp/
+supabase/.branches/
+
+# ── OS / editor noise ──
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# ── Logs ──
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ── Test / coverage ──
+coverage/
+.nyc_output/
+
+# ── Claude Code / internal tooling ──
+.claude/
+.superpowers/
+
+# ── Work-in-progress scratch (kept local only) ──
+_wip/
+
+# ── Backups ──
+*.bak
+*.backup
+
+# ── Regenerable artifacts ──
+# Screenshots for collaborator brief are regenerated from mockups;
+# keep the source .docx but not the ~13 MB of PNGs it was built from.
+docs/brief-screenshots/
+

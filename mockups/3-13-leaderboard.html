@@ -1,0 +1,1495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>§3.13 Leaderboard — FFC Phase 1 mockup · v2 (S009 safe-area retrofit)</title>
+<style>
+  /* ========== LIGHT design tokens (carried from §3.7) ========== */
+  .light {
+    --ink: #0a1628;
+    --ink-soft: #293a55;
+    --paper: #f6f1e4;
+    --paper-dim: #ece4d0;
+    --paper-dimmer: #e3d8bc;
+    --line: rgba(10, 22, 40, 0.08);
+    --line-strong: rgba(10, 22, 40, 0.18);
+    --accent: #c8102e;
+    --accent-dim: #a40c24;
+    --gold: #d4a84a;
+    --muted: #6b7684;
+    --success: #16a34a;
+    --success-tint: rgba(22, 163, 74, 0.1);
+    --warn: #b7791f;
+    --danger: #dc2626;
+    --row-bg: #ece4d0;
+    --row-bg-hover: #e0d4b6;
+    --nav-bg: rgba(246, 241, 228, 0.95);
+    --medal-gold: #d4a84a;
+    --medal-silver: #9ca3af;
+    --medal-bronze: #b87333;
+    --card-shadow: 0 10px 40px -15px rgba(10, 22, 40, 0.35), 0 1px 0 rgba(10, 22, 40, 0.05);
+  }
+  /* ========== DARK design tokens ========== */
+  .dark {
+    --ink: #f2ead6;
+    --ink-soft: #c3b99f;
+    --paper: #0e1826;
+    --paper-dim: #182437;
+    --paper-dimmer: #223251;
+    --line: rgba(242, 234, 214, 0.08);
+    --line-strong: rgba(242, 234, 214, 0.2);
+    --accent: #e63349;
+    --accent-dim: #bf2639;
+    --gold: #e5ba5b;
+    --muted: #85929f;
+    --success: #2e9d63;
+    --success-tint: rgba(46, 157, 99, 0.14);
+    --warn: #dca049;
+    --danger: #e63349;
+    --row-bg: #182437;
+    --row-bg-hover: #233351;
+    --nav-bg: rgba(14, 24, 38, 0.9);
+    --medal-gold: #e5ba5b;
+    --medal-silver: #a5adb8;
+    --medal-bronze: #cb8a5d;
+    --card-shadow: 0 10px 40px -15px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  /* ========== Position + last-5 colours (mode-agnostic) ========== */
+  :root {
+    --pos-gk:  #d4a84a;
+    --pos-def: #1e3a8a;
+    --pos-cdm: #065f46;
+    --pos-w:   #ea580c;
+    --pos-st:  #c8102e;
+    --last-w:  #16a34a;
+    --last-d:  #9ca3af;
+    --last-l:  #dc2626;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif;
+  }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #faf6ea 0%, #ead9b8 60%, #b39a72 100%);
+    color: #0a1628;
+    padding: 3rem 1.5rem 6rem;
+  }
+
+  /* ========== Page header ========== */
+  .page-header {
+    max-width: 1400px;
+    margin: 0 auto 2rem;
+  }
+  .page-header .tag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #c8102e;
+    font-weight: 700;
+  }
+  .page-header h1 {
+    font-family: "Fraunces", "Playfair Display", Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(1.75rem, 2.5vw + 1rem, 2.4rem);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    margin: 0.35rem 0 0.4rem;
+  }
+  .page-header h1 em { font-style: italic; color: #c8102e; }
+  .page-header p {
+    color: #293a55;
+    max-width: 74ch;
+    font-size: 15px;
+    margin: 0;
+    line-height: 1.55;
+  }
+
+  /* ========== Phones row ========== */
+  .phones {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 2.5rem;
+    max-width: 1400px;
+    margin: 0 auto 3rem;
+    justify-items: center;
+  }
+
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.9rem; }
+  .phone-label {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #293a55;
+    font-weight: 700;
+  }
+  .phone-label.dark-label { color: #8795a7; }
+
+  .phone {
+    width: 390px;
+    height: 844px;
+    border-radius: 46px;
+    padding: 10px;
+    background: #0a1628;
+    box-shadow:
+      0 30px 80px -30px rgba(10, 22, 40, 0.55),
+      0 6px 20px -8px rgba(10, 22, 40, 0.35),
+      inset 0 0 0 1.5px rgba(255, 255, 255, 0.05);
+    position: relative;
+    overflow: hidden;
+    /* S009 — simulated iPhone-14-Pro safe-area for desktop mockup preview.
+       env(safe-area-inset-*) returns 0 on desktop (var IS defined, resolves to 0)
+       so fallback arg is never used. Hardcoded for mockup; production reads env(). */
+    --safe-top:    59px;
+    --safe-right:  0px;
+    --safe-bottom: 34px;
+    --safe-left:   0px;
+  }
+  /* S009 — Dynamic Island cutout: upsized to real iPhone-14-Pro dimensions so obstruction is visible */
+  .phone::before {
+    content: "";
+    position: absolute;
+    top: 21px; left: 50%;
+    transform: translateX(-50%);
+    width: 124px;
+    height: 37px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .phone-inner {
+    height: 100%;
+    width: 100%;
+    border-radius: 36px;
+    overflow: hidden;
+    position: relative;
+    background: var(--paper);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ========== Status bar ========== */
+  /* S009 v2 — statusbar IS the safe-area-top zone: time/battery flank the
+     island on left/right, island centered in the middle. */
+  .statusbar {
+    height: var(--safe-top);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 calc(26px + var(--safe-right)) 0 calc(26px + var(--safe-left));
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+  }
+  .statusbar .icons { display: flex; gap: 5px; }
+
+  /* ========== Screen header (sticky) ========== */
+  .screen-head {
+    padding: 14px 18px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .screen-head-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .screen-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .icon-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--paper-dim);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    font-size: 13px;
+  }
+
+  /* ========== Season picker chip ========== */
+  .season-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    font-size: 13px;
+    color: var(--ink);
+    font-weight: 600;
+    align-self: flex-start;
+  }
+  .season-chip .season-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+  }
+  .season-chip .caret { color: var(--muted); font-size: 10px; }
+  .season-chip.archived .season-dot { background: var(--muted); }
+
+  /* ========== Filter + sort row ========== */
+  .filter-row {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-chip {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  .filter-chip.active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .filter-chip[data-pos="GK"].active  { background: var(--pos-gk);  border-color: var(--pos-gk);  color: #1f1400; }
+  .filter-chip[data-pos="DEF"].active { background: var(--pos-def); border-color: var(--pos-def); color: #fff; }
+  .filter-chip[data-pos="CDM"].active { background: var(--pos-cdm); border-color: var(--pos-cdm); color: #fff; }
+  .filter-chip[data-pos="W"].active   { background: var(--pos-w);   border-color: var(--pos-w);   color: #fff; }
+  .filter-chip[data-pos="ST"].active  { background: var(--pos-st);  border-color: var(--pos-st);  color: #fff; }
+  .filter-chip.sort {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  /* ========== List body ========== */
+  .list-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 10px 80px;
+  }
+  .list-body::-webkit-scrollbar { display: none; }
+
+  .count-line {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 10px 8px 4px;
+    font-weight: 600;
+  }
+
+  /* ========== Row ========== */
+  .row {
+    display: grid;
+    /* rank · avatar · name-block · wdl · mp · pts
+       Penalty column removed in S006 review — late-cancel penalty
+       lives on the post-match report instead of the leaderboard. */
+    grid-template-columns: 24px 32px 1fr 56px 28px 40px;
+    column-gap: 10px;
+    row-gap: 4px;
+    align-items: center;
+    padding: 10px 8px;
+    border-radius: 14px;
+    background: var(--row-bg);
+    margin-bottom: 6px;
+    border: 1px solid transparent;
+  }
+
+  /* Column header row */
+  .row.header {
+    background: transparent;
+    border: none;
+    padding: 2px 8px 4px;
+    margin-bottom: 2px;
+    border-bottom: 1px solid var(--line-strong);
+    border-radius: 0;
+  }
+  .row.header > * {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1;
+  }
+  .row.header .h-player { text-align: left; padding-left: 2px; }
+  /* Header W-D-L uses SAME flex layout + SAME gap as data row so each
+     letter sits directly above its digit. Monospace so W/D/L are equal width. */
+  .row.header .h-wdl {
+    font-family: "SF Mono", "Menlo", monospace;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+    min-width: 56px;
+  }
+  .row.header .h-wdl .w { color: var(--last-w); }
+  .row.header .h-wdl .d { color: var(--last-d); }
+  .row.header .h-wdl .l { color: var(--last-l); }
+  .row.header .h-wdl .sep { display: none; }
+
+  .mp {
+    font-family: "SF Mono", "Menlo", monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-soft);
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    align-self: stretch;
+  }
+  .row.top3 {
+    background: color-mix(in srgb, var(--medal-gold) 20%, var(--row-bg));
+    border-color: color-mix(in srgb, var(--medal-gold) 50%, var(--line));
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--medal-gold) 40%, transparent);
+  }
+  .row.top3.silver {
+    background: color-mix(in srgb, var(--medal-silver) 22%, var(--row-bg));
+    border-color: color-mix(in srgb, var(--medal-silver) 50%, var(--line));
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--medal-silver) 40%, transparent);
+  }
+  .row.top3.bronze {
+    background: color-mix(in srgb, var(--medal-bronze) 20%, var(--row-bg));
+    border-color: color-mix(in srgb, var(--medal-bronze) 50%, var(--line));
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--medal-bronze) 40%, transparent);
+  }
+
+  .rank {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--ink);
+    text-align: center;
+    line-height: 1;
+  }
+  .medal {
+    font-size: 18px;
+    text-align: center;
+    line-height: 1;
+  }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--ink-soft);
+    color: var(--paper);
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 0.02em;
+  }
+  .avatar.self {
+    background: var(--accent);
+    color: #fff;
+    outline: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    outline-offset: 1.5px;
+  }
+
+  .name-block {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+  .name-line {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pills {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .pos {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+  }
+  .pos.fill-gk   { background: var(--pos-gk);  color: #1f1400; }
+  .pos.fill-def  { background: var(--pos-def); color: #fff; }
+  .pos.fill-cdm  { background: var(--pos-cdm); color: #fff; }
+  .pos.fill-w    { background: var(--pos-w);   color: #fff; }
+  .pos.fill-st   { background: var(--pos-st);  color: #fff; }
+  .pos.out-gk    { border: 1px solid var(--pos-gk);  color: var(--pos-gk); }
+  .pos.out-def   { border: 1px solid var(--pos-def); color: color-mix(in srgb, var(--pos-def) 70%, var(--ink)); }
+  .pos.out-cdm   { border: 1px solid var(--pos-cdm); color: var(--pos-cdm); }
+  .pos.out-w     { border: 1px solid var(--pos-w);   color: var(--pos-w); }
+  .pos.out-st    { border: 1px solid var(--pos-st);  color: var(--pos-st); }
+  .dark .pos.out-def { color: #9eb3e0; }
+  .dark .pos.out-cdm { color: #5ecba0; }
+
+  .wdl {
+    font-family: "SF Mono", "Menlo", monospace;
+    font-size: 13px;
+    color: var(--ink-soft);
+    letter-spacing: 0.02em;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+    min-width: 56px;
+    align-self: stretch;
+  }
+  .wdl .w { color: var(--last-w); }
+  .wdl .d { color: var(--last-d); }
+  .wdl .l { color: var(--last-l); }
+  .wdl .sep { display: none; }
+  .pts {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    text-align: center;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    align-self: stretch;
+  }
+  /* .penalty rule removed in S006 — late-cancel penalties live on the
+     post-match report instead of the leaderboard (S006 review decision). */
+  .last5 {
+    grid-column: 3 / -1;
+    display: flex;
+    gap: 3px;
+    margin-top: 2px;
+  }
+  .form {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+  }
+  .form.W { background: var(--last-w); }
+  .form.D { background: var(--last-d); }
+  .form.L { background: var(--last-l); }
+
+  /* ========== Not-yet-played group ========== */
+  .not-played {
+    margin-top: 14px;
+    padding: 10px 8px;
+    border-top: 1px dashed var(--line-strong);
+  }
+  .not-played .heading {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .np-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    opacity: 0.72;
+  }
+  .np-row .name-line { font-size: 12px; }
+
+  /* ========== Bottom nav ========== */
+  .tabbar {
+    position: absolute;
+    bottom: 0;
+    left: 0; right: 0;
+    background: var(--nav-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    padding-top: 10px;
+    padding-left: calc(6px + var(--safe-left));
+    padding-right: calc(6px + var(--safe-right));
+    padding-bottom: calc(24px + var(--safe-bottom));
+  }
+  .tabbar .tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .tabbar .tab.active { color: var(--accent); }
+  .tabbar .tab .icon {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+  }
+  .tabbar .tab.active .icon { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+
+  /* ========== Alternate-state tile grid ========== */
+  .tiles {
+    max-width: 1400px;
+    margin: 3rem auto 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.25rem;
+  }
+  .tile {
+    background: #fefbf3;
+    border: 1px solid rgba(10, 22, 40, 0.08);
+    border-radius: 18px;
+    padding: 1rem 1.1rem 1.2rem;
+    box-shadow: 0 5px 18px -10px rgba(10, 22, 40, 0.2);
+  }
+  .tile .tag {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #c8102e;
+    font-weight: 800;
+  }
+  .tile h3 {
+    font-family: "Fraunces", Georgia, serif;
+    margin: 0.1rem 0 0.5rem;
+    font-size: 1.1rem;
+    color: #0a1628;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .tile p {
+    margin: 0 0 0.9rem;
+    color: #4a5668;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .tile .visual {
+    background: #f6f1e4;
+    border-radius: 14px;
+    padding: 0.9rem 0.8rem;
+    border: 1px solid rgba(10, 22, 40, 0.08);
+  }
+
+  .tile.dark .visual {
+    background: #0e1826;
+    color: #f2ead6;
+    border-color: rgba(242, 234, 214, 0.12);
+  }
+  .tile.dark h3 { color: #0a1628; }
+
+  /* Sheet preview inside tile */
+  .sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .sheet-grabber {
+    width: 40px; height: 4px;
+    background: rgba(10,22,40,0.2);
+    border-radius: 2px;
+    margin: 0 auto 6px;
+  }
+  .tile.dark .sheet-grabber { background: rgba(242,234,214,0.25); }
+  .sheet-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    background: rgba(10,22,40,0.04);
+    border-radius: 10px;
+    font-size: 12px;
+    color: #0a1628;
+  }
+  .sheet-row.active {
+    background: rgba(200, 16, 46, 0.1);
+    color: #c8102e;
+    font-weight: 700;
+  }
+  .tile.dark .sheet-row { background: rgba(242,234,214,0.06); color: #f2ead6; }
+  .tile.dark .sheet-row.active { background: rgba(230, 51, 73, 0.16); color: #e63349; }
+  .sheet-row .chip-tag {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+  }
+  .chip-ongoing { background: #16a34a; color: #fff; }
+  .chip-ended { background: #9ca3af; color: #fff; }
+  .chip-archived { background: #6b7684; color: #fff; }
+
+  .empty-tile-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 1.5rem 0.8rem;
+  }
+  .empty-tile-inner .kick-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+  }
+  .empty-tile-inner .title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .empty-tile-inner .sub {
+    font-size: 12px;
+    color: #6b7684;
+    margin-bottom: 14px;
+    line-height: 1.4;
+  }
+  .tile.dark .empty-tile-inner .sub { color: #85929f; }
+  .cta-btn {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: #c8102e;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Decision callout */
+  .callout {
+    max-width: 1400px;
+    margin: 2.5rem auto 0;
+    padding: 1.2rem 1.4rem;
+    background: #fefbf3;
+    border: 1px solid rgba(200, 16, 46, 0.25);
+    border-left: 4px solid #c8102e;
+    border-radius: 12px;
+  }
+  .callout h4 {
+    margin: 0 0 0.6rem;
+    font-family: "Fraunces", Georgia, serif;
+    color: #c8102e;
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+  }
+  .callout ul { margin: 0; padding-left: 1.2rem; color: #293a55; font-size: 13px; line-height: 1.6; }
+  .callout li { margin-bottom: 4px; }
+  .callout li strong { color: #0a1628; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <span class="tag">Session S006 · §3.13</span>
+  <h1>Leaderboard — <em>primary state</em>, light + dark · v2</h1>
+  <p>Season 2 active, ranked by points. 14-row squad with top-3 medals, position pills, colour-coded W/D/L triplet (green/grey/red), MP (matches played) column, late-cancel penalties where they exist, and the §3.2 last-5 form strip. Column-header row at the top labels <strong>Player · W – D – L · MP · Pts</strong>. Row tap routes to §3.14 Player profile. Below: six alternate-state tiles.</p>
+</div>
+
+<div class="phones">
+
+  <!-- ========== LIGHT PHONE — Primary state ========== -->
+  <div class="phone-wrap">
+    <span class="phone-label">Light · Primary state (Season 2 · points sort)</span>
+    <div class="phone">
+      <div class="phone-inner light">
+        <div class="statusbar">
+          <span>9:41</span>
+          <span class="icons">•••• 5G 92%</span>
+        </div>
+
+        <div class="screen-head">
+          <div class="screen-head-top">
+            <div class="screen-title">Leaderboard</div>
+            <div class="icon-btn" title="Info">ⓘ</div>
+          </div>
+          <div class="season-chip">
+            <span class="season-dot"></span>
+            Season 2 · APR – ongoing
+            <span class="caret">▾</span>
+          </div>
+          <div class="filter-row">
+            <span class="filter-chip active">ALL</span>
+            <span class="filter-chip" data-pos="GK">GK</span>
+            <span class="filter-chip" data-pos="DEF">DEF</span>
+            <span class="filter-chip" data-pos="CDM">CDM</span>
+            <span class="filter-chip" data-pos="W">W</span>
+            <span class="filter-chip" data-pos="ST">ST</span>
+            <span class="filter-chip sort">SORT: PTS ▾</span>
+          </div>
+        </div>
+
+        <div class="list-body">
+          <!-- Column header row -->
+          <div class="row header">
+            <div></div>
+            <div></div>
+            <div class="h-player">Player</div>
+            <div class="h-wdl"><span class="w">W</span><span class="d">D</span><span class="l">L</span></div>
+            <div>MP</div>
+                        <div>Pts</div>
+          </div>
+
+          <!-- Top 3 with medals -->
+          <div class="row top3">
+            <div class="medal">🥇</div>
+            <div class="avatar self">MM</div>
+            <div class="name-block">
+              <div class="name-line">Mohammed Muwahid</div>
+              <div class="pills">
+                <span class="pos fill-def">DEF</span>
+                <span class="pos out-cdm">CDM</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">7</span><span class="sep">-</span><span class="d">1</span><span class="sep">-</span><span class="l">1</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">22</div>
+            <div class="last5">
+              <span class="form W">W</span><span class="form W">W</span><span class="form L">L</span><span class="form W">W</span><span class="form W">W</span>
+            </div>
+          </div>
+
+          <div class="row top3 silver">
+            <div class="medal">🥈</div>
+            <div class="avatar">OK</div>
+            <div class="name-block">
+              <div class="name-line">Omar Khalil</div>
+              <div class="pills">
+                <span class="pos fill-st">ST</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">6</span><span class="sep">-</span><span class="d">1</span><span class="sep">-</span><span class="l">2</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">19</div>
+            <div class="last5">
+              <span class="form W">W</span><span class="form W">W</span><span class="form W">W</span><span class="form W">W</span><span class="form L">L</span>
+            </div>
+          </div>
+
+          <div class="row top3 bronze">
+            <div class="medal">🥉</div>
+            <div class="avatar">YA</div>
+            <div class="name-block">
+              <div class="name-line">Youssef Al-Haddad</div>
+              <div class="pills">
+                <span class="pos fill-cdm">CDM</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">6</span><span class="sep">-</span><span class="d">0</span><span class="sep">-</span><span class="l">3</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">18</div>
+            <div class="last5">
+              <span class="form W">W</span><span class="form L">L</span><span class="form W">W</span><span class="form W">W</span><span class="form W">W</span>
+            </div>
+          </div>
+
+          <!-- Remaining ranks -->
+          <div class="row">
+            <div class="rank">4</div>
+            <div class="avatar">KS</div>
+            <div class="name-block">
+              <div class="name-line">Karim Salameh</div>
+              <div class="pills">
+                <span class="pos fill-w">W</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">5</span><span class="sep">-</span><span class="d">2</span><span class="sep">-</span><span class="l">2</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">17</div>
+            <div class="last5">
+              <span class="form D">D</span><span class="form W">W</span><span class="form W">W</span><span class="form L">L</span><span class="form W">W</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="rank">5</div>
+            <div class="avatar">AN</div>
+            <div class="name-block">
+              <div class="name-line">Ahmed Nassar</div>
+              <div class="pills">
+                <span class="pos fill-gk">GK</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">5</span><span class="sep">-</span><span class="d">0</span><span class="sep">-</span><span class="l">4</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">14</div>
+            <div class="last5">
+              <span class="form L">L</span><span class="form W">W</span><span class="form W">W</span><span class="form L">L</span><span class="form W">W</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="rank">6</div>
+            <div class="avatar">SB</div>
+            <div class="name-block">
+              <div class="name-line">Sami Bakhsh</div>
+              <div class="pills">
+                <span class="pos fill-def">DEF</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">4</span><span class="sep">-</span><span class="d">2</span><span class="sep">-</span><span class="l">3</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">14</div>
+            <div class="last5">
+              <span class="form W">W</span><span class="form D">D</span><span class="form L">L</span><span class="form W">W</span><span class="form D">D</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="rank">7</div>
+            <div class="avatar">HL</div>
+            <div class="name-block">
+              <div class="name-line">Hasan Labib</div>
+              <div class="pills">
+                <span class="pos fill-st">ST</span>
+                <span class="pos out-w">W</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">4</span><span class="sep">-</span><span class="d">1</span><span class="sep">-</span><span class="l">4</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">13</div>
+            <div class="last5">
+              <span class="form L">L</span><span class="form W">W</span><span class="form L">L</span><span class="form W">W</span><span class="form W">W</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="rank">8</div>
+            <div class="avatar">FM</div>
+            <div class="name-block">
+              <div class="name-line">Faris Mirza</div>
+              <div class="pills">
+                <span class="pos fill-def">DEF</span>
+                <span class="pos out-cdm">CDM</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">4</span><span class="sep">-</span><span class="d">0</span><span class="sep">-</span><span class="l">5</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">12</div>
+            <div class="last5">
+              <span class="form W">W</span><span class="form L">L</span><span class="form L">L</span><span class="form W">W</span><span class="form L">L</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="rank">9</div>
+            <div class="avatar">BQ</div>
+            <div class="name-block">
+              <div class="name-line">Bilal Qassim</div>
+              <div class="pills">
+                <span class="pos fill-w">W</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">4</span><span class="sep">-</span><span class="d">1</span><span class="sep">-</span><span class="l">4</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">11</div>
+            <div class="last5">
+              <span class="form L">L</span><span class="form L">L</span><span class="form W">W</span><span class="form W">W</span><span class="form L">L</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="rank">10</div>
+            <div class="avatar">KT</div>
+            <div class="name-block">
+              <div class="name-line">Kareem Taha</div>
+              <div class="pills">
+                <span class="pos fill-cdm">CDM</span>
+                <span class="pos out-w">W</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">3</span><span class="sep">-</span><span class="d">0</span><span class="sep">-</span><span class="l">6</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">9</div>
+            <div class="last5">
+              <span class="form L">L</span><span class="form L">L</span><span class="form L">L</span><span class="form W">W</span><span class="form L">L</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="rank">11</div>
+            <div class="avatar">TR</div>
+            <div class="name-block">
+              <div class="name-line">Tariq Rahman</div>
+              <div class="pills">
+                <span class="pos fill-st">ST</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">2</span><span class="sep">-</span><span class="d">1</span><span class="sep">-</span><span class="l">6</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">7</div>
+            <div class="last5">
+              <span class="form L">L</span><span class="form W">W</span><span class="form L">L</span><span class="form L">L</span><span class="form L">L</span>
+            </div>
+          </div>
+
+          <!-- Not yet played group -->
+          <div class="not-played">
+            <div class="heading">Not yet played · 1</div>
+            <div class="np-row">
+              <div class="avatar" style="width:26px; height:26px; font-size:9px;">AW</div>
+              <div class="name-block">
+                <div class="name-line">Anas Wahid</div>
+                <div class="pills">
+                  <span class="pos fill-w">W</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tabbar">
+          <div class="tab"><div class="icon">🏠</div>Home</div>
+          <div class="tab"><div class="icon">📋</div>Poll</div>
+          <div class="tab active"><div class="icon">🏆</div>Leaderboard</div>
+          <div class="tab"><div class="icon">👤</div>Profile</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== DARK PHONE — Primary state ========== -->
+  <div class="phone-wrap">
+    <span class="phone-label dark-label">Dark · Primary state (Season 2 · points sort)</span>
+    <div class="phone">
+      <div class="phone-inner dark">
+        <div class="statusbar">
+          <span>9:41</span>
+          <span class="icons">•••• 5G 92%</span>
+        </div>
+
+        <div class="screen-head">
+          <div class="screen-head-top">
+            <div class="screen-title">Leaderboard</div>
+            <div class="icon-btn" title="Info">ⓘ</div>
+          </div>
+          <div class="season-chip">
+            <span class="season-dot"></span>
+            Season 2 · APR – ongoing
+            <span class="caret">▾</span>
+          </div>
+          <div class="filter-row">
+            <span class="filter-chip active">ALL</span>
+            <span class="filter-chip" data-pos="GK">GK</span>
+            <span class="filter-chip" data-pos="DEF">DEF</span>
+            <span class="filter-chip" data-pos="CDM">CDM</span>
+            <span class="filter-chip" data-pos="W">W</span>
+            <span class="filter-chip" data-pos="ST">ST</span>
+            <span class="filter-chip sort">SORT: PTS ▾</span>
+          </div>
+        </div>
+
+        <div class="list-body">
+          <!-- Column header row -->
+          <div class="row header">
+            <div></div>
+            <div></div>
+            <div class="h-player">Player</div>
+            <div class="h-wdl"><span class="w">W</span><span class="d">D</span><span class="l">L</span></div>
+            <div>MP</div>
+                        <div>Pts</div>
+          </div>
+
+          <div class="row top3">
+            <div class="medal">🥇</div>
+            <div class="avatar self">MM</div>
+            <div class="name-block">
+              <div class="name-line">Mohammed Muwahid</div>
+              <div class="pills">
+                <span class="pos fill-def">DEF</span>
+                <span class="pos out-cdm">CDM</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">7</span><span class="sep">-</span><span class="d">1</span><span class="sep">-</span><span class="l">1</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">22</div>
+            <div class="last5">
+              <span class="form W">W</span><span class="form W">W</span><span class="form L">L</span><span class="form W">W</span><span class="form W">W</span>
+            </div>
+          </div>
+
+          <div class="row top3 silver">
+            <div class="medal">🥈</div>
+            <div class="avatar">OK</div>
+            <div class="name-block">
+              <div class="name-line">Omar Khalil</div>
+              <div class="pills">
+                <span class="pos fill-st">ST</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">6</span><span class="sep">-</span><span class="d">1</span><span class="sep">-</span><span class="l">2</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">19</div>
+            <div class="last5">
+              <span class="form W">W</span><span class="form W">W</span><span class="form W">W</span><span class="form W">W</span><span class="form L">L</span>
+            </div>
+          </div>
+
+          <div class="row top3 bronze">
+            <div class="medal">🥉</div>
+            <div class="avatar">YA</div>
+            <div class="name-block">
+              <div class="name-line">Youssef Al-Haddad</div>
+              <div class="pills">
+                <span class="pos fill-cdm">CDM</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">6</span><span class="sep">-</span><span class="d">0</span><span class="sep">-</span><span class="l">3</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">18</div>
+            <div class="last5">
+              <span class="form W">W</span><span class="form L">L</span><span class="form W">W</span><span class="form W">W</span><span class="form W">W</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="rank">4</div>
+            <div class="avatar">KS</div>
+            <div class="name-block">
+              <div class="name-line">Karim Salameh</div>
+              <div class="pills">
+                <span class="pos fill-w">W</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">5</span><span class="sep">-</span><span class="d">2</span><span class="sep">-</span><span class="l">2</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">17</div>
+            <div class="last5">
+              <span class="form D">D</span><span class="form W">W</span><span class="form W">W</span><span class="form L">L</span><span class="form W">W</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="rank">5</div>
+            <div class="avatar">AN</div>
+            <div class="name-block">
+              <div class="name-line">Ahmed Nassar</div>
+              <div class="pills">
+                <span class="pos fill-gk">GK</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">5</span><span class="sep">-</span><span class="d">0</span><span class="sep">-</span><span class="l">4</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">14</div>
+            <div class="last5">
+              <span class="form L">L</span><span class="form W">W</span><span class="form W">W</span><span class="form L">L</span><span class="form W">W</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="rank">6</div>
+            <div class="avatar">SB</div>
+            <div class="name-block">
+              <div class="name-line">Sami Bakhsh</div>
+              <div class="pills">
+                <span class="pos fill-def">DEF</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">4</span><span class="sep">-</span><span class="d">2</span><span class="sep">-</span><span class="l">3</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">14</div>
+            <div class="last5">
+              <span class="form W">W</span><span class="form D">D</span><span class="form L">L</span><span class="form W">W</span><span class="form D">D</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="rank">7</div>
+            <div class="avatar">HL</div>
+            <div class="name-block">
+              <div class="name-line">Hasan Labib</div>
+              <div class="pills">
+                <span class="pos fill-st">ST</span>
+                <span class="pos out-w">W</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">4</span><span class="sep">-</span><span class="d">1</span><span class="sep">-</span><span class="l">4</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">13</div>
+            <div class="last5">
+              <span class="form L">L</span><span class="form W">W</span><span class="form L">L</span><span class="form W">W</span><span class="form W">W</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="rank">8</div>
+            <div class="avatar">FM</div>
+            <div class="name-block">
+              <div class="name-line">Faris Mirza</div>
+              <div class="pills">
+                <span class="pos fill-def">DEF</span>
+                <span class="pos out-cdm">CDM</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">4</span><span class="sep">-</span><span class="d">0</span><span class="sep">-</span><span class="l">5</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">12</div>
+            <div class="last5">
+              <span class="form W">W</span><span class="form L">L</span><span class="form L">L</span><span class="form W">W</span><span class="form L">L</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="rank">9</div>
+            <div class="avatar">BQ</div>
+            <div class="name-block">
+              <div class="name-line">Bilal Qassim</div>
+              <div class="pills">
+                <span class="pos fill-w">W</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">4</span><span class="sep">-</span><span class="d">1</span><span class="sep">-</span><span class="l">4</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">11</div>
+            <div class="last5">
+              <span class="form L">L</span><span class="form L">L</span><span class="form W">W</span><span class="form W">W</span><span class="form L">L</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="rank">10</div>
+            <div class="avatar">KT</div>
+            <div class="name-block">
+              <div class="name-line">Kareem Taha</div>
+              <div class="pills">
+                <span class="pos fill-cdm">CDM</span>
+                <span class="pos out-w">W</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">3</span><span class="sep">-</span><span class="d">0</span><span class="sep">-</span><span class="l">6</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">9</div>
+            <div class="last5">
+              <span class="form L">L</span><span class="form L">L</span><span class="form L">L</span><span class="form W">W</span><span class="form L">L</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="rank">11</div>
+            <div class="avatar">TR</div>
+            <div class="name-block">
+              <div class="name-line">Tariq Rahman</div>
+              <div class="pills">
+                <span class="pos fill-st">ST</span>
+              </div>
+            </div>
+            <div class="wdl"><span class="w">2</span><span class="sep">-</span><span class="d">1</span><span class="sep">-</span><span class="l">6</span></div>
+        <div class="mp">9</div>
+                        <div class="pts">7</div>
+            <div class="last5">
+              <span class="form L">L</span><span class="form W">W</span><span class="form L">L</span><span class="form L">L</span><span class="form L">L</span>
+            </div>
+          </div>
+
+          <div class="not-played">
+            <div class="heading">Not yet played · 1</div>
+            <div class="np-row">
+              <div class="avatar" style="width:26px; height:26px; font-size:9px;">AW</div>
+              <div class="name-block">
+                <div class="name-line">Anas Wahid</div>
+                <div class="pills">
+                  <span class="pos fill-w">W</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tabbar">
+          <div class="tab"><div class="icon">🏠</div>Home</div>
+          <div class="tab"><div class="icon">📋</div>Poll</div>
+          <div class="tab active"><div class="icon">🏆</div>Leaderboard</div>
+          <div class="tab"><div class="icon">👤</div>Profile</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============== ALTERNATE STATES =============== -->
+
+<div class="tiles">
+
+  <!-- Tile 1: Position filter active -->
+  <div class="tile">
+    <span class="tag">State · Filter</span>
+    <h3>Position filter active · ST + W</h3>
+    <p>Tapping two position chips narrows the ranked list with OR-matching across primary and secondary positions. A count line appears above the first row: <code>5 of 12</code>. Ranks remain the season ranks (not recomputed within the filter).</p>
+    <div class="visual light">
+      <div class="filter-row" style="margin-bottom: 10px;">
+        <span class="filter-chip">ALL</span>
+        <span class="filter-chip" data-pos="GK">GK</span>
+        <span class="filter-chip" data-pos="DEF">DEF</span>
+        <span class="filter-chip" data-pos="CDM">CDM</span>
+        <span class="filter-chip active" data-pos="W">W</span>
+        <span class="filter-chip active" data-pos="ST">ST</span>
+      </div>
+      <div class="count-line">5 of 12 match</div>
+      <div class="row top3 silver" style="background: linear-gradient(95deg, rgba(156,163,175,0.16), var(--row-bg) 60%); border-color: rgba(156,163,175,0.35);">
+        <div class="medal">🥈</div>
+        <div class="avatar">OK</div>
+        <div class="name-block">
+          <div class="name-line">Omar Khalil</div>
+          <div class="pills"><span class="pos fill-st">ST</span></div>
+        </div>
+        <div class="wdl"><span class="w">6</span><span class="sep">-</span><span class="d">1</span><span class="sep">-</span><span class="l">2</span></div>
+        <div class="mp">9</div>
+                <div class="pts">19</div>
+      </div>
+      <div class="row" style="margin-top:6px;">
+        <div class="rank">4</div>
+        <div class="avatar">KS</div>
+        <div class="name-block">
+          <div class="name-line">Karim Salameh</div>
+          <div class="pills"><span class="pos fill-w">W</span></div>
+        </div>
+        <div class="wdl"><span class="w">5</span><span class="sep">-</span><span class="d">2</span><span class="sep">-</span><span class="l">2</span></div>
+        <div class="mp">9</div>
+                <div class="pts">17</div>
+      </div>
+      <div class="row" style="margin-top:6px;">
+        <div class="rank">7</div>
+        <div class="avatar">HL</div>
+        <div class="name-block">
+          <div class="name-line">Hasan Labib</div>
+          <div class="pills">
+            <span class="pos fill-st">ST</span>
+            <span class="pos out-w">W</span>
+          </div>
+        </div>
+        <div class="wdl"><span class="w">4</span><span class="sep">-</span><span class="d">1</span><span class="sep">-</span><span class="l">4</span></div>
+        <div class="mp">9</div>
+                <div class="pts">13</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tile 2: Archived season -->
+  <div class="tile">
+    <span class="tag">State · Archive</span>
+    <h3>Archived season selected</h3>
+    <p>Header gains a muted <strong>archived</strong> tag. Top-3 rows lose the medal animation (static icons instead). Rank numbers stay; last-5 strips reflect that season's final five matchdays.</p>
+    <div class="visual light">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div class="season-chip archived" style="margin: 0;">
+          <span class="season-dot"></span>
+          Season 1 · OCT – MAR
+          <span class="caret">▾</span>
+        </div>
+        <span class="chip-tag chip-archived">ARCHIVED</span>
+      </div>
+      <div class="row top3">
+        <div class="medal" style="filter: grayscale(0.15);">🥇</div>
+        <div class="avatar">YA</div>
+        <div class="name-block">
+          <div class="name-line">Youssef Al-Haddad</div>
+          <div class="pills"><span class="pos fill-cdm">CDM</span></div>
+        </div>
+        <div class="wdl"><span class="w">14</span><span class="sep">-</span><span class="d">3</span><span class="sep">-</span><span class="l">5</span></div>
+        <div class="mp">22</div>
+                <div class="pts">45</div>
+      </div>
+      <div class="row top3 silver" style="margin-top:6px;">
+        <div class="medal" style="filter: grayscale(0.15);">🥈</div>
+        <div class="avatar self">MM</div>
+        <div class="name-block">
+          <div class="name-line">Mohammed Muwahid</div>
+          <div class="pills"><span class="pos fill-def">DEF</span></div>
+        </div>
+        <div class="wdl"><span class="w">13</span><span class="sep">-</span><span class="d">2</span><span class="sep">-</span><span class="l">7</span></div>
+        <div class="mp">22</div>
+                <div class="pts">41</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tile 3: Season picker sheet -->
+  <div class="tile">
+    <span class="tag">Interaction · Season picker</span>
+    <h3>Season picker bottom sheet</h3>
+    <p>Tap the season chip → bottom sheet rises. Seasons sorted by <code>starts_on DESC</code>. Active season tagged <strong>ongoing</strong>; ended-but-not-archived tagged <strong>ended</strong>; archived seasons tagged <strong>archived</strong>. Row tap selects and closes.</p>
+    <div class="visual light">
+      <div class="sheet">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-row active">
+          <div>
+            <div style="font-weight:700;">Season 2</div>
+            <div style="font-size:10px; color:var(--muted); letter-spacing:0.04em;">01/APR/2026 – ongoing</div>
+          </div>
+          <span class="chip-tag chip-ongoing">ONGOING</span>
+        </div>
+        <div class="sheet-row">
+          <div>
+            <div style="font-weight:600;">Season 1</div>
+            <div style="font-size:10px; color:var(--muted); letter-spacing:0.04em;">10/OCT/2025 – 29/MAR/2026</div>
+          </div>
+          <span class="chip-tag chip-ended">ENDED</span>
+        </div>
+        <div class="sheet-row">
+          <div>
+            <div style="font-weight:600;">Pilot Season</div>
+            <div style="font-size:10px; color:var(--muted); letter-spacing:0.04em;">15/JUL/2025 – 05/OCT/2025</div>
+          </div>
+          <span class="chip-tag chip-archived">ARCHIVED</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tile 4: Not yet played detail -->
+  <div class="tile">
+    <span class="tag">State · Group</span>
+    <h3>"Not yet played" group detail</h3>
+    <p>Players with zero matches this season are grouped at the bottom — unnumbered, alpha-sorted, muted opacity. They re-enter the ranked list the moment their first match is approved. Ghost/legacy profiles (no positions) also land here until they play + set a position.</p>
+    <div class="visual light">
+      <div class="not-played" style="border-top: 1px dashed var(--line-strong); margin-top:0;">
+        <div class="heading">Not yet played · 3</div>
+        <div class="np-row">
+          <div class="avatar" style="width:26px; height:26px; font-size:9px;">AW</div>
+          <div class="name-block">
+            <div class="name-line">Anas Wahid</div>
+            <div class="pills"><span class="pos fill-w">W</span></div>
+          </div>
+        </div>
+        <div class="np-row">
+          <div class="avatar" style="width:26px; height:26px; font-size:9px;">JH</div>
+          <div class="name-block">
+            <div class="name-line">Jawad Hamza</div>
+            <div class="pills"><span class="pos fill-def">DEF</span></div>
+          </div>
+        </div>
+        <div class="np-row">
+          <div class="avatar" style="width:26px; height:26px; font-size:9px;">RF</div>
+          <div class="name-block">
+            <div class="name-line">Rashid Farid</div>
+            <div class="pills"><span class="pos fill-gk">GK</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tile 5: Empty state -->
+  <div class="tile">
+    <span class="tag">State · Empty</span>
+    <h3>Season just started — no matches yet</h3>
+    <p>First matchday not yet approved. The whole table is replaced with this tile; if the weekly poll is open, the CTA deep-links to §3.7 Poll.</p>
+    <div class="visual light">
+      <div class="empty-tile-inner">
+        <div class="kick-icon">⚽</div>
+        <div class="title">Season starts here.</div>
+        <div class="sub">First matchday will update the table.</div>
+        <div class="cta-btn">GO TO POLL →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tile 6: Dark filter-active variant -->
+  <div class="tile dark">
+    <span class="tag">State · Dark + Filter</span>
+    <h3>Dark mode · GK filter on</h3>
+    <p>Dark tokens resolve for chips, rows, and medals. Position-pill hues stay constant across modes; outline pills lighten on dark paper per S005 theme rule.</p>
+    <div class="visual dark">
+      <div class="filter-row" style="margin-bottom: 10px;">
+        <span class="filter-chip">ALL</span>
+        <span class="filter-chip active" data-pos="GK">GK</span>
+        <span class="filter-chip" data-pos="DEF">DEF</span>
+        <span class="filter-chip" data-pos="CDM">CDM</span>
+        <span class="filter-chip" data-pos="W">W</span>
+        <span class="filter-chip" data-pos="ST">ST</span>
+      </div>
+      <div class="count-line">2 of 12 match</div>
+      <div class="row">
+        <div class="rank">5</div>
+        <div class="avatar">AN</div>
+        <div class="name-block">
+          <div class="name-line">Ahmed Nassar</div>
+          <div class="pills"><span class="pos fill-gk">GK</span></div>
+        </div>
+        <div class="wdl"><span class="w">5</span><span class="sep">-</span><span class="d">0</span><span class="sep">-</span><span class="l">4</span></div>
+        <div class="mp">9</div>
+                <div class="pts">14</div>
+      </div>
+      <div class="row" style="margin-top:6px;">
+        <div class="rank">12</div>
+        <div class="avatar" style="width:30px; height:30px;">RF</div>
+        <div class="name-block">
+          <div class="name-line">Rashid Farid</div>
+          <div class="pills"><span class="pos fill-gk">GK</span></div>
+        </div>
+        <div class="wdl"><span class="w">2</span><span class="sep">-</span><span class="d">0</span><span class="sep">-</span><span class="l">7</span></div>
+        <div class="mp">9</div>
+                <div class="pts">6</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="callout">
+  <h4>§3.13 APPROVED · 20/APR/2026 (cross-ref design spec §3.13)</h4>
+  <ul>
+    <li><strong>O1 · Tiebreak substitute → APPROVED.</strong> Phase 1 chain: <code>points DESC → wins DESC → motms DESC → goals DESC → display_name ASC</code>.</li>
+    <li><strong>O2 · "Not yet played" group → KEEP AS SEPARATE GROUP.</strong> Muted bottom group, alpha-sorted, un-numbered.</li>
+    <li><strong>O3 · Sort persistence → PERSISTENT.</strong> Writes to <code>profiles.leaderboard_sort</code>. New enum added to §2.1 + §2.2.</li>
+    <li><strong>O4 · Medal icons → APPROVED.</strong> 🥇🥈🥉 top 3 of current season; trophies for archived.</li>
+    <li><strong>S006 review additions:</strong>
+      <ul>
+        <li><strong>W-D-L colour triplet</strong> — green W / grey D / red L applied to every W-D-L rendering across the app (row data AND column header).</li>
+        <li><strong>Separators dropped</strong> — no dashes between W/D/L letters (header) or digits (rows). Clean flex gap instead.</li>
+        <li><strong>Column header row</strong> added above ranked rows: <code>Player · W D L · MP · Pts</code>. Header letters use the same monospace font + column widths as the row digits so each letter sits directly above its number.</li>
+        <li><strong>MP (matches played) column</strong> added right of W-D-L. Makes the W-D-L denominator explicit. Computed as <code>wins + draws + losses</code>.</li>
+        <li><strong>Fixed column widths</strong> for W-D-L (56 px) / MP (28 px) / Pts (40 px) — numbers stay on the same horizontal line across all rows, row-to-row alignment is stable.</li>
+        <li><strong>Medal tint</strong> on top 3 — faded gold / silver / bronze row fill + saturated border + inner highlight. Clearly differentiates podium rows from ranks 4–14 without overpowering the row content.</li>
+        <li><strong>Late-cancel penalty column REMOVED</strong> from the leaderboard (previously mocked in tile 4/5/6). Penalties still deduct points in the standings calculation, but the `−1` / `−2` indicator now surfaces on the post-match report (§3.15) instead, so player names retain breathing room on the leaderboard rows.</li>
+      </ul>
+    </li>
+  </ul>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,1163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>§3.1-v2 Captain Helper (reconciled) — FFC Phase 1 · v2 (S009 safe-area retrofit)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  /* ===== Root tokens ===== */
+  :root.light, :root {
+    --paper: #fbf7ee;
+    --paper-soft: #f3ecd8;
+    --paper-strong: #ece4d0;
+    --ink: #0a1628;
+    --ink-soft: #293a55;
+    --muted: #677593;
+    --line: rgba(10, 22, 40, 0.08);
+    --line-strong: rgba(10, 22, 40, 0.18);
+    --accent: #c8102e;
+    --accent-soft: rgba(200, 16, 46, 0.12);
+    --gold: #d4a84a;
+    --success: #1f7a4b;
+    --success-soft: rgba(31, 122, 75, 0.14);
+    --warn: #b7791f;
+    --warn-soft: rgba(183, 121, 31, 0.16);
+    --danger: #c8102e;
+    --danger-soft: rgba(200, 16, 46, 0.12);
+
+    --last-w: #16a34a;
+    --last-d: #9ca3af;
+    --last-l: #dc2626;
+
+    --pos-gk: #d4a84a;
+    --pos-def: #1e3a8a;
+    --pos-cdm: #065f46;
+    --pos-w: #ea580c;
+    --pos-st: #c8102e;
+
+    --white-team: #f5f5f5;
+    --white-team-line: #d0d0d0;
+    --black-team: #18202b;
+    --black-team-line: #2a3647;
+  }
+  .dark {
+    --paper: #0e1826;
+    --paper-soft: #142234;
+    --paper-strong: #1a2c44;
+    --ink: #f2ead6;
+    --ink-soft: #c9b699;
+    --muted: #8a9bb8;
+    --line: rgba(242, 234, 214, 0.08);
+    --line-strong: rgba(242, 234, 214, 0.18);
+    --accent: #e63349;
+    --accent-soft: rgba(230, 51, 73, 0.18);
+    --gold: #e5ba5b;
+    --success: #4fbf93;
+    --success-soft: rgba(79, 191, 147, 0.16);
+    --warn: #d7a04a;
+    --warn-soft: rgba(215, 160, 74, 0.16);
+    --last-w: #22c55e;
+    --last-d: #9ca3af;
+    --last-l: #ef4444;
+  }
+
+  /* ===== Page chrome ===== */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    background: #e9e0cc;
+    color: #0a1628;
+    min-height: 100vh;
+    padding: 32px 24px 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page-header {
+    max-width: 1240px;
+    margin: 0 auto 28px;
+    padding: 18px 24px;
+    background: #fbf7ee;
+    border: 1px solid rgba(10, 22, 40, 0.08);
+    border-radius: 14px;
+  }
+  .page-header .tag {
+    display: inline-block;
+    font-size: 10px; font-weight: 800;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: #c8102e; margin-bottom: 10px;
+  }
+  .page-header h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700; font-size: 26px; margin: 0 0 0.5rem;
+  }
+  .page-header h1 em { font-style: italic; color: #c8102e; font-weight: 500; }
+  .page-header p { margin: 0; color: #293a55; font-size: 14px; line-height: 1.55; max-width: 70ch; }
+  .page-header p + p { margin-top: 0.6rem; }
+
+  .phones {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    max-width: 1240px;
+    margin: 0 auto 36px;
+    justify-items: center;
+  }
+  @media (max-width: 980px) { .phones { grid-template-columns: 1fr; } }
+
+  .phone-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .phone-label {
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: #293a55;
+    padding: 4px 12px;
+    background: #fbf7ee;
+    border: 1px solid rgba(10, 22, 40, 0.1);
+    border-radius: 999px;
+  }
+  .phone-label.dark-label { background: #0e1826; color: #f2ead6; border-color: rgba(242, 234, 214, 0.15); }
+
+  .phone {
+    width: 390px;
+    background: #0a1628;
+    border-radius: 44px;
+    padding: 10px;
+    box-shadow: 0 30px 60px rgba(10, 22, 40, 0.25), 0 6px 14px rgba(10, 22, 40, 0.08);
+    position: relative;
+    /* S009 — simulated iPhone-14-Pro safe-area for desktop mockup preview.
+       env(safe-area-inset-*) returns 0 on desktop (var IS defined, resolves to 0)
+       so fallback arg is never used. Hardcoded for mockup; production reads env(). */
+    --safe-top:    59px;
+    --safe-right:  0px;
+    --safe-bottom: 34px;
+    --safe-left:   0px;
+  }
+  /* S009 — simulated Dynamic Island cutout so obstruction is visible at review time */
+  .phone::after {
+    content: "";
+    position: absolute;
+    top: 21px; left: 50%;
+    transform: translateX(-50%);
+    width: 124px; height: 37px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 100;
+    pointer-events: none;
+  }
+  .phone-inner {
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 34px;
+    overflow: hidden;
+    height: 870px;
+    display: flex; flex-direction: column;
+  }
+
+  /* S009 v2 — statusbar IS the safe-area-top zone: time/battery flank the
+     island on left/right, island centered in the middle. */
+  .statusbar {
+    height: var(--safe-top);
+    padding: 0 calc(22px + var(--safe-right)) 0 calc(22px + var(--safe-left));
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 13px; font-weight: 600;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+  }
+  .statusbar .icons { font-size: 11px; letter-spacing: 0.1em; color: var(--muted); }
+
+  .topbar {
+    padding: 8px 16px 10px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px;
+  }
+  .topbar .back {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--ink-soft); font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: var(--paper-soft);
+    text-decoration: none;
+  }
+  .topbar .title {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700; font-size: 18px;
+    flex: 1; text-align: center;
+  }
+  .topbar .spacer { width: 50px; }
+
+  .matchday-strip {
+    margin: 0 16px 12px;
+    padding: 10px 14px;
+    background: var(--paper-strong);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px;
+  }
+  .matchday-strip .md-label {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700; font-size: 14px;
+  }
+  .matchday-strip .md-date { color: var(--ink-soft); }
+  .matchday-strip .locked-chip {
+    font-size: 9px; font-weight: 800;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--danger-soft);
+    color: var(--accent);
+  }
+
+  /* Mode toggle */
+  .mode-toggle {
+    margin: 0 16px 14px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: var(--paper-strong);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 3px;
+  }
+  .mode-toggle .opt {
+    padding: 8px 10px;
+    text-align: center;
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--muted);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .mode-toggle .opt.active {
+    background: var(--paper);
+    color: var(--accent);
+    box-shadow: 0 1px 3px rgba(10, 22, 40, 0.08);
+  }
+  .dark .mode-toggle .opt.active { box-shadow: none; background: var(--paper-soft); }
+
+  .scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px calc(14px + var(--safe-bottom));
+  }
+
+  .section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 8px 2px 8px;
+  }
+  .section-head .label {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .section-head .aux { font-size: 11px; color: var(--muted); }
+
+  /* ===== Suggested pair card ===== */
+  .pair-card {
+    background: var(--paper);
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    padding: 14px 14px 10px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(10, 22, 40, 0.05);
+  }
+  .dark .pair-card { background: var(--paper-soft); box-shadow: none; }
+  .pair-card.primary { border-color: var(--success); box-shadow: 0 2px 10px rgba(31, 122, 75, 0.18); }
+  .dark .pair-card.primary { border-color: var(--success); box-shadow: 0 2px 10px rgba(79, 191, 147, 0.22); }
+  .pair-card .pair-kicker {
+    font-size: 9px; font-weight: 800;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--success); margin-bottom: 8px;
+  }
+  .pair-card.primary .pair-kicker::before { content: "★ "; letter-spacing: 0; }
+  .pair-card .cap-row {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+  }
+  .pair-card .cap-row + .cap-row { border-top: 1px dashed var(--line); }
+  .pair-card .side {
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .pair-card .side.white {
+    color: var(--ink);
+  }
+  .pair-card .side.black { color: var(--muted); }
+  .pair-card .cap-name {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700; font-size: 15px;
+    display: flex; align-items: center; gap: 6px;
+    flex-wrap: wrap;
+  }
+  .pair-card .rank-pill {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: var(--paper-strong);
+    color: var(--ink-soft);
+  }
+  .pair-card .cap-stats {
+    font-size: 11px; color: var(--ink-soft);
+    margin-top: 3px;
+    display: flex; align-items: center; gap: 8px;
+    flex-wrap: wrap;
+  }
+  .pair-card .check-triplet {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+  .pair-card .check-triplet .y { color: var(--last-w); }
+  .pair-card .check-triplet .n { color: var(--last-l); }
+  .pair-card .balance-line {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+  }
+  .pair-card .gap-text { color: var(--ink-soft); }
+  .pair-card .gap-badge {
+    font-size: 9px; font-weight: 800;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+  .pair-card .gap-badge.ok { background: var(--success-soft); color: var(--success); }
+  .pair-card .gap-badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .pair-card .use-btn {
+    font-size: 12px; font-weight: 800;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 7px 12px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .pair-card .use-btn.ghost {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+  }
+
+  /* ===== Candidate list ===== */
+  .cand-sub {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted);
+    margin: 10px 2px 6px;
+    padding: 0 2px;
+  }
+  .cand-list { display: flex; flex-direction: column; gap: 5px; }
+  .cand-row {
+    display: grid;
+    grid-template-columns: 24px 24px 1fr auto auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--paper-soft);
+    font-size: 13px;
+  }
+  .cand-row .rank { font-size: 10px; font-weight: 700; color: var(--muted); text-align: center; }
+  .cand-row .avatar {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold), #b58836);
+    color: #0a1628;
+    display: grid; place-items: center;
+    font-size: 9px; font-weight: 800;
+  }
+  .cand-row .name {
+    display: flex; align-items: center; gap: 6px;
+    min-width: 0;
+    flex-wrap: wrap;
+    font-weight: 500;
+  }
+  .cand-row .triplet {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px; font-weight: 800;
+    letter-spacing: 0.14em;
+    white-space: nowrap;
+  }
+  .cand-row .triplet .y { color: var(--last-w); }
+  .cand-row .triplet .n { color: var(--last-l); }
+  .cand-row .triplet.muted .y, .cand-row .triplet.muted .n { opacity: 0.35; }
+  .cand-row .meta {
+    font-size: 10px; color: var(--muted);
+    white-space: nowrap;
+  }
+  .cand-row.partial { background: var(--warn-soft); }
+  .cand-row.ineligible { opacity: 0.55; }
+
+  /* Position pills (re-use §3.7 pattern) */
+  .pos-pill {
+    font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+    padding: 2px 5px;
+    border-radius: 4px;
+    line-height: 1.1;
+    color: #fff;
+    min-width: 22px; text-align: center;
+  }
+  .pos-pill.outline {
+    background: transparent !important;
+    border: 1px solid currentColor;
+    padding: 1px 4px;
+  }
+  .pos-pill.gk  { background: var(--pos-gk);  color: #0a1628; }
+  .pos-pill.gk.outline  { color: var(--pos-gk); }
+  .pos-pill.def { background: var(--pos-def); }
+  .pos-pill.def.outline { color: var(--pos-def); }
+  .pos-pill.cdm { background: var(--pos-cdm); }
+  .pos-pill.cdm.outline { color: var(--pos-cdm); }
+  .pos-pill.w   { background: var(--pos-w); }
+  .pos-pill.w.outline   { color: var(--pos-w); }
+  .pos-pill.st  { background: var(--pos-st); }
+  .pos-pill.st.outline  { color: var(--pos-st); }
+  .dark .pos-pill.def.outline { color: #7a96e0; }
+  .dark .pos-pill.cdm.outline { color: #4fbf93; }
+
+  /* ===== Guest subsection (S007) ===== */
+  .guest-note {
+    font-size: 11px; color: var(--ink-soft); font-style: italic;
+    padding: 8px 12px;
+    background: rgba(212, 168, 74, 0.1);
+    border: 1px dashed var(--gold);
+    border-radius: 10px;
+    margin-bottom: 6px;
+  }
+  .dark .guest-note { background: rgba(229, 186, 91, 0.08); }
+  .guest-row {
+    display: grid;
+    grid-template-columns: 24px 28px 1fr;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(212, 168, 74, 0.08);
+    border: 1px solid rgba(212, 168, 74, 0.22);
+    border-radius: 10px;
+    align-items: flex-start;
+  }
+  .dark .guest-row { background: rgba(229, 186, 91, 0.06); border-color: rgba(229, 186, 91, 0.24); }
+  .guest-row .rank {
+    font-size: 10px; font-weight: 700; color: var(--muted); text-align: center;
+    padding-top: 4px;
+  }
+  .guest-row .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--gold); color: #0a1628;
+    display: grid; place-items: center;
+    font-size: 9px; font-weight: 800;
+  }
+  .guest-row .g-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .guest-row .g-top {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-weight: 500; font-size: 13px;
+  }
+  .guest-row .g-top .gname { font-style: italic; color: var(--ink); }
+  .guest-row .rating-chip {
+    font-size: 9px; font-weight: 800;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 999px;
+  }
+  .rating-chip.avg { background: rgba(30, 58, 138, 0.16); color: #1e3a8a; }
+  .rating-chip.strong { background: var(--gold); color: #0a1628; }
+  .rating-chip.weak { background: rgba(10, 22, 40, 0.1); color: var(--muted); }
+  .dark .rating-chip.avg { background: rgba(122, 150, 224, 0.22); color: #9fb4ec; }
+  .dark .rating-chip.strong { background: #e5ba5b; color: #0e1826; }
+  .dark .rating-chip.weak { background: rgba(242, 234, 214, 0.08); color: #c9b699; }
+  .guest-row .g-chips {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    font-size: 10px; color: var(--muted);
+  }
+  .guest-row .g-chip {
+    padding: 2px 7px; border-radius: 999px;
+    background: rgba(10, 22, 40, 0.06);
+    font-weight: 600;
+  }
+  .dark .guest-row .g-chip { background: rgba(242, 234, 214, 0.06); }
+  .guest-row .g-desc {
+    font-size: 11px; font-style: italic; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* Randomizer card */
+  .random-card {
+    background: linear-gradient(135deg, var(--paper-soft), var(--paper-strong));
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    padding: 22px 18px;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .random-card .dice {
+    font-size: 40px;
+    line-height: 1;
+    margin-bottom: 12px;
+  }
+  .random-card h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700; font-size: 18px;
+    margin: 0 0 6px;
+  }
+  .random-card p {
+    font-size: 13px; color: var(--ink-soft);
+    margin: 0 0 14px;
+    line-height: 1.5;
+  }
+  .random-card button.roll {
+    font-size: 13px; font-weight: 800;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 12px 28px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  /* State tiles */
+  .tiles {
+    max-width: 1240px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 980px) { .tiles { grid-template-columns: 1fr; } }
+  .tile {
+    background: #fbf7ee;
+    border: 1px solid rgba(10, 22, 40, 0.08);
+    border-radius: 16px;
+    padding: 20px;
+  }
+  .tile .t-kicker {
+    font-size: 10px; font-weight: 800;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: #c8102e; margin-bottom: 6px;
+    display: inline-block;
+  }
+  .tile h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700; font-size: 17px; margin: 0 0 8px;
+  }
+  .tile p { margin: 0 0 12px; color: #293a55; font-size: 13px; line-height: 1.55; }
+  .tile .visual {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+    color: var(--ink);
+  }
+  .tile .visual.dark { background: #0e1826; color: #f2ead6; border-color: rgba(242, 234, 214, 0.1); }
+
+  /* Pair-confirmation sheet */
+  .pair-sheet {
+    background: var(--paper);
+    border-radius: 16px 16px 0 0;
+    padding: 18px 18px 16px;
+    border: 1px solid var(--line-strong);
+    box-shadow: 0 -8px 30px rgba(10, 22, 40, 0.08);
+  }
+  .pair-sheet .handle {
+    width: 44px; height: 4px; border-radius: 999px;
+    background: var(--line-strong);
+    margin: 0 auto 14px;
+  }
+  .pair-sheet .sheet-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700; font-size: 18px;
+    text-align: center; margin-bottom: 14px;
+  }
+  .pair-sheet .ab {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .pair-sheet .cand-card {
+    padding: 12px 12px 14px;
+    border-radius: 12px;
+    background: var(--paper-soft);
+    border: 1px solid var(--line);
+  }
+  .pair-sheet .cand-card .big-avatar {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold), #b58836);
+    color: #0a1628;
+    display: grid; place-items: center;
+    font-size: 14px; font-weight: 800;
+    margin: 0 auto 8px;
+  }
+  .pair-sheet .cand-card.white { background: rgba(245, 245, 245, 0.6); border-color: var(--white-team-line); }
+  .pair-sheet .cand-card.black { background: rgba(24, 32, 43, 0.08); border-color: var(--black-team-line); }
+  .dark .pair-sheet .cand-card.white { background: rgba(245, 245, 245, 0.08); }
+  .dark .pair-sheet .cand-card.black { background: rgba(24, 32, 43, 0.4); }
+  .pair-sheet .team-tag {
+    font-size: 9px; font-weight: 800;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    text-align: center;
+    padding: 2px 0;
+    margin-bottom: 4px;
+  }
+  .pair-sheet .team-tag.white { color: var(--ink-soft); }
+  .pair-sheet .team-tag.black { color: var(--ink); }
+  .dark .pair-sheet .team-tag.white { color: var(--ink); }
+  .pair-sheet .cand-card .name {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700; font-size: 15px;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .pair-sheet .cand-card .pills {
+    display: flex; justify-content: center; gap: 4px; margin-bottom: 8px;
+  }
+  .pair-sheet .cand-card .triplet {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 15px; font-weight: 800;
+    letter-spacing: 0.18em;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .pair-sheet .cand-card .triplet .y { color: var(--last-w); }
+  .pair-sheet .cand-card .triplet .n { color: var(--last-l); }
+  .pair-sheet .cand-card .stats-line {
+    font-size: 10px; color: var(--muted);
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+  .pair-sheet .balance {
+    padding: 10px 14px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .pair-sheet .balance.ok { background: var(--success-soft); color: var(--success); }
+  .pair-sheet .balance.warn { background: var(--warn-soft); color: var(--warn); }
+  .pair-sheet .assign-note {
+    font-size: 12px; color: var(--ink-soft);
+    padding: 10px 14px;
+    background: var(--paper-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+  .pair-sheet .assign-note strong { color: var(--ink); }
+  .pair-sheet .confirm-btn {
+    width: 100%;
+    padding: 13px;
+    font-size: 13px; font-weight: 800;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    background: var(--accent); color: #fff;
+    border: none; border-radius: 10px;
+    cursor: pointer;
+    margin-bottom: 8px;
+  }
+  .pair-sheet .ghost-btn {
+    width: 100%;
+    padding: 11px;
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    background: transparent; color: var(--ink-soft);
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  /* Fallback empty */
+  .empty-card {
+    background: var(--paper-soft);
+    border: 2px dashed var(--line-strong);
+    border-radius: 14px;
+    padding: 26px 18px;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .empty-card .ico { font-size: 32px; margin-bottom: 10px; }
+  .empty-card .em {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700; font-size: 16px; margin-bottom: 6px;
+  }
+  .empty-card .sub { font-size: 12px; color: var(--ink-soft); margin-bottom: 12px; line-height: 1.5; }
+  .empty-card .switch-btn {
+    font-size: 11px; font-weight: 800;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 10px 16px;
+    background: var(--accent); color: #fff;
+    border: none; border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .callout {
+    max-width: 1240px;
+    margin: 32px auto 0;
+    padding: 20px 24px;
+    background: #fbf7ee;
+    border: 1px solid rgba(10, 22, 40, 0.08);
+    border-radius: 16px;
+    font-size: 13px;
+    color: #293a55;
+    line-height: 1.6;
+  }
+  .callout h4 {
+    font-family: "Fraunces", Georgia, serif;
+    margin: 0 0 10px; font-size: 16px; font-weight: 700; color: #0a1628;
+  }
+  .callout ul { padding-left: 20px; margin: 0; }
+  .callout li + li { margin-top: 6px; }
+  .callout code {
+    background: rgba(10, 22, 40, 0.06);
+    padding: 1px 5px; border-radius: 4px;
+    font-family: "JetBrains Mono", monospace; font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <span class="tag">Session S007 · §3.1-v2 (Reconciled captain helper)</span>
+  <h1>Captain helper — <em>formula mode + randomizer mode, pair-confirmation sheet</em></h1>
+  <p>Admin-only screen reached after roster lock. Supersedes §3.1 (S002 first-pass). Single screen with a visible <strong>mode toggle</strong> — formula-primary when the season has ≥ 5 approved matchdays, randomizer-primary when &lt; 5. Candidate list below surfaces all 14 locked-roster FFC members with a compact <strong>three-criteria triplet</strong> (✓ matches ≥ 5 · ✓ attendance ≥ 60% · ✓ cooldown ≥ 4 matchdays) — app-wide rule: passes green, fails red. Guests on the roster appear at the bottom as a read-only subsection with their S007 stats (pills · rating chip · stamina/accuracy · description) to inform pair-balance decisions. Guests cannot captain. Pair-confirmation sheet auto-applies the White=weaker rule and surfaces a rank-gap ✓/⚠ badge against the 5-position rule.</p>
+</div>
+
+<div class="phones">
+  <!-- ================= LIGHT · FORMULA MODE ================= -->
+  <div class="phone-wrap">
+    <span class="phone-label">Light · Formula mode (Season 2 · 9 matchdays played)</span>
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="statusbar"><span>9:41</span><span class="icons">•••• 5G 88%</span></div>
+        <div class="topbar">
+          <a class="back">‹ Back</a>
+          <div class="title">Pick captains</div>
+          <div class="spacer"></div>
+        </div>
+        <div class="matchday-strip">
+          <div>
+            <div class="md-label">Matchday 07</div>
+            <div class="md-date">23/APR/2026 · kickoff 20:00</div>
+          </div>
+          <span class="locked-chip">Roster locked</span>
+        </div>
+        <div class="mode-toggle">
+          <div class="opt active">Formula</div>
+          <div class="opt">Randomizer</div>
+        </div>
+        <div class="scroll">
+
+          <div class="section-head">
+            <span class="label">Suggested pair</span>
+            <span class="aux">top by pair balance</span>
+          </div>
+
+          <div class="pair-card primary">
+            <div class="pair-kicker">Best match · rank gap 3</div>
+            <div class="cap-row">
+              <span class="side white">🤍</span>
+              <div>
+                <div class="cap-name">Jamal R. <span class="rank-pill">#8</span> <span class="pos-pill def">DEF</span><span class="pos-pill cdm outline">CDM</span></div>
+                <div class="cap-stats"><span class="check-triplet"><span class="y">✓</span><span class="y">✓</span><span class="y">✓</span></span><span>7 MP · 78% attend · last cap 6 md ago</span></div>
+              </div>
+            </div>
+            <div class="cap-row">
+              <span class="side black">⚫</span>
+              <div>
+                <div class="cap-name">Amir K. <span class="rank-pill">#5</span> <span class="pos-pill gk">GK</span></div>
+                <div class="cap-stats"><span class="check-triplet"><span class="y">✓</span><span class="y">✓</span><span class="y">✓</span></span><span>9 MP · 91% attend · last cap 5 md ago</span></div>
+              </div>
+            </div>
+            <div class="balance-line">
+              <span class="gap-text">Rank gap: 3</span>
+              <span class="gap-badge ok">✓ within 5</span>
+              <button class="use-btn">Use this pair</button>
+            </div>
+          </div>
+
+          <div class="pair-card">
+            <div class="pair-kicker" style="color: var(--ink-soft)">Alternative · rank gap 4</div>
+            <div class="cap-row">
+              <span class="side white">🤍</span>
+              <div>
+                <div class="cap-name">Sami H. <span class="rank-pill">#7</span> <span class="pos-pill w">W</span><span class="pos-pill st outline">ST</span></div>
+                <div class="cap-stats"><span class="check-triplet"><span class="y">✓</span><span class="y">✓</span><span class="y">✓</span></span><span>8 MP · 82% attend</span></div>
+              </div>
+            </div>
+            <div class="cap-row">
+              <span class="side black">⚫</span>
+              <div>
+                <div class="cap-name">Omar T. <span class="rank-pill">#3</span> <span class="pos-pill cdm">CDM</span></div>
+                <div class="cap-stats"><span class="check-triplet"><span class="y">✓</span><span class="y">✓</span><span class="y">✓</span></span><span>9 MP · 95% attend</span></div>
+              </div>
+            </div>
+            <div class="balance-line">
+              <span class="gap-text">Rank gap: 4</span>
+              <span class="gap-badge ok">✓ within 5</span>
+              <button class="use-btn ghost">Use this pair</button>
+            </div>
+          </div>
+
+          <div class="cand-sub">All candidates · 14 on locked roster</div>
+
+          <div class="cand-sub" style="color:var(--success);margin-top:0">● Eligible (3 of 3 criteria pass)</div>
+          <div class="cand-list" style="margin-bottom:10px">
+            <div class="cand-row">
+              <span class="rank">#3</span>
+              <span class="avatar">OT</span>
+              <span class="name">Omar T. <span class="pos-pill cdm">CDM</span></span>
+              <span class="triplet"><span class="y">✓</span><span class="y">✓</span><span class="y">✓</span></span>
+              <span class="meta">9 MP</span>
+            </div>
+            <div class="cand-row">
+              <span class="rank">#5</span>
+              <span class="avatar">AK</span>
+              <span class="name">Amir K. <span class="pos-pill gk">GK</span></span>
+              <span class="triplet"><span class="y">✓</span><span class="y">✓</span><span class="y">✓</span></span>
+              <span class="meta">9 MP</span>
+            </div>
+            <div class="cand-row">
+              <span class="rank">#7</span>
+              <span class="avatar">SH</span>
+              <span class="name">Sami H. <span class="pos-pill w">W</span><span class="pos-pill st outline">ST</span></span>
+              <span class="triplet"><span class="y">✓</span><span class="y">✓</span><span class="y">✓</span></span>
+              <span class="meta">8 MP</span>
+            </div>
+            <div class="cand-row">
+              <span class="rank">#8</span>
+              <span class="avatar">JR</span>
+              <span class="name">Jamal R. <span class="pos-pill def">DEF</span><span class="pos-pill cdm outline">CDM</span></span>
+              <span class="triplet"><span class="y">✓</span><span class="y">✓</span><span class="y">✓</span></span>
+              <span class="meta">7 MP</span>
+            </div>
+          </div>
+
+          <div class="cand-sub" style="color:var(--warn);margin-top:0">◐ Partial (1 criterion fails)</div>
+          <div class="cand-list" style="margin-bottom:10px">
+            <div class="cand-row partial">
+              <span class="rank">#1</span>
+              <span class="avatar">MM</span>
+              <span class="name">Mohammed M. <span class="pos-pill st">ST</span></span>
+              <span class="triplet"><span class="y">✓</span><span class="y">✓</span><span class="n">✗</span></span>
+              <span class="meta">cap 2 md ago</span>
+            </div>
+            <div class="cand-row partial">
+              <span class="rank">#11</span>
+              <span class="avatar">AD</span>
+              <span class="name">Adam D. <span class="pos-pill def">DEF</span></span>
+              <span class="triplet"><span class="y">✓</span><span class="n">✗</span><span class="y">✓</span></span>
+              <span class="meta">54% attend</span>
+            </div>
+          </div>
+
+          <div class="cand-sub" style="margin-top:0">○ Ineligible · 2+ criteria fail</div>
+          <div class="cand-list" style="margin-bottom:10px">
+            <div class="cand-row ineligible">
+              <span class="rank">#14</span>
+              <span class="avatar">FN</span>
+              <span class="name">Faisal N. <span class="pos-pill w">W</span></span>
+              <span class="triplet muted"><span class="n">✗</span><span class="n">✗</span><span class="y">✓</span></span>
+              <span class="meta">3 MP</span>
+            </div>
+          </div>
+
+          <div class="cand-sub" style="margin-top:12px">🎁 Guests on roster · not eligible to captain</div>
+          <div class="guest-note">Guests can't captain, but their stats help balance the pair.</div>
+          <div class="cand-list">
+            <div class="guest-row">
+              <span class="rank">#9</span>
+              <span class="avatar">+1</span>
+              <div class="g-body">
+                <div class="g-top">
+                  <span class="gname">Ayman</span>
+                  <span class="rating-chip avg">⭐ AVG</span>
+                  <span class="pos-pill st">ST</span>
+                  <span class="pos-pill w outline">W</span>
+                </div>
+                <div class="g-chips">
+                  <span class="g-chip">stamina: medium</span>
+                  <span class="g-chip">accuracy: high</span>
+                </div>
+                <div class="g-desc">"Friend from the office — target man, good in the box."</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= DARK · RANDOMIZER MODE ================= -->
+  <div class="phone-wrap">
+    <span class="phone-label dark-label">Dark · Randomizer mode (Season 3 · 2 matchdays played)</span>
+    <div class="phone">
+      <div class="phone-inner dark">
+        <div class="statusbar"><span>9:41</span><span class="icons">•••• 5G 74%</span></div>
+        <div class="topbar">
+          <a class="back">‹ Back</a>
+          <div class="title">Pick captains</div>
+          <div class="spacer"></div>
+        </div>
+        <div class="matchday-strip">
+          <div>
+            <div class="md-label">Matchday 03</div>
+            <div class="md-date">23/APR/2026 · kickoff 20:00</div>
+          </div>
+          <span class="locked-chip">Roster locked</span>
+        </div>
+        <div class="mode-toggle">
+          <div class="opt">Formula</div>
+          <div class="opt active">Randomizer</div>
+        </div>
+        <div class="scroll">
+
+          <div class="random-card">
+            <div class="dice">🎲</div>
+            <h3>Season just started</h3>
+            <p>The formula isn't reliable yet (only 2 approved matchdays). Pick a random pair from the locked 14 — you can re-roll until you confirm.</p>
+            <button class="roll">Roll captains</button>
+          </div>
+
+          <div class="section-head">
+            <span class="label">All 14 candidates · muted (context)</span>
+            <span class="aux">formula disabled</span>
+          </div>
+          <div class="cand-list" style="opacity:0.55">
+            <div class="cand-row">
+              <span class="rank">#—</span>
+              <span class="avatar">MM</span>
+              <span class="name">Mohammed M. <span class="pos-pill st">ST</span></span>
+              <span class="triplet muted"><span class="y">✓</span><span class="y">✓</span><span class="y">✓</span></span>
+              <span class="meta">2 MP</span>
+            </div>
+            <div class="cand-row">
+              <span class="rank">#—</span>
+              <span class="avatar">AK</span>
+              <span class="name">Amir K. <span class="pos-pill gk">GK</span></span>
+              <span class="triplet muted"><span class="y">✓</span><span class="y">✓</span><span class="y">✓</span></span>
+              <span class="meta">2 MP</span>
+            </div>
+            <div class="cand-row">
+              <span class="rank">#—</span>
+              <span class="avatar">JR</span>
+              <span class="name">Jamal R. <span class="pos-pill def">DEF</span></span>
+              <span class="triplet muted"><span class="y">✓</span><span class="y">✓</span><span class="y">✓</span></span>
+              <span class="meta">1 MP</span>
+            </div>
+            <div class="cand-row">
+              <span class="rank">#—</span>
+              <span class="avatar">OT</span>
+              <span class="name">Omar T. <span class="pos-pill cdm">CDM</span></span>
+              <span class="triplet muted"><span class="y">✓</span><span class="y">✓</span><span class="y">✓</span></span>
+              <span class="meta">2 MP</span>
+            </div>
+          </div>
+
+          <div class="cand-sub" style="margin-top:16px">🎁 Guests on roster</div>
+          <div class="guest-note">Guests can't captain, but their stats help balance the pair.</div>
+          <div class="cand-list">
+            <div class="guest-row">
+              <span class="rank">#—</span>
+              <span class="avatar">+1</span>
+              <div class="g-body">
+                <div class="g-top">
+                  <span class="gname">Rashid</span>
+                  <span class="rating-chip strong">⭐ STRONG</span>
+                  <span class="pos-pill cdm">CDM</span>
+                </div>
+                <div class="g-chips">
+                  <span class="g-chip">stamina: high</span>
+                  <span class="g-chip">accuracy: high</span>
+                </div>
+                <div class="g-desc">"Ex-uni league CDM — plays both box-to-box and holding."</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================ -->
+<!-- STATE TILES                                      -->
+<!-- ================================================ -->
+<div class="tiles">
+
+  <div class="tile">
+    <span class="t-kicker">Sheet · Balanced pair</span>
+    <h3>Pair-confirmation sheet — rank gap ✓</h3>
+    <p>Slide-up sheet triggered by tapping "Use this pair". Both candidates shown side-by-side. White=weaker rule pre-assigns the team colours; the reminder below the candidate cards states who goes where and why. Confirm writes <code>set_matchday_captains</code>.</p>
+    <div class="visual">
+      <div class="pair-sheet">
+        <div class="handle"></div>
+        <div class="sheet-title">Confirm captains</div>
+        <div class="ab">
+          <div class="cand-card white">
+            <div class="team-tag white">🤍 WHITE (weaker)</div>
+            <div class="big-avatar">JR</div>
+            <div class="name">Jamal R.</div>
+            <div class="pills"><span class="pos-pill def">DEF</span><span class="pos-pill cdm outline">CDM</span></div>
+            <div class="triplet"><span class="y">✓</span><span class="y">✓</span><span class="y">✓</span></div>
+            <div class="stats-line">rank #8 · 7 MP · 78% · cd 6</div>
+          </div>
+          <div class="cand-card black">
+            <div class="team-tag black">⚫ BLACK</div>
+            <div class="big-avatar">AK</div>
+            <div class="name">Amir K.</div>
+            <div class="pills"><span class="pos-pill gk">GK</span></div>
+            <div class="triplet"><span class="y">✓</span><span class="y">✓</span><span class="y">✓</span></div>
+            <div class="stats-line">rank #5 · 9 MP · 91% · cd 5</div>
+          </div>
+        </div>
+        <div class="balance ok"><span>Rank gap: 3</span><span>✓ within 5-position rule</span></div>
+        <div class="assign-note">Auto-assigned: <strong>Jamal R. → White</strong> (rank #8, weaker of the pair). <strong>Amir K. → Black</strong> (rank #5). White picks first.</div>
+        <button class="confirm-btn">Use this pair</button>
+        <button class="ghost-btn">Pick different pair</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tile">
+    <span class="t-kicker">Sheet · Gap warning</span>
+    <h3>Rank gap > 5 — amber warning, not a block</h3>
+    <p>When admin picks two candidates whose rank gap exceeds the 5-position rule, the balance line turns amber and a sub-modal asks "Proceed anyway?" before writing. Allows admin override for situations where the formula doesn't reflect reality.</p>
+    <div class="visual">
+      <div class="pair-sheet">
+        <div class="handle"></div>
+        <div class="sheet-title">Confirm captains</div>
+        <div class="ab">
+          <div class="cand-card white">
+            <div class="team-tag white">🤍 WHITE (weaker)</div>
+            <div class="big-avatar">FN</div>
+            <div class="name">Faisal N.</div>
+            <div class="pills"><span class="pos-pill w">W</span></div>
+            <div class="triplet"><span class="y">✓</span><span class="n">✗</span><span class="y">✓</span></div>
+            <div class="stats-line">rank #13 · 6 MP · 55% · cd 8</div>
+          </div>
+          <div class="cand-card black">
+            <div class="team-tag black">⚫ BLACK</div>
+            <div class="big-avatar">OT</div>
+            <div class="name">Omar T.</div>
+            <div class="pills"><span class="pos-pill cdm">CDM</span></div>
+            <div class="triplet"><span class="y">✓</span><span class="y">✓</span><span class="y">✓</span></div>
+            <div class="stats-line">rank #3 · 9 MP · 95% · cd 7</div>
+          </div>
+        </div>
+        <div class="balance warn"><span>Rank gap: 10</span><span>⚠ exceeds 5-position rule</span></div>
+        <div class="assign-note">Auto-assigned: <strong>Faisal N. → White</strong> (rank #13, weaker). <strong>Omar T. → Black</strong> (rank #3). Pair is unbalanced — confirm only if you have context the table doesn't show (position coverage, availability for next week, etc.).</div>
+        <button class="confirm-btn" style="background:var(--warn)">Proceed anyway</button>
+        <button class="ghost-btn">Pick different pair</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tile">
+    <span class="t-kicker">State · Zero-eligible</span>
+    <h3>Formula finds no fully-eligible pair</h3>
+    <p>Rare but possible — season transition, unusual combination of cooldowns and attendance. Suggested-pair slot collapses into a fallback card with a direct "Switch to randomizer" button. Candidate list below still renders so admin can see who came close.</p>
+    <div class="visual">
+      <div class="empty-card">
+        <div class="ico">🔍</div>
+        <div class="em">No fully-eligible pair this week</div>
+        <div class="sub">Nobody on the locked roster hit all three criteria. You can flip to randomizer mode or manually pick a partial-criteria candidate from the list below.</div>
+        <button class="switch-btn">Switch to randomizer</button>
+      </div>
+      <div class="cand-sub" style="color:var(--warn)">◐ Closest · 2 criteria pass</div>
+      <div class="cand-list" style="margin-bottom:0">
+        <div class="cand-row partial">
+          <span class="rank">#2</span>
+          <span class="avatar">MM</span>
+          <span class="name">Mohammed M. <span class="pos-pill st">ST</span></span>
+          <span class="triplet"><span class="y">✓</span><span class="y">✓</span><span class="n">✗</span></span>
+          <span class="meta">cap 1 md ago</span>
+        </div>
+        <div class="cand-row partial">
+          <span class="rank">#4</span>
+          <span class="avatar">AK</span>
+          <span class="name">Amir K. <span class="pos-pill gk">GK</span></span>
+          <span class="triplet"><span class="y">✓</span><span class="n">✗</span><span class="y">✓</span></span>
+          <span class="meta">58% attend</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tile">
+    <span class="t-kicker">Detail · Guest subsection</span>
+    <h3>Guest row with full S007 stats</h3>
+    <p>Guest rows are read-only (can't captain) but carry all the stats needed for pair-balance: position pills, rating chip, stamina/accuracy, and the inviter's description. Tapping the row expands the description inline if truncated.</p>
+    <div class="visual">
+      <div class="cand-sub" style="margin-top:0">🎁 Guests on roster · 2 players</div>
+      <div class="guest-note">Guests can't captain, but their stats help balance the pair.</div>
+      <div class="cand-list">
+        <div class="guest-row">
+          <span class="rank">#9</span>
+          <span class="avatar">+1</span>
+          <div class="g-body">
+            <div class="g-top">
+              <span class="gname">Ayman</span>
+              <span class="rating-chip avg">⭐ AVG</span>
+              <span class="pos-pill st">ST</span>
+              <span class="pos-pill w outline">W</span>
+            </div>
+            <div class="g-chips">
+              <span class="g-chip">stamina: medium</span>
+              <span class="g-chip">accuracy: high</span>
+            </div>
+            <div class="g-desc">"Friend from the office — target man, good in the box."</div>
+          </div>
+        </div>
+        <div class="guest-row">
+          <span class="rank">#12</span>
+          <span class="avatar">+1</span>
+          <div class="g-body">
+            <div class="g-top">
+              <span class="gname">Rashid</span>
+              <span class="rating-chip strong">⭐ STRONG</span>
+              <span class="pos-pill cdm">CDM</span>
+            </div>
+            <div class="g-chips">
+              <span class="g-chip">stamina: high</span>
+              <span class="g-chip">accuracy: high</span>
+            </div>
+            <div class="g-desc">"Ex-uni league CDM — plays both box-to-box and holding."</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="callout">
+  <h4>§3.1-v2 decisions (cross-ref design spec §3.1-v2)</h4>
+  <ul>
+    <li><strong>Mode default.</strong> <code>season_matchdays_approved ≥ 5</code> → formula default; <code>&lt; 5</code> → randomizer default. Visible toggle lets the admin override in either direction.</li>
+    <li><strong>Three criteria (S004 simplification).</strong> Matches ≥ 5 · attendance ≥ 60% · cooldown ≥ 4 matchdays since last captained. Dropped V2.0's "knows the group" and "pair balance" criteria — first was expensive to compute, second applies at the pair level, not the candidate level.</li>
+    <li><strong>Pair balance.</strong> Rank gap ≤ 5 = green ✓ ok. Rank gap &gt; 5 = amber ⚠ warning with "Proceed anyway?" sub-modal — not a hard block.</li>
+    <li><strong>White = weaker (S004 rule).</strong> Auto-applied in the pair-confirmation sheet. The lower-ranked player in the pair (higher position number) captains White and picks first. Not overridable in Phase 1.</li>
+    <li><strong>Guest handling (S007).</strong> Guests appear in a read-only subsection with all S007 stat fields (pills · rating · stamina/accuracy · description). Cannot be selected as captain. Their presence on the roster is surfaced so the admin can factor them into pair balance.</li>
+    <li><strong>Write path.</strong> Confirming a pair fires <code>set_matchday_captains(matchday_id, white_profile_id, black_profile_id)</code> — new RPC to be added to §2.7 Part 5B. Writes audit columns <code>matches.captain_assigned_at</code> + <code>matches.captain_assigned_by</code>.</li>
+    <li><strong>Concurrency.</strong> Two admins can open the screen concurrently. Last write wins; later admin sees a toast ("Captains were picked by Fatima 30s ago"). Captain pair is editable post-confirmation via "Edit" on the matchday screen.</li>
+    <li><strong>Phase 2 deferred.</strong> Auto-pick + 60-min override window on <code>roster_locked</code>. Async captain draft entrypoint. Per-player goal-difference as 4th criterion when <code>match_players.goals_against</code> is tracked.</li>
+  </ul>
+  <p style="margin-top:1rem;font-size:12.5px;color:#0a1628"><strong>§3.1-v2 — Depth-B spec + v1 mockup delivered</strong> · 20/APR/2026. Awaiting user review.</p>
+</div>
+
+</body>
+</html>

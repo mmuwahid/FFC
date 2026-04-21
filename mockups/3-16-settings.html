@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>§3.16 Settings — FFC Phase 1 mockup · v1 (S009)</title>
+<style>
+  /* ============================================================= */
+  /* Design tokens — carried from §3.14                              */
+  /* ============================================================= */
+  .light {
+    --ink: #0a1628;
+    --ink-soft: #293a55;
+    --paper: #f6f1e4;
+    --paper-dim: #ece4d0;
+    --paper-dimmer: #e3d8bc;
+    --line: rgba(10, 22, 40, 0.08);
+    --line-strong: rgba(10, 22, 40, 0.18);
+    --accent: #c8102e;
+    --accent-dim: #a40c24;
+    --gold: #d4a84a;
+    --muted: #6b7684;
+    --success: #16a34a;
+    --success-tint: rgba(22, 163, 74, 0.1);
+    --warn: #b7791f;
+    --warn-tint: rgba(183, 121, 31, 0.14);
+    --danger: #dc2626;
+    --danger-tint: rgba(220, 38, 38, 0.1);
+    --row-bg: #ece4d0;
+    --row-bg-hover: #e0d4b6;
+    --nav-bg: rgba(246, 241, 228, 0.95);
+    --card-shadow: 0 10px 40px -15px rgba(10, 22, 40, 0.35), 0 1px 0 rgba(10, 22, 40, 0.05);
+  }
+  .dark {
+    --ink: #f2ead6;
+    --ink-soft: #c3b99f;
+    --paper: #0e1826;
+    --paper-dim: #182437;
+    --paper-dimmer: #223251;
+    --line: rgba(242, 234, 214, 0.08);
+    --line-strong: rgba(242, 234, 214, 0.2);
+    --accent: #e63349;
+    --accent-dim: #bf2639;
+    --gold: #e5ba5b;
+    --muted: #85929f;
+    --success: #2e9d63;
+    --success-tint: rgba(46, 157, 99, 0.14);
+    --warn: #dca049;
+    --warn-tint: rgba(220, 160, 73, 0.14);
+    --danger: #e63349;
+    --danger-tint: rgba(230, 51, 73, 0.12);
+    --row-bg: #182437;
+    --row-bg-hover: #233351;
+    --nav-bg: rgba(14, 24, 38, 0.9);
+    --card-shadow: 0 10px 40px -15px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  :root {
+    --pos-gk:  #d4a84a;
+    --pos-def: #1e3a8a;
+    --pos-cdm: #065f46;
+    --pos-w:   #ea580c;
+    --pos-st:  #c8102e;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif;
+  }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #faf6ea 0%, #ead9b8 60%, #b39a72 100%);
+    color: #0a1628;
+    padding: 3rem 1.5rem 6rem;
+  }
+
+  /* ========== Page header ========== */
+  .page-header { max-width: 1400px; margin: 0 auto 2rem; }
+  .page-header .tag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #c8102e;
+    font-weight: 700;
+  }
+  .page-header h1 {
+    font-family: "Fraunces", "Playfair Display", Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(1.75rem, 2.5vw + 1rem, 2.4rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    color: #0a1628;
+    margin: 0.25rem 0 0.6rem;
+  }
+  .page-header h1 em { font-style: italic; color: #c8102e; font-weight: 500; }
+  .page-header p {
+    color: #293a55;
+    font-size: 14px;
+    line-height: 1.55;
+    max-width: 900px;
+    margin: 0;
+  }
+
+  /* ========== Phone frames ========== */
+  .phones {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(390px, 1fr));
+    gap: 2.5rem;
+    max-width: 1100px;
+    margin: 0 auto 3rem;
+    justify-items: center;
+  }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; }
+  .phone-label {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #293a55;
+    margin-bottom: 12px;
+  }
+  .phone-label.dark-label { color: #0a1628; opacity: 0.8; }
+  .phone {
+    width: 390px;
+    height: 844px;
+    border-radius: 48px;
+    background: #000;
+    padding: 10px;
+    box-shadow:
+      0 40px 80px -20px rgba(10,22,40,0.35),
+      0 0 0 2px rgba(0,0,0,0.2),
+      inset 0 0 0 2px rgba(255,255,255,0.1);
+    position: relative;
+    /* S009 — simulated iPhone-14-Pro safe-area (hardcoded for mockup preview). */
+    --safe-top:    59px;
+    --safe-right:  0px;
+    --safe-bottom: 34px;
+    --safe-left:   0px;
+  }
+  .phone::after {
+    content: "";
+    position: absolute;
+    top: 21px; left: 50%;
+    transform: translateX(-50%);
+    width: 124px; height: 37px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 100;
+    pointer-events: none;
+  }
+  .phone-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: 40px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--paper);
+    color: var(--ink);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 110px;
+  }
+  .statusbar {
+    height: var(--safe-top);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 calc(28px + var(--safe-right)) 0 calc(28px + var(--safe-left));
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+  }
+  .statusbar .icons { font-size: 12px; letter-spacing: 0.5px; opacity: 0.85; }
+
+  /* ========== Top nav (back + screen title) ========== */
+  .nav-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 18px 4px;
+  }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: grid; place-items: center;
+    color: var(--ink);
+    background: var(--paper-dim);
+    font-size: 18px;
+    font-weight: 700;
+    border: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .screen-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+
+  /* ========== State tile (in-page card) ========== */
+  .state-card {
+    margin: 8px 18px 10px;
+    padding: 14px 14px 12px;
+    border-radius: 14px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .state-card.warn {
+    background: var(--warn-tint);
+    border-color: var(--warn);
+  }
+  .state-card.danger {
+    background: var(--danger-tint);
+    border-color: var(--danger);
+  }
+  .state-card .state-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    line-height: 1.2;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .state-card .state-body {
+    font-size: 12px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+  .state-card .state-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .btn-pri {
+    padding: 9px 14px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+  }
+  .btn-sec {
+    padding: 9px 14px;
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line-strong);
+    border-radius: 9px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+  }
+
+  /* ========== Row list ========== */
+  .row-group {
+    margin: 6px 14px 4px;
+    background: var(--paper-dim);
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .row {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .row:last-child { border-bottom: none; }
+  .row-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .row-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .row-hint {
+    font-size: 10.5px;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* ========== Chip row (theme, sort) ========== */
+  .chip-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    padding: 7px 11px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    border-radius: 8px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .chip.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 10px -6px rgba(200,16,46,0.5);
+  }
+  .dark .chip.active { box-shadow: 0 4px 10px -6px rgba(230,51,73,0.5); }
+
+  /* ========== iOS-style toggle ========== */
+  .ios-toggle {
+    position: relative;
+    width: 46px; height: 26px;
+    border-radius: 999px;
+    background: var(--line-strong);
+    transition: background 0.2s;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .ios-toggle::after {
+    content: "";
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    transition: left 0.2s;
+  }
+  .ios-toggle.on { background: var(--accent); }
+  .ios-toggle.on::after { left: 22px; }
+
+  /* ========== Notification-pref pill-switch list (S010 — replaces checkbox pattern) ========== */
+  .checks {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 4px;
+  }
+  .check {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .check-label { line-height: 1.3; flex: 1; }
+  /* Pill switch (smaller sibling of .ios-toggle for inline row use) */
+  .pill {
+    position: relative;
+    width: 38px; height: 22px;
+    border-radius: 999px;
+    background: var(--line-strong);
+    transition: background 0.2s;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .pill::after {
+    content: "";
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    transition: left 0.2s;
+  }
+  .pill.on { background: var(--accent); }
+  .pill.on::after { left: 18px; }
+  .checks.disabled { opacity: 0.4; pointer-events: none; }
+
+  /* ========== Positions preview ========== */
+  .pos-preview {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .pos-pill {
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 6px;
+    display: inline-flex; align-items: center;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+  }
+  .pos-pill.fill-gk  { background: var(--pos-gk);  color: #3b2a00; }
+  .pos-pill.fill-def { background: var(--pos-def); color: #fff; }
+  .pos-pill.fill-cdm { background: var(--pos-cdm); color: #fff; }
+  .pos-pill.fill-w   { background: var(--pos-w);   color: #fff; }
+  .pos-pill.fill-st  { background: var(--pos-st);  color: #fff; }
+  .pos-pill.out-gk  { border: 1.5px solid var(--pos-gk);  color: var(--pos-gk); }
+  .pos-pill.out-def { border: 1.5px solid var(--pos-def); color: var(--pos-def); }
+  .pos-pill.out-cdm { border: 1.5px solid var(--pos-cdm); color: var(--pos-cdm); }
+  .pos-pill.out-w   { border: 1.5px solid var(--pos-w);   color: var(--pos-w); }
+  .pos-pill.out-st  { border: 1.5px solid var(--pos-st);  color: var(--pos-st); }
+  .dark .pos-pill.out-def { color: #7fa0e8; border-color: #7fa0e8; }
+  .dark .pos-pill.out-cdm { color: #49b388; border-color: #49b388; }
+  .pos-sep { color: var(--muted); font-size: 11px; font-weight: 600; padding: 0 2px; }
+  .pos-role {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: lowercase;
+    letter-spacing: 0.04em;
+    margin-left: 2px;
+  }
+  .row .caret {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* ========== Display-name input ========== */
+  .name-field {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .name-input {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 9px;
+    background: var(--paper);
+    border: 1px solid var(--line-strong);
+    font-size: 13.5px;
+    font-weight: 600;
+    font-family: "Inter", system-ui, sans-serif;
+    color: var(--ink);
+    letter-spacing: 0;
+    outline: none;
+  }
+  .name-input:focus { border-color: var(--accent); }
+  .save-inline {
+    padding: 10px 14px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+  }
+  .save-inline.disabled {
+    background: var(--line-strong);
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+  .name-hint {
+    font-size: 10.5px;
+    color: var(--muted);
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+
+  /* ========== Account row ========== */
+  .account-email {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    padding: 8px 10px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    word-break: break-all;
+  }
+  .account-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .btn-row {
+    padding: 11px 14px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-align: center;
+    cursor: pointer;
+    border: 1px solid var(--line-strong);
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .btn-row.signout { color: var(--ink); }
+  .btn-row.delete {
+    color: var(--muted);
+    border-color: var(--line);
+    background: transparent;
+    cursor: not-allowed;
+    font-style: italic;
+  }
+
+  /* ========== Bottom tab bar ========== */
+  .tabbar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding-top: 10px;
+    padding-left: calc(12px + var(--safe-left));
+    padding-right: calc(12px + var(--safe-right));
+    padding-bottom: calc(22px + var(--safe-bottom));
+    background: var(--nav-bg);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+  .tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 2px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .tab .ico { font-size: 18px; }
+  .tab.active { color: var(--accent); }
+
+  /* ========== Tiles (below the phones) ========== */
+  .tiles {
+    max-width: 1200px;
+    margin: 0 auto 2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 1.25rem;
+  }
+  .tile {
+    background: rgba(255,255,255,0.9);
+    border-radius: 20px;
+    border: 1px solid rgba(10,22,40,0.08);
+    padding: 18px 20px 22px;
+    box-shadow: 0 8px 28px -16px rgba(10,22,40,0.35);
+  }
+  .tile.dark {
+    background: #0e1826;
+    color: #f2ead6;
+    border-color: rgba(242,234,214,0.12);
+  }
+  .tile .tag {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent, #c8102e);
+    font-weight: 700;
+  }
+  .tile.dark .tag { color: #e63349; }
+  .tile h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 4px 0 8px;
+    letter-spacing: -0.01em;
+  }
+  .tile p {
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: #293a55;
+    margin: 0 0 12px;
+  }
+  .tile.dark p { color: #c3b99f; }
+  .tile .visual {
+    background: #f6f1e4;
+    border-radius: 14px;
+    padding: 14px;
+    margin-top: 8px;
+    color: #0a1628;
+  }
+  .tile .visual.dark {
+    background: #0e1826;
+    color: #f2ead6;
+  }
+
+  /* ========== Callout ========== */
+  .callout {
+    max-width: 1100px;
+    margin: 2rem auto 0;
+    padding: 18px 22px;
+    background: rgba(255,255,255,0.94);
+    border-left: 4px solid #c8102e;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px -18px rgba(10,22,40,0.3);
+  }
+  .callout h4 {
+    margin: 0 0 8px;
+    font-family: "Fraunces", Georgia, serif;
+    color: #c8102e;
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+  }
+  .callout ul { margin: 0; padding-left: 1.2rem; color: #293a55; font-size: 13px; line-height: 1.6; }
+  .callout li { margin-bottom: 4px; }
+  .callout li strong { color: #0a1628; }
+  .callout code {
+    background: #ece4d0;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <span class="tag">Session S009 · §3.16</span>
+  <h1>Settings — <em>six rows locked in S008</em>, dark-default · v2</h1>
+  <p>Dark phone (left) = primary state · theme defaults to <strong>Dark</strong> · push master ON · all six per-event notifications on by default. Light phone (right) = same screen with push master toggled OFF so the six child checkboxes render greyed-out but stored selections are preserved (re-enabling master restores them). Six rows top-to-bottom: Theme · Push notifications · Leaderboard sort · Positions re-entry · Display name · Account. Push defaults now include <strong>Dropout after lock</strong> (new) and <strong>Poll reminder fires 2 min before poll close</strong> — the <code>position_changed</code> event has been removed from user-facing settings (admin-path only). Below: state tile 1 (first-visit push-permission-prompt) + state tile 2 (push-denied fallback). Display name validation = 2–30 chars, <code>[A-Za-z0-9 .'-]</code>, uniqueness-checked on save. DD/MMM/YYYY dates. No W-D-L on this screen.</p>
+</div>
+
+<div class="phones">
+
+  <!-- ================================================ -->
+  <!-- DARK PHONE — PRIMARY · Dark default · master ON   -->
+  <!-- ================================================ -->
+  <div class="phone-wrap">
+    <span class="phone-label dark-label">Dark (default) · Push master ON · permission granted</span>
+    <div class="phone">
+      <div class="phone-inner dark">
+        <div class="statusbar">
+          <span>9:41</span>
+          <span class="icons">•••• 5G 92%</span>
+        </div>
+
+        <div class="nav-top">
+          <div class="icon-btn" title="Back">←</div>
+          <div class="screen-title">Settings</div>
+          <div style="width:36px"></div>
+        </div>
+
+        <!-- Row 1 — Theme (Dark active — DEFAULT) -->
+        <div class="row-group">
+          <div class="row">
+            <div class="row-header">
+              <span class="row-label">Theme</span>
+              <span class="row-hint">auto-saves · default = Dark</span>
+            </div>
+            <div class="chip-row">
+              <span class="chip">Light</span>
+              <span class="chip active">Dark</span>
+              <span class="chip">System</span>
+            </div>
+          </div>
+
+          <!-- Row 2 — Push notifications (master ON, 6 checkboxes) -->
+          <div class="row">
+            <div class="row-header">
+              <span class="row-label">Push notifications</span>
+              <div class="ios-toggle on"></div>
+            </div>
+            <div class="checks">
+              <div class="check"><span class="check-label">Poll opens</span><span class="pill on"></span></div>
+              <div class="check"><span class="check-label">Poll reminder (2 min before close)</span><span class="pill"></span></div>
+              <div class="check"><span class="check-label">Roster locked</span><span class="pill on"></span></div>
+              <div class="check"><span class="check-label">+1 slot unlocked</span><span class="pill on"></span></div>
+              <div class="check"><span class="check-label">Match result posted</span><span class="pill on"></span></div>
+              <div class="check"><span class="check-label">Dropout after lock</span><span class="pill on"></span></div>
+            </div>
+          </div>
+
+          <!-- Row 3 — Leaderboard sort -->
+          <div class="row">
+            <div class="row-header">
+              <span class="row-label">Leaderboard sort</span>
+              <span class="row-hint">applied on next visit</span>
+            </div>
+            <div class="chip-row">
+              <span class="chip active">Points</span>
+              <span class="chip">Wins</span>
+              <span class="chip">Goals</span>
+              <span class="chip">MOTMs</span>
+            </div>
+          </div>
+
+          <!-- Row 4 — Positions re-entry -->
+          <div class="row" style="cursor:pointer">
+            <div class="row-header">
+              <span class="row-label">Positions</span>
+              <span class="caret">›</span>
+            </div>
+            <div class="pos-preview">
+              <span class="pos-pill fill-def">DEF</span>
+              <span class="pos-role">primary</span>
+              <span class="pos-sep">·</span>
+              <span class="pos-pill out-cdm">CDM</span>
+              <span class="pos-role">secondary</span>
+            </div>
+          </div>
+
+          <!-- Row 5 — Display name -->
+          <div class="row">
+            <div class="row-header">
+              <span class="row-label">Display name</span>
+              <span class="row-hint">unique · 2–30 chars</span>
+            </div>
+            <div class="name-field">
+              <input class="name-input" type="text" value="Mohammed Muwahid" readonly />
+              <button class="save-inline disabled" disabled>Save</button>
+            </div>
+            <div class="name-hint">Letters, numbers, spaces, and <code style="background:var(--paper-dimmer);padding:1px 4px;border-radius:3px;font-family:ui-monospace,monospace;color:var(--ink-soft)">. ' -</code> allowed.</div>
+          </div>
+
+          <!-- Row 6 — Account -->
+          <div class="row">
+            <div class="row-header">
+              <span class="row-label">Account</span>
+              <span class="row-hint">email read-only</span>
+            </div>
+            <div class="account-email">m.muwahid@example.com</div>
+            <div class="account-actions">
+              <div class="btn-row signout">Sign out</div>
+              <div class="btn-row delete">Delete account · coming soon</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tabbar">
+          <div class="tab"><span class="ico">🏠</span>Home</div>
+          <div class="tab"><span class="ico">📋</span>Poll</div>
+          <div class="tab"><span class="ico">📊</span>Table</div>
+          <div class="tab active"><span class="ico">👤</span>Profile</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- LIGHT PHONE — Secondary · master OFF state        -->
+  <!-- ================================================ -->
+  <div class="phone-wrap">
+    <span class="phone-label">Light · Push master OFF · child prefs preserved</span>
+    <div class="phone">
+      <div class="phone-inner light">
+        <div class="statusbar">
+          <span>9:41</span>
+          <span class="icons">•••• 5G 88%</span>
+        </div>
+
+        <div class="nav-top">
+          <div class="icon-btn" title="Back">←</div>
+          <div class="screen-title">Settings</div>
+          <div style="width:36px"></div>
+        </div>
+
+        <!-- Row 1 — Theme (Light active, user-switched) -->
+        <div class="row-group">
+          <div class="row">
+            <div class="row-header">
+              <span class="row-label">Theme</span>
+              <span class="row-hint">auto-saves · default = Dark</span>
+            </div>
+            <div class="chip-row">
+              <span class="chip active">Light</span>
+              <span class="chip">Dark</span>
+              <span class="chip">System</span>
+            </div>
+          </div>
+
+          <!-- Row 2 — Push (master OFF, 6 checkboxes disabled) -->
+          <div class="row">
+            <div class="row-header">
+              <span class="row-label">Push notifications</span>
+              <div class="ios-toggle"></div>
+            </div>
+            <div class="checks disabled">
+              <div class="check"><span class="check-label">Poll opens</span><span class="pill on"></span></div>
+              <div class="check"><span class="check-label">Poll reminder (2 min before close)</span><span class="pill"></span></div>
+              <div class="check"><span class="check-label">Roster locked</span><span class="pill on"></span></div>
+              <div class="check"><span class="check-label">+1 slot unlocked</span><span class="pill on"></span></div>
+              <div class="check"><span class="check-label">Match result posted</span><span class="pill on"></span></div>
+              <div class="check"><span class="check-label">Dropout after lock</span><span class="pill on"></span></div>
+            </div>
+            <div class="name-hint" style="margin-top:6px">Turn the master on to receive per-event notifications. Your selections are preserved.</div>
+          </div>
+
+          <!-- Row 3 — Leaderboard sort -->
+          <div class="row">
+            <div class="row-header">
+              <span class="row-label">Leaderboard sort</span>
+              <span class="row-hint">applied on next visit</span>
+            </div>
+            <div class="chip-row">
+              <span class="chip">Points</span>
+              <span class="chip active">Wins</span>
+              <span class="chip">Goals</span>
+              <span class="chip">MOTMs</span>
+            </div>
+          </div>
+
+          <!-- Row 4 — Positions -->
+          <div class="row" style="cursor:pointer">
+            <div class="row-header">
+              <span class="row-label">Positions</span>
+              <span class="caret">›</span>
+            </div>
+            <div class="pos-preview">
+              <span class="pos-pill fill-st">ST</span>
+              <span class="pos-role">primary</span>
+              <span class="pos-sep">·</span>
+              <span class="pos-pill out-w">W</span>
+              <span class="pos-role">secondary</span>
+            </div>
+          </div>
+
+          <!-- Row 5 — Display name -->
+          <div class="row">
+            <div class="row-header">
+              <span class="row-label">Display name</span>
+              <span class="row-hint">unique · 2–30 chars</span>
+            </div>
+            <div class="name-field">
+              <input class="name-input" type="text" value="Omar Khalil" readonly />
+              <button class="save-inline disabled" disabled>Save</button>
+            </div>
+            <div class="name-hint">Letters, numbers, spaces, and <code style="background:var(--paper);padding:1px 4px;border-radius:3px;font-family:ui-monospace,monospace">. ' -</code> allowed.</div>
+          </div>
+
+          <!-- Row 6 — Account -->
+          <div class="row">
+            <div class="row-header">
+              <span class="row-label">Account</span>
+              <span class="row-hint">email read-only</span>
+            </div>
+            <div class="account-email">omar.k@example.com</div>
+            <div class="account-actions">
+              <div class="btn-row signout">Sign out</div>
+              <div class="btn-row delete">Delete account · coming soon</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tabbar">
+          <div class="tab"><span class="ico">🏠</span>Home</div>
+          <div class="tab"><span class="ico">📋</span>Poll</div>
+          <div class="tab"><span class="ico">📊</span>Table</div>
+          <div class="tab active"><span class="ico">👤</span>Profile</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ================================================ -->
+<!-- STATE TILES                                        -->
+<!-- ================================================ -->
+<div class="tiles">
+
+  <!-- Tile 1 — First-visit push-permission-prompt -->
+  <div class="tile">
+    <span class="tag">State 1 · First-visit push prompt</span>
+    <h3>In-page permission prompt (before OS prompt)</h3>
+    <p>Renders at the top of the Settings screen on first visit while <code>Notification.permission === 'default'</code>. Controls the first surface so the player reads copy before the browser's OS prompt fires — avoids the "user clicks No reflexively" failure mode. Dismissible for the session; re-renders on next visit until explicit grant or deny.</p>
+    <div class="visual light">
+      <div class="state-card">
+        <div class="state-title">🔔 Stay in the loop</div>
+        <div class="state-body">Enable push to know when polls open and teams are revealed. Four notifications a week, max.</div>
+        <div class="state-actions">
+          <button class="btn-pri">Enable notifications</button>
+          <button class="btn-sec">Not now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tile 2 — Push-denied fallback -->
+  <div class="tile">
+    <span class="tag">State 2 · Push denied fallback</span>
+    <h3>Persistent re-enable instructions</h3>
+    <p>Renders when <code>Notification.permission === 'denied'</code>. Persistent — cannot be dismissed (the information is load-bearing every visit the player returns hoping to enable push). Row 2's master toggle is forced OFF and non-interactive while this tile is present — JS can't re-prompt once denied, so hiding the broken affordance prevents confusion.</p>
+    <div class="visual light">
+      <div class="state-card warn">
+        <div class="state-title">⚠️ Push is blocked by your browser</div>
+        <div class="state-body">
+          To enable FFC push notifications:
+          <ol style="margin:6px 0 2px 18px; padding:0; font-size:12px; line-height:1.55">
+            <li>Tap the 🔒 lock icon in your browser's address bar.</li>
+            <li>Find <strong>Notifications</strong> and switch to <strong>Allow</strong>.</li>
+            <li>Refresh this page.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="callout">
+  <h4>§3.16 Settings · S009 round-2 amendments · mockup v2 for review</h4>
+  <ul>
+    <li><strong>Six rows, locked order:</strong> Theme · Push notifications · Leaderboard sort · Positions · Display name · Account. Phase-2 extras (About/version, T&amp;P links, Data export, functional Delete) are NOT rendered.</li>
+    <li><strong>Theme default = Dark</strong> (round-2 change). User can switch to Light or System at any time; selection auto-saves and persists per-device.</li>
+    <li><strong>Push-prefs defaults (round-2):</strong> master ON · poll_open ON · <strong>poll_reminder ON · fires 2 min before poll close</strong> · roster_locked ON · plus_one_unlocked ON · match_result_posted ON · <strong>dropout_after_lock ON (NEW)</strong>. <code>position_changed</code> <strong>removed entirely</strong> — admin-confirmation event no longer user-configurable.</li>
+    <li><strong>Dropout-after-lock notification:</strong> fires to all confirmed-roster players (+ admins) when a player cancels after roster lock and a substitute is promoted from the waitlist. Event-wiring lives in Section 5.</li>
+    <li><strong>Poll-reminder timing = 2 min before close:</strong> intentional "last call to vote" behaviour. Very tight window — if silent-device players complain post-launch, Section 5 can widen or make user-configurable in Phase 2.</li>
+    <li><strong>Master OFF ≠ reset.</strong> Greying out child checkboxes preserves stored values. Re-enabling master restores prior selection.</li>
+    <li><strong>Display-name validation:</strong> <code>^[A-Za-z0-9 .'-]{2,30}$</code>. Save disabled while value equals stored, while invalid, and during in-flight. Uniqueness check (case-insensitive) on save — conflict shakes the field with inline error "That name's taken."</li>
+    <li><strong>Delete account · coming soon.</strong> Row renders muted, non-functional. Tap shows a "Phase 2" toast. Deferred to Phase 2 with 30-day soft-delete + admin confirmation chain.</li>
+    <li><strong>Permission coupling:</strong> toggling master ON while <code>Notification.permission === 'default'</code> fires <code>Notification.requestPermission()</code>. Deny → surface State tile 2 and revert master to OFF. Grant → register push subscription and save.</li>
+    <li><strong>Leaderboard sort UX:</strong> selection applies on the next Leaderboard entry, not mid-session — a visible "applied on next visit" hint is present so the behaviour isn't a surprise.</li>
+    <li><strong>Sign out:</strong> clears session + deregisters this device's push subscription endpoint + returns to auth screen. Other devices keep their subscriptions.</li>
+  </ul>
+  <p style="margin-top:1rem;font-size:12.5px;color:#0a1628"><strong>§3.16 DRAFT v2</strong> — round-2 amendments (dark-default · 2-min poll reminder · dropout notification · position_changed removed · statusbar safe-area fix), S009 (20/APR/2026).</p>
+</div>
+
+</body>
+</html>

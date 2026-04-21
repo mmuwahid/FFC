@@ -1,0 +1,1392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>§3.19 Formation Planner — FFC Phase 1 mockup · v2 (S009)</title>
+<style>
+  /* ============================================================= */
+  /* Design tokens — carried from §3.14 / §3.16                     */
+  /* ============================================================= */
+  .light {
+    --ink: #0a1628;
+    --ink-soft: #293a55;
+    --paper: #f6f1e4;
+    --paper-dim: #ece4d0;
+    --paper-dimmer: #e3d8bc;
+    --line: rgba(10, 22, 40, 0.08);
+    --line-strong: rgba(10, 22, 40, 0.18);
+    --accent: #c8102e;
+    --accent-dim: #a40c24;
+    --gold: #d4a84a;
+    --muted: #6b7684;
+    --success: #16a34a;
+    --success-tint: rgba(22, 163, 74, 0.1);
+    --warn: #b7791f;
+    --danger: #dc2626;
+    --nav-bg: rgba(246, 241, 228, 0.95);
+    --pitch-bg: #2d7a3f;
+    --pitch-bg-2: #246232;
+    --pitch-line: rgba(255,255,255,0.55);
+    --card-shadow: 0 10px 40px -15px rgba(10, 22, 40, 0.35), 0 1px 0 rgba(10, 22, 40, 0.05);
+    --team-stripe-white: linear-gradient(90deg, #f6f1e4 0%, #ece4d0 100%);
+  }
+  .dark {
+    --ink: #f2ead6;
+    --ink-soft: #c3b99f;
+    --paper: #0e1826;
+    --paper-dim: #182437;
+    --paper-dimmer: #223251;
+    --line: rgba(242, 234, 214, 0.08);
+    --line-strong: rgba(242, 234, 214, 0.2);
+    --accent: #e63349;
+    --accent-dim: #bf2639;
+    --gold: #e5ba5b;
+    --muted: #85929f;
+    --success: #2e9d63;
+    --success-tint: rgba(46, 157, 99, 0.14);
+    --warn: #dca049;
+    --danger: #e63349;
+    --nav-bg: rgba(14, 24, 38, 0.9);
+    --pitch-bg: #1a4529;
+    --pitch-bg-2: #123020;
+    --pitch-line: rgba(255,255,255,0.45);
+    --card-shadow: 0 10px 40px -15px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.03);
+    --team-stripe-black: linear-gradient(90deg, #0a1628 0%, #162238 100%);
+  }
+  :root {
+    --pos-gk:  #d4a84a;   /* gold */
+    --pos-def: #1d4ed8;   /* deep blue */
+    --pos-cdm: #166534;   /* dark green */
+    --pos-w:   #ea580c;   /* orange */
+    --pos-st:  #e63349;   /* accent red */
+    --team-white-fill: #f6f1e4;
+    --team-white-ink:  #0a1628;
+    --team-black-fill: #0a1628;
+    --team-black-ink:  #f6f1e4;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif;
+  }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #faf6ea 0%, #ead9b8 60%, #b39a72 100%);
+    color: #0a1628;
+    padding: 3rem 1.5rem 6rem;
+  }
+
+  /* ========== Page header ========== */
+  .page-header { max-width: 1400px; margin: 0 auto 2rem; }
+  .page-header .tag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #c8102e;
+    font-weight: 700;
+  }
+  .page-header h1 {
+    font-family: "Fraunces", "Playfair Display", Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(1.75rem, 2.5vw + 1rem, 2.4rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    color: #0a1628;
+    margin: 0.25rem 0 0.6rem;
+  }
+  .page-header h1 em { font-style: italic; color: #c8102e; font-weight: 500; }
+  .page-header p {
+    color: #293a55; font-size: 14px; line-height: 1.55;
+    max-width: 900px; margin: 0;
+  }
+
+  /* ========== Phone frames ========== */
+  .phones {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(390px, 1fr));
+    gap: 2.5rem;
+    max-width: 1100px;
+    margin: 0 auto 3rem;
+    justify-items: center;
+  }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; }
+  .phone-label {
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    font-weight: 700; color: #293a55; margin-bottom: 12px;
+    max-width: 390px; text-align: center;
+  }
+  .phone-label.dark-label { color: #0a1628; opacity: 0.8; }
+
+  /* Safe-area v2 pattern — HARDCODED custom props, Dynamic Island cutout,
+     statusbar HEIGHT = --safe-top with flex to flank the island. */
+  .phone {
+    width: 390px;
+    height: 900px;
+    border-radius: 48px;
+    background: #000;
+    padding: 10px;
+    box-shadow:
+      0 40px 80px -20px rgba(10,22,40,0.35),
+      0 0 0 2px rgba(0,0,0,0.2),
+      inset 0 0 0 2px rgba(255,255,255,0.1);
+    position: relative;
+    /* Hardcoded — env() resolves to 0px on desktop */
+    --safe-top:    59px;
+    --safe-right:  0px;
+    --safe-bottom: 34px;
+    --safe-left:   0px;
+  }
+  /* Simulated iPhone-14-Pro Dynamic Island — makes the obstruction visible
+     at review time so we can verify no content sits behind it. */
+  .phone::after {
+    content: "";
+    position: absolute;
+    top: 21px; left: 50%;
+    transform: translateX(-50%);
+    width: 124px; height: 37px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 100;
+    pointer-events: none;
+  }
+  .phone-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: 40px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--paper);
+    color: var(--ink);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 110px;
+  }
+  /* S012: phone-inner is a scroll container, not a stretch container.
+     Every direct child must keep its natural height; flex default (shrink:1)
+     was compressing the team-strip, pattern-row, pitch-wrap, gk-card, roster
+     when total content exceeds 844px. Same root cause as S011 statusbar bug. */
+  .phone-inner > * { flex-shrink: 0; }
+  /* v2 pattern: statusbar height = safe-top, flex with align-items flex-end
+     so time/battery sit at the BOTTOM edge of the safe-top strip — fully
+     clear of the island (which ends at ~48px inside the inner frame) with
+     ~8px breathing room. Items flank the island on left/right. */
+  .statusbar {
+    height: var(--safe-top);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 calc(28px + var(--safe-right)) 8px calc(28px + var(--safe-left));
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+  }
+  .statusbar .icons { font-size: 12px; letter-spacing: 0.5px; opacity: 0.9; display: inline-flex; gap: 6px; align-items: center; }
+  .statusbar .bat {
+    display: inline-block; width: 22px; height: 11px;
+    border: 1.2px solid currentColor; border-radius: 3px;
+    position: relative;
+  }
+  .statusbar .bat::before { content:""; position:absolute; left:2px; top:1.5px; bottom:1.5px; width: 16px; background: currentColor; border-radius: 1px; }
+  .statusbar .bat::after  { content:""; position:absolute; right:-3px; top: 3px; width:2px; height:5px; background: currentColor; border-radius: 0 1px 1px 0; }
+
+  /* ========== Team header strip (prominent WHITE / BLACK indicator) ========== */
+  .team-strip {
+    margin: 6px 14px 10px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    display: flex; align-items: center; gap: 12px;
+    border: 1.5px solid var(--line-strong);
+    box-shadow: 0 4px 14px -8px rgba(10,22,40,0.25);
+    position: relative;
+    overflow: hidden;
+  }
+  .team-strip.white {
+    background: var(--team-white-fill);
+    color: var(--team-white-ink);
+    border-color: var(--team-white-ink);
+  }
+  .team-strip.black {
+    background: var(--team-black-fill);
+    color: var(--team-black-ink);
+    border-color: var(--team-black-fill);
+  }
+  .team-strip .orb {
+    width: 38px; height: 38px; border-radius: 50%;
+    flex-shrink: 0;
+    display: grid; place-items: center;
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700; font-size: 13px; letter-spacing: 0.02em;
+    border: 2px solid currentColor;
+  }
+  .team-strip.white .orb { background: #fff; color: var(--team-white-ink); }
+  .team-strip.black .orb { background: #000; color: var(--team-black-ink); }
+  .team-strip .txt { flex: 1; min-width: 0; }
+  .team-strip .pre {
+    font-size: 9.5px; letter-spacing: 0.18em; font-weight: 700;
+    text-transform: uppercase; opacity: 0.72;
+  }
+  .team-strip .name {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 17px; font-weight: 700; letter-spacing: -0.01em;
+    margin-top: 1px;
+  }
+  .team-strip .meta {
+    font-size: 10.5px; opacity: 0.78; margin-top: 3px; letter-spacing: 0.02em;
+  }
+  .team-strip .meta b { font-weight: 700; }
+
+  /* ========== Top nav (compact, under team strip) ========== */
+  .nav-top {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 2px 16px 10px;
+    gap: 10px;
+  }
+  .nav-top .title {
+    flex: 1; min-width: 0;
+    text-align: center;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.02em;
+    color: var(--ink);
+  }
+  .nav-top .title .subtitle {
+    display: block;
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em;
+    color: var(--muted); text-transform: uppercase; margin-top: 2px;
+  }
+  .icon-btn {
+    width: 34px; height: 34px; border-radius: 10px;
+    display: grid; place-items: center;
+    color: var(--ink);
+    background: var(--paper-dim);
+    font-size: 15px; font-weight: 700;
+    border: 1px solid var(--line);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .icon-btn.accent {
+    background: var(--accent); color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 14px -4px rgba(200, 16, 46, 0.55);
+  }
+  .dark .icon-btn.accent { box-shadow: 0 4px 14px -4px rgba(230, 51, 73, 0.6); }
+  .icon-btn.ghost { background: transparent; }
+
+  /* ========== Shared-by banner (non-captain) ========== */
+  .shared-banner {
+    margin: 0 16px 10px;
+    padding: 9px 12px;
+    background: var(--success-tint);
+    border: 1px solid var(--success);
+    border-radius: 10px;
+    font-size: 11.5px;
+    color: var(--ink);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .shared-banner .pulse {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 0 0 var(--success);
+    animation: pulse 2s infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(22,163,74,0.55); }
+    70%  { box-shadow: 0 0 0 9px rgba(22,163,74,0); }
+    100% { box-shadow: 0 0 0 0 rgba(22,163,74,0); }
+  }
+  .shared-banner .cap { font-weight: 700; }
+
+  /* ========== Pattern chip row ========== */
+  .pattern-row {
+    margin: 0 16px 12px;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 2px 2px 8px;
+    scrollbar-width: none;
+  }
+  .pattern-row::-webkit-scrollbar { display: none; }
+  .chip {
+    flex-shrink: 0;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    cursor: pointer;
+    white-space: nowrap;
+    text-align: center;
+  }
+  .chip.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 10px -4px rgba(200,16,46,0.5);
+  }
+  .chip.readonly { opacity: 0.55; pointer-events: none; }
+  .chip .sub {
+    display: block;
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 8.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+  .chip.active .sub { color: rgba(255,255,255,0.85); }
+
+  /* ========== GK mode toggle (segmented) ========== */
+  .gk-mode {
+    margin: 0 16px 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 3px;
+    gap: 3px;
+  }
+  .gk-mode .seg {
+    text-align: center;
+    padding: 9px 8px;
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .gk-mode .seg .lbl { font-size: 11px; }
+  .gk-mode .seg .hint {
+    font-size: 9px; font-weight: 600; opacity: 0.7;
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .gk-mode .seg.active {
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: 0 1px 3px rgba(10,22,40,0.12), 0 1px 0 rgba(255,255,255,0.4) inset;
+  }
+  .gk-mode .seg.active.rot { color: var(--gold); }
+  .gk-mode .seg.active.rot .hint { color: var(--gold); opacity: 0.85; }
+
+  /* ========== Pitch ========== */
+  .pitch-wrap {
+    margin: 0 16px 12px;
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: var(--pitch-bg);
+    box-shadow: 0 8px 24px -14px rgba(10,22,40,0.45);
+  }
+  .pitch-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 2 / 3;
+    background:
+      linear-gradient(180deg,
+        var(--pitch-bg-2) 0%,
+        var(--pitch-bg) 15%,
+        var(--pitch-bg) 85%,
+        var(--pitch-bg-2) 100%);
+  }
+  .pitch-svg .stripe { fill: rgba(0,0,0,0.05); }
+  .pitch-svg .line   { stroke: var(--pitch-line); stroke-width: 0.4; fill: none; }
+  .pitch-svg .goal   { stroke: var(--pitch-line); stroke-width: 0.5; fill: rgba(255,255,255,0.06); }
+  .pitch-svg .dot    { fill: var(--pitch-line); }
+
+  .tokens {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .tok {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+    box-shadow: 0 4px 10px -2px rgba(0,0,0,0.4);
+    pointer-events: auto;
+    cursor: grab;
+    transition: transform 180ms ease-out, box-shadow 180ms;
+  }
+  .tok.white {
+    background: var(--team-white-fill);
+    color: var(--team-white-ink);
+    border: 2px solid var(--team-white-ink);
+  }
+  .tok.black {
+    background: var(--team-black-fill);
+    color: var(--team-black-ink);
+    border: 2px solid var(--team-black-ink);
+  }
+  .tok.gk { border-color: var(--pos-gk); box-shadow: 0 0 0 1px var(--pos-gk), 0 4px 10px -2px rgba(0,0,0,0.4); }
+  .tok.readonly { cursor: default; }
+  /* Rotation number badge pinned to the token */
+  .tok .rot {
+    position: absolute;
+    top: -4px; right: -4px;
+    min-width: 18px; height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 800;
+    display: grid; place-items: center;
+    border: 2px solid var(--paper);
+    letter-spacing: 0;
+    line-height: 1;
+  }
+  .tok .rot.gk-badge {
+    background: var(--pos-gk);
+    color: #0a1628;
+  }
+  .dark .tok .rot { background: var(--gold); color: #0a1628; border-color: var(--paper); }
+  .dark .tok .rot.gk-badge { background: var(--pos-gk); color: #0a1628; }
+  .tok .label {
+    position: absolute;
+    bottom: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 8.5px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    white-space: nowrap;
+  }
+
+  /* ========== GK-selection card ========== */
+  .gk-card {
+    margin: 0 16px 12px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .gk-card .head {
+    padding: 11px 14px 6px;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .gk-card .head .lbl {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .gk-card .head .mode-tag {
+    font-size: 9.5px; font-weight: 800; letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--gold);
+    color: #0a1628;
+  }
+  .gk-card .radio {
+    display: grid;
+    grid-template-columns: 22px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .gk-card .radio:first-of-type { border-top: none; }
+  .gk-card .radio .rd {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--line-strong);
+    background: var(--paper);
+    position: relative;
+  }
+  .gk-card .radio.selected .rd {
+    border-color: var(--pos-gk);
+    background: var(--pos-gk);
+    box-shadow: 0 0 0 3px rgba(212,168,74,0.18);
+  }
+  .gk-card .radio.selected .rd::after {
+    content:""; position:absolute; inset: 4px;
+    border-radius: 50%; background: var(--paper);
+  }
+  .gk-card .radio .who { display: flex; align-items: center; gap: 8px; }
+  .gk-card .radio .pos-pill {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px; font-weight: 800;
+    padding: 2px 6px; border-radius: 4px;
+    color: #fff;
+    letter-spacing: 0.04em;
+  }
+  .gk-card .radio .when {
+    font-size: 10px; color: var(--muted);
+    font-weight: 600; letter-spacing: 0.02em;
+  }
+  /* S012 — native <select> GK picker (replaces radio list per user feedback) */
+  .gk-select {
+    display: block;
+    width: calc(100% - 28px);
+    margin: 0 14px 12px;
+    padding: 10px 32px 10px 12px;
+    border-radius: 10px;
+    border: 1.5px solid var(--line-strong);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+  .gk-select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .dark .gk-select { background: var(--paper-dim); }
+
+  /* ========== Roster card — full 7-player list ========== */
+  .roster {
+    margin: 0 16px 12px;
+    background: var(--paper-dim);
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .roster .head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 11px 14px 6px;
+  }
+  .roster .head .lbl {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .roster .head .cnt {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  /* Fixed column widths so rows align even when a tag is absent */
+  .roster .item {
+    display: grid;
+    grid-template-columns: 30px 1fr 56px 34px;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .roster .item:first-of-type { border-top: none; }
+  .roster .avatar-mini {
+    width: 30px; height: 30px; border-radius: 9px;
+    background: var(--ink-soft); color: var(--paper);
+    display: grid; place-items: center;
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 12px; font-weight: 700;
+  }
+  .roster .avatar-mini.me { background: var(--accent); color: #fff; }
+  .roster .name {
+    font-weight: 600; color: var(--ink);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    min-width: 0;
+  }
+  .roster .name .you {
+    color: var(--accent); font-size: 10px; font-weight: 800;
+    letter-spacing: 0.08em; text-transform: uppercase; margin-left: 4px;
+  }
+  .roster .name .cap {
+    color: var(--gold); font-size: 10px; font-weight: 800;
+    letter-spacing: 0.08em; text-transform: uppercase; margin-left: 4px;
+  }
+  .roster .name .plus1 {
+    font-size: 9.5px; color: var(--muted);
+    font-style: italic; margin-left: 4px;
+  }
+  /* position pill — colour-coded per FFC rules */
+  .roster .pos-pill {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10.5px; font-weight: 800;
+    padding: 3px 0;
+    border-radius: 5px;
+    text-align: center;
+    color: #fff;
+    letter-spacing: 0.03em;
+  }
+  .pos-pill.gk  { background: var(--pos-gk);  color: #0a1628; }
+  .pos-pill.def { background: var(--pos-def); }
+  .pos-pill.cdm { background: var(--pos-cdm); }
+  .pos-pill.w   { background: var(--pos-w);   }
+  .pos-pill.st  { background: var(--pos-st);  }
+  /* Rotation number chip — circular */
+  .rot-chip {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px; font-weight: 800;
+    letter-spacing: 0;
+    background: var(--paper);
+    color: var(--ink);
+    border: 1.5px solid var(--line-strong);
+    line-height: 1;
+  }
+  .rot-chip.gk {
+    background: var(--pos-gk);
+    color: #0a1628;
+    border-color: var(--pos-gk);
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+  .rot-chip.dedicated {
+    background: transparent;
+    color: var(--muted);
+    border-style: dashed;
+    font-size: 10px;
+    font-family: "Inter", system-ui, sans-serif;
+    letter-spacing: 0.04em;
+  }
+
+  /* ========== Notes ========== */
+  .notes {
+    margin: 0 16px 12px;
+  }
+  .notes .lbl {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .notes textarea, .notes .text-ro {
+    display: block;
+    width: 100%;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--ink);
+    resize: none;
+    min-height: 62px;
+  }
+  .notes .text-ro {
+    font-style: italic;
+    color: var(--ink-soft);
+    border-style: dashed;
+  }
+  .notes .count {
+    margin-top: 4px;
+    font-size: 10px;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  /* ========== Share CTA ========== */
+  .cta-wrap {
+    padding: 4px 16px calc(16px + var(--safe-bottom));
+  }
+  .cta {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px;
+    border-radius: 14px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 8px 22px -8px rgba(200,16,46,0.6);
+  }
+  .cta.disabled {
+    background: var(--paper-dimmer);
+    color: var(--muted);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+  .cta .edited {
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+    text-transform: none;
+    opacity: 0.85;
+    font-weight: 600;
+  }
+
+  /* ========== State tiles ========== */
+  .tiles {
+    max-width: 1200px;
+    margin: 0 auto 2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 1.25rem;
+  }
+  .tile {
+    background: rgba(255,255,255,0.92);
+    border-radius: 20px;
+    border: 1px solid rgba(10,22,40,0.08);
+    padding: 18px 20px 22px;
+    box-shadow: 0 8px 28px -16px rgba(10,22,40,0.35);
+  }
+  .tile.dark { background: #0e1826; color: #f2ead6; border-color: rgba(242,234,214,0.12); }
+  .tile .tag {
+    font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: #c8102e; font-weight: 700;
+  }
+  .tile.dark .tag { color: #e63349; }
+  .tile h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 1.05rem; font-weight: 700;
+    margin: 4px 0 8px; letter-spacing: -0.01em;
+  }
+  .tile p {
+    font-size: 12.5px; line-height: 1.55;
+    color: #293a55; margin: 0 0 12px;
+  }
+  .tile.dark p { color: #c3b99f; }
+  .tile .visual {
+    background: #f6f1e4; border-radius: 14px; padding: 14px;
+    margin-top: 8px; color: #0a1628;
+    font-size: 12px; line-height: 1.55;
+  }
+  .tile .visual.dark { background: #0e1826; color: #f2ead6; }
+  .tile .visual .ex {
+    display: inline-block;
+    padding: 5px 9px;
+    background: #ece4d0;
+    border-radius: 6px;
+    margin: 3px 4px 3px 0;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 700;
+    border: 1px solid rgba(10,22,40,0.1);
+  }
+  .tile .visual.dark .ex { background: #182437; color: #f2ead6; border-color: rgba(242,234,214,0.15); }
+
+  /* Mini roster-row used inside tile visuals */
+  .mini-row {
+    display: grid;
+    grid-template-columns: 26px 1fr 44px 26px;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 11.5px;
+    border-bottom: 1px solid rgba(10,22,40,0.06);
+  }
+  .tile.dark .mini-row { border-bottom-color: rgba(242,234,214,0.06); }
+  .mini-row:last-of-type { border-bottom: none; }
+  .mini-row .av {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: #293a55; color: #f6f1e4;
+    display: grid; place-items: center;
+    font-family: "Fraunces", Georgia, serif; font-size: 10px; font-weight: 700;
+  }
+  .mini-row .p {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 9.5px; font-weight: 800;
+    padding: 2px 0;
+    border-radius: 4px;
+    text-align: center;
+    color: #fff;
+  }
+  .mini-row .r {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10.5px; font-weight: 800;
+    background: #f6f1e4; color: #0a1628;
+    border: 1.5px solid rgba(10,22,40,0.18);
+  }
+  .mini-row .r.gk {
+    background: var(--pos-gk);
+    color: #0a1628;
+    border-color: var(--pos-gk);
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 9px;
+  }
+  .tile.dark .mini-row .r { background: #223251; color: #f2ead6; border-color: rgba(242,234,214,0.2); }
+
+  /* ========== Section headers ========== */
+  .section-header {
+    max-width: 1200px;
+    margin: 3rem auto 1rem;
+  }
+  .section-header h2 {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 0 0 0.3rem;
+    letter-spacing: -0.01em;
+  }
+  .section-header p {
+    font-size: 13px; color: #293a55;
+    max-width: 780px; margin: 0;
+  }
+
+  /* Empty state (waiting-for-captain) */
+  .empty-pitch {
+    margin: 0 16px 16px;
+    padding: 40px 24px;
+    background: var(--paper-dim);
+    border: 2px dashed var(--line-strong);
+    border-radius: 16px;
+    text-align: center;
+  }
+  .empty-pitch .clock {
+    font-size: 36px;
+    margin-bottom: 10px;
+    opacity: 0.6;
+  }
+  .empty-pitch h4 {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0 0 6px;
+  }
+  .empty-pitch p {
+    font-size: 12px; color: var(--muted);
+    margin: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================= -->
+<!-- Page header                                                     -->
+<!-- ============================================================= -->
+<header class="page-header">
+  <span class="tag">FFC · §3.19 Formation Planner · v2 (S009)</span>
+  <h1>Where <em>captains</em> set the shape — and who starts in goal.</h1>
+  <p>
+    Captain picks pattern, places 7 tokens, chooses starting GK (or rotation mode).
+    Full 7-player roster below the pitch shows each player's position and rotation
+    number. Team colour (WHITE / BLACK) is surfaced prominently at the top. Non-captains
+    see a live read-only mirror. Safe-area v2 honoured — time and battery flank the
+    Dynamic Island with breathing room; no content sits behind the cutout.
+  </p>
+</header>
+
+<!-- ============================================================= -->
+<!-- Phones — CAPTAIN (light, WHITE team) + NON-CAPTAIN (dark, BLACK)-->
+<!-- ============================================================= -->
+<div class="phones">
+
+  <!-- ================= CAPTAIN · WHITE TEAM · Rotation mode ON ================= -->
+  <div class="phone-wrap">
+    <div class="phone-label">Captain view · Light · WHITE team · Rotation mode</div>
+    <div class="phone light">
+      <div class="phone-inner">
+
+        <!-- Status bar — v2: time left, signal/battery right, FLANKING the island -->
+        <div class="statusbar">
+          <span>22:14</span>
+          <span class="icons">
+            <span>5G</span>
+            <span class="bat" aria-label="Battery 87%"></span>
+          </span>
+        </div>
+
+        <!-- Team header strip (WHITE, prominent) -->
+        <div class="team-strip white">
+          <div class="orb">⚪</div>
+          <div class="txt">
+            <div class="pre">You're on</div>
+            <div class="name">WHITE team</div>
+            <div class="meta">Thu <b>23/APR/2026</b> · kickoff 21:30 · 14h to go</div>
+          </div>
+        </div>
+
+        <!-- Nav row (back + captain badge + share) -->
+        <div class="nav-top">
+          <div class="icon-btn ghost" aria-label="Back">‹</div>
+          <div class="title">
+            Formation planner
+            <span class="subtitle">Captain · Omar Khan</span>
+          </div>
+          <div class="icon-btn accent" aria-label="Share">⇪</div>
+        </div>
+
+        <!-- Pattern chip row -->
+        <div class="pattern-row">
+          <div class="chip"><span>2-3-1</span><span class="sub">Defensive</span></div>
+          <div class="chip active"><span>3-2-1</span><span class="sub">Balanced def</span></div>
+          <div class="chip"><span>2-2-2</span><span class="sub">Balanced</span></div>
+          <div class="chip"><span>3-1-2</span><span class="sub">Attack</span></div>
+          <div class="chip"><span>2-1-3</span><span class="sub">Offensive</span></div>
+          <div class="chip"><span>1-3-2</span><span class="sub">Wingers</span></div>
+          <div class="chip"><span>Custom</span><span class="sub">Free drag</span></div>
+        </div>
+
+        <!-- GK mode toggle — Dedicated vs Rotate -->
+        <div class="gk-mode">
+          <div class="seg">
+            <span class="lbl">○ Dedicated GK</span>
+            <span class="hint">One keeper all game</span>
+          </div>
+          <div class="seg active rot">
+            <span class="lbl">● Rotate every 10 min</span>
+            <span class="hint">No primary keeper</span>
+          </div>
+        </div>
+
+        <!-- Pitch -->
+        <div class="pitch-wrap">
+          <svg class="pitch-svg" viewBox="0 0 100 150" preserveAspectRatio="none" aria-hidden="true">
+            <rect class="stripe" x="0" y="0"   width="100" height="15"/>
+            <rect class="stripe" x="0" y="30"  width="100" height="15"/>
+            <rect class="stripe" x="0" y="60"  width="100" height="15"/>
+            <rect class="stripe" x="0" y="90"  width="100" height="15"/>
+            <rect class="stripe" x="0" y="120" width="100" height="15"/>
+            <rect class="line" x="2" y="2" width="96" height="146" rx="1"/>
+            <line class="line" x1="2" y1="75" x2="98" y2="75"/>
+            <circle class="line" cx="50" cy="75" r="10"/>
+            <circle class="dot"  cx="50" cy="75" r="0.9"/>
+            <rect class="line" x="25" y="2" width="50" height="18"/>
+            <rect class="line" x="38" y="2" width="24" height="7"/>
+            <circle class="dot" cx="50" cy="14" r="0.9"/>
+            <rect class="line" x="25" y="130" width="50" height="18"/>
+            <rect class="line" x="38" y="141" width="24" height="7"/>
+            <circle class="dot" cx="50" cy="136" r="0.9"/>
+            <rect class="goal" x="42" y="0"   width="16" height="2"/>
+            <rect class="goal" x="42" y="148" width="16" height="2"/>
+          </svg>
+          <!-- 3-2-1 tokens — rotation-mode, so starting GK = rotation order #1 -->
+          <div class="tokens">
+            <!-- Starting GK slot — Omar picked to open in goal -->
+            <div class="tok white gk" style="left:50%; top:8%;">OK<span class="rot gk-badge" title="Starting GK">GK</span><span class="label">GK · rot 1</span></div>
+            <!-- DEF row -->
+            <div class="tok white" style="left:22%; top:28%;">SM<span class="rot">2</span><span class="label">DEF</span></div>
+            <div class="tok white" style="left:50%; top:28%;">RP<span class="rot">3</span><span class="label">DEF</span></div>
+            <div class="tok white" style="left:78%; top:28%;">BK<span class="rot">4</span><span class="label">DEF</span></div>
+            <!-- MID row -->
+            <div class="tok white" style="left:35%; top:52%;">AR<span class="rot">5</span><span class="label">CDM</span></div>
+            <div class="tok white" style="left:65%; top:52%;">TH<span class="rot">6</span><span class="label">W</span></div>
+            <!-- ST -->
+            <div class="tok white" style="left:50%; top:78%;">FM<span class="rot">7</span><span class="label">ST</span></div>
+          </div>
+        </div>
+
+        <!-- Starting GK picker — native <select> (S012: replaces radio list per user feedback) -->
+        <div class="gk-card">
+          <div class="head">
+            <span class="lbl">Who starts in goal?</span>
+            <span class="mode-tag">Rotation · 10 min</span>
+          </div>
+          <select class="gk-select" aria-label="Starting goalkeeper">
+            <option value="" disabled>Select starting GK…</option>
+            <option value="omar" selected>Omar Khan (DEF) — rotation 1 · min 0–10</option>
+            <option value="saeed">Saeed Maktoum (DEF) — rotation 2 · min 10–20</option>
+            <option value="rahim">Rahim Pasha (DEF) — rotation 3 · min 20–30</option>
+            <option value="bilal">Bilal Khalid (DEF) — rotation 4 · min 30–40</option>
+            <option value="faisal">Faisal Bin Nasser (CDM) — rotation 5 · min 40–50</option>
+            <option value="jamal">Jamal Abdulla (W) — rotation 6 · min 50–60</option>
+            <option value="karim">Karim Rashid (ST) — rotation 7 · min 60–70</option>
+          </select>
+        </div>
+
+        <!-- Full 7-player roster, each row: avatar · name · position pill · rotation chip -->
+        <div class="roster">
+          <div class="head">
+            <span class="lbl">White roster · rotation order</span>
+            <span class="cnt">7 players</span>
+          </div>
+          <div class="item">
+            <div class="avatar-mini me">OK</div>
+            <div class="name">Omar Khan <span class="you">You</span><span class="cap">· C</span></div>
+            <span class="pos-pill def">DEF</span>
+            <span class="rot-chip gk">GK</span>
+          </div>
+          <div class="item">
+            <div class="avatar-mini">SM</div>
+            <div class="name">Saeed Maktoum</div>
+            <span class="pos-pill def">DEF</span>
+            <span class="rot-chip">2</span>
+          </div>
+          <div class="item">
+            <div class="avatar-mini">RP</div>
+            <div class="name">Rahim Pasha <span class="plus1">(+1)</span></div>
+            <span class="pos-pill def">DEF</span>
+            <span class="rot-chip">3</span>
+          </div>
+          <div class="item">
+            <div class="avatar-mini">BK</div>
+            <div class="name">Bilal Khalid</div>
+            <span class="pos-pill def">DEF</span>
+            <span class="rot-chip">4</span>
+          </div>
+          <div class="item">
+            <div class="avatar-mini">AR</div>
+            <div class="name">Adil Rahman</div>
+            <span class="pos-pill cdm">CDM</span>
+            <span class="rot-chip">5</span>
+          </div>
+          <div class="item">
+            <div class="avatar-mini">TH</div>
+            <div class="name">Tariq Hassan</div>
+            <span class="pos-pill w">W</span>
+            <span class="rot-chip">6</span>
+          </div>
+          <div class="item">
+            <div class="avatar-mini">FM</div>
+            <div class="name">Faisal Malik</div>
+            <span class="pos-pill st">ST</span>
+            <span class="rot-chip">7</span>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="notes">
+          <div class="lbl">Captain's notes <span style="color:var(--muted); font-weight:500; text-transform:none; letter-spacing:0;">· optional</span></div>
+          <textarea rows="3" placeholder="Tactical instructions…">Rotation every 10 min. I open in goal. SM takes over at 10', then down the order. Press high when we're outfield.</textarea>
+          <div class="count">158 / 280</div>
+        </div>
+
+        <!-- Share CTA -->
+        <div class="cta-wrap">
+          <button class="cta">
+            <span>Share with white team</span>
+            <span class="edited">· draft saved 1m ago</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= NON-CAPTAIN · BLACK TEAM · read-only ================= -->
+  <div class="phone-wrap">
+    <div class="phone-label dark-label">Teammate view · Dark · BLACK team · Shared · Read-only</div>
+    <div class="phone dark">
+      <div class="phone-inner">
+
+        <!-- Status bar -->
+        <div class="statusbar">
+          <span>22:16</span>
+          <span class="icons">
+            <span>5G</span>
+            <span class="bat" aria-label="Battery 64%"></span>
+          </span>
+        </div>
+
+        <!-- Team header strip (BLACK) -->
+        <div class="team-strip black">
+          <div class="orb">⚫</div>
+          <div class="txt">
+            <div class="pre">You're on</div>
+            <div class="name">BLACK team</div>
+            <div class="meta">Thu <b>23/APR/2026</b> · kickoff 21:30 · 14h to go</div>
+          </div>
+        </div>
+
+        <!-- Nav row (back + info) -->
+        <div class="nav-top">
+          <div class="icon-btn ghost" aria-label="Back">‹</div>
+          <div class="title">
+            Formation · shared
+            <span class="subtitle">Read-only</span>
+          </div>
+          <div class="icon-btn ghost" aria-label="Info">ⓘ</div>
+        </div>
+
+        <!-- Shared-by banner -->
+        <div class="shared-banner">
+          <span class="pulse"></span>
+          <span>Shared by <span class="cap">Capt. Hamad A.</span> · 14h before kickoff · live sync</span>
+        </div>
+
+        <!-- Pattern chip row — readonly -->
+        <div class="pattern-row" style="justify-content: flex-start;">
+          <div class="chip active" style="pointer-events:none;">
+            <span>2-3-1</span><span class="sub">Defensive</span>
+          </div>
+          <div style="flex:1; padding: 10px 6px; font-size: 10px; font-style: italic; color: var(--muted); letter-spacing: 0.04em;">
+            Captain chose this shape
+          </div>
+        </div>
+
+        <!-- GK mode display — Dedicated (not rotating this week) -->
+        <div class="gk-mode">
+          <div class="seg active">
+            <span class="lbl">● Dedicated GK</span>
+            <span class="hint">Yasir K. in goal</span>
+          </div>
+          <div class="seg">
+            <span class="lbl">○ Rotate every 10 min</span>
+            <span class="hint">Not this week</span>
+          </div>
+        </div>
+
+        <!-- Pitch — 2-3-1 BLACK tokens, dedicated GK (no rotation numbers, just GK label) -->
+        <div class="pitch-wrap">
+          <svg class="pitch-svg" viewBox="0 0 100 150" preserveAspectRatio="none" aria-hidden="true">
+            <rect class="stripe" x="0" y="0"   width="100" height="15"/>
+            <rect class="stripe" x="0" y="30"  width="100" height="15"/>
+            <rect class="stripe" x="0" y="60"  width="100" height="15"/>
+            <rect class="stripe" x="0" y="90"  width="100" height="15"/>
+            <rect class="stripe" x="0" y="120" width="100" height="15"/>
+            <rect class="line" x="2" y="2" width="96" height="146" rx="1"/>
+            <line class="line" x1="2" y1="75" x2="98" y2="75"/>
+            <circle class="line" cx="50" cy="75" r="10"/>
+            <circle class="dot"  cx="50" cy="75" r="0.9"/>
+            <rect class="line" x="25" y="2" width="50" height="18"/>
+            <rect class="line" x="38" y="2" width="24" height="7"/>
+            <circle class="dot" cx="50" cy="14" r="0.9"/>
+            <rect class="line" x="25" y="130" width="50" height="18"/>
+            <rect class="line" x="38" y="141" width="24" height="7"/>
+            <circle class="dot" cx="50" cy="136" r="0.9"/>
+            <rect class="goal" x="42" y="0"   width="16" height="2"/>
+            <rect class="goal" x="42" y="148" width="16" height="2"/>
+          </svg>
+          <!-- 2-3-1: 1 GK, 2 DEF, 3 MID (1 CDM + 2 W), 1 ST -->
+          <div class="tokens">
+            <div class="tok black gk readonly" style="left:50%; top:8%;">YK<span class="rot gk-badge">GK</span><span class="label">GK</span></div>
+            <div class="tok black readonly" style="left:30%; top:30%;">KR<span class="label">DEF</span></div>
+            <div class="tok black readonly" style="left:70%; top:30%;">MI<span class="label">DEF</span></div>
+            <div class="tok black readonly" style="left:22%; top:52%;">HA<span class="label">W</span></div>
+            <div class="tok black readonly" style="left:50%; top:52%;">ZR<span class="label">CDM</span></div>
+            <div class="tok black readonly" style="left:78%; top:52%;">ME<span class="label">W · YOU</span></div>
+            <div class="tok black readonly" style="left:50%; top:80%;">JV<span class="label">ST</span></div>
+          </div>
+        </div>
+
+        <!-- Full 7-player roster for BLACK, read-only. Dedicated GK mode so
+             non-GK rows show '—' (no rotation number in use). -->
+        <div class="roster">
+          <div class="head">
+            <span class="lbl">Black roster</span>
+            <span class="cnt">7 players</span>
+          </div>
+          <div class="item">
+            <div class="avatar-mini">YK</div>
+            <div class="name">Yasir Kamal</div>
+            <span class="pos-pill gk">GK</span>
+            <span class="rot-chip gk">GK</span>
+          </div>
+          <div class="item">
+            <div class="avatar-mini">HA</div>
+            <div class="name">Hamad Almazrouei <span class="cap">· C</span></div>
+            <span class="pos-pill w">W</span>
+            <span class="rot-chip dedicated">—</span>
+          </div>
+          <div class="item">
+            <div class="avatar-mini">KR</div>
+            <div class="name">Khalid Rahim</div>
+            <span class="pos-pill def">DEF</span>
+            <span class="rot-chip dedicated">—</span>
+          </div>
+          <div class="item">
+            <div class="avatar-mini">MI</div>
+            <div class="name">Mostafa Ibrahim</div>
+            <span class="pos-pill def">DEF</span>
+            <span class="rot-chip dedicated">—</span>
+          </div>
+          <div class="item">
+            <div class="avatar-mini">ZR</div>
+            <div class="name">Zayed Rashed</div>
+            <span class="pos-pill cdm">CDM</span>
+            <span class="rot-chip dedicated">—</span>
+          </div>
+          <div class="item">
+            <div class="avatar-mini me">ME</div>
+            <div class="name">You <span class="you">Me</span></div>
+            <span class="pos-pill w">W</span>
+            <span class="rot-chip dedicated">—</span>
+          </div>
+          <div class="item">
+            <div class="avatar-mini">JV</div>
+            <div class="name">Javed Vora <span class="plus1">(+1)</span></div>
+            <span class="pos-pill st">ST</span>
+            <span class="rot-chip dedicated">—</span>
+          </div>
+        </div>
+
+        <!-- Captain's notes, read-only -->
+        <div class="notes">
+          <div class="lbl">Captain's notes</div>
+          <div class="text-ro">
+            "Yasir in goal full game. KR + MI hold a flat two, ZR drops to cover. Wide players stay wide, don't cheat inside. JV target man — play to feet."
+          </div>
+        </div>
+
+        <!-- Read-only CTA -->
+        <div class="cta-wrap">
+          <button class="cta disabled">
+            <span>Read-only · only Capt. Hamad can edit</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================================= -->
+<!-- State tiles                                                    -->
+<!-- ============================================================= -->
+<div class="section-header">
+  <h2>States &amp; edge cases</h2>
+  <p>Captain hasn't set a formation yet · rotation mode ON vs dedicated-GK mode OFF · pattern picker behaviour · realtime share mechanics.</p>
+</div>
+
+<div class="tiles">
+
+  <!-- Tile 1 — Waiting for captain -->
+  <div class="tile">
+    <span class="tag">State A · Waiting for captain</span>
+    <h3>Teammate opens planner before captain shares</h3>
+    <p>
+      Between <code style="font-family:'JetBrains Mono',monospace; font-size:11px;">teams_locked_at</code> and the first
+      <code style="font-family:'JetBrains Mono',monospace; font-size:11px;">share_formation</code> RPC, non-captains see a
+      waiting state. Team-strip and roster already render (teams are known), but the pitch area is empty and a
+      gentle prompt tells them to check back. Push <code style="font-family:'JetBrains Mono',monospace; font-size:11px;">formation_reminder</code>
+      nudges the captain at T-24h; a second fires at T-6h if still unset.
+    </p>
+    <div class="visual">
+      <!-- Small team-strip echo -->
+      <div style="display:flex; align-items:center; gap:10px; padding:8px 10px; background:#f6f1e4; border:1.5px solid #0a1628; border-radius:10px; margin-bottom:10px;">
+        <div style="width:28px; height:28px; border-radius:50%; background:#fff; border:1.5px solid #0a1628; display:grid; place-items:center; font-weight:700; font-size:12px;">⚪</div>
+        <div style="flex:1;">
+          <div style="font-size:8.5px; letter-spacing:0.14em; font-weight:700; text-transform:uppercase; opacity:0.7;">You're on</div>
+          <div style="font-family:'Fraunces',Georgia,serif; font-size:14px; font-weight:700;">WHITE team</div>
+        </div>
+      </div>
+      <div style="padding:24px 16px; background:#ece4d0; border:2px dashed rgba(10,22,40,0.18); border-radius:12px; text-align:center;">
+        <div style="font-size:28px; opacity:0.55; margin-bottom:4px;">⏱</div>
+        <div style="font-family:'Fraunces',Georgia,serif; font-size:13px; font-weight:700; margin-bottom:3px;">Capt. Omar hasn't set it yet</div>
+        <div style="font-size:11px; color:#6b7684;">We'll ping you the moment he shares.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tile 2 — Rotation ON vs Dedicated GK OFF (contrast) -->
+  <div class="tile dark">
+    <span class="tag">State B · Rotation mode ON vs Dedicated OFF</span>
+    <h3>Same 7 players · two different roster presentations</h3>
+    <p>
+      <strong>Rotation ON</strong> (left column below) — every outfield player gets a 1–7 chip. The starting GK shows a
+      gold "GK" chip. The captain can drag to reorder.
+      <strong>Dedicated OFF</strong> (right column) — only the goalkeeper shows a chip; everyone else shows a dashed
+      em-dash. Triggered automatically when any player has <code style="font-family:'JetBrains Mono',monospace; font-size:11px;">primary_position = 'GK'</code>
+      on their profile, unless the captain opts into rotation anyway.
+    </p>
+    <div class="visual dark" style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px;">
+      <!-- Rotation ON column -->
+      <div>
+        <div style="font-size:9px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:#e5ba5b; margin-bottom:6px;">Rotation ON</div>
+        <div class="mini-row"><div class="av">OK</div><div>Omar K.</div><div class="p" style="background:#1d4ed8;">DEF</div><div class="r gk">GK</div></div>
+        <div class="mini-row"><div class="av">SM</div><div>Saeed M.</div><div class="p" style="background:#1d4ed8;">DEF</div><div class="r">2</div></div>
+        <div class="mini-row"><div class="av">RP</div><div>Rahim P.</div><div class="p" style="background:#1d4ed8;">DEF</div><div class="r">3</div></div>
+        <div class="mini-row"><div class="av">AR</div><div>Adil R.</div><div class="p" style="background:#166534;">CDM</div><div class="r">5</div></div>
+        <div class="mini-row"><div class="av">FM</div><div>Faisal M.</div><div class="p" style="background:#e63349;">ST</div><div class="r">7</div></div>
+      </div>
+      <!-- Dedicated OFF column -->
+      <div>
+        <div style="font-size:9px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:#85929f; margin-bottom:6px;">Dedicated GK</div>
+        <div class="mini-row"><div class="av">YK</div><div>Yasir K.</div><div class="p" style="background:#d4a84a; color:#0a1628;">GK</div><div class="r gk">GK</div></div>
+        <div class="mini-row"><div class="av">HA</div><div>Hamad A.</div><div class="p" style="background:#ea580c;">W</div><div class="r">—</div></div>
+        <div class="mini-row"><div class="av">KR</div><div>Khalid R.</div><div class="p" style="background:#1d4ed8;">DEF</div><div class="r">—</div></div>
+        <div class="mini-row"><div class="av">ZR</div><div>Zayed R.</div><div class="p" style="background:#166534;">CDM</div><div class="r">—</div></div>
+        <div class="mini-row"><div class="av">JV</div><div>Javed V.</div><div class="p" style="background:#e63349;">ST</div><div class="r">—</div></div>
+      </div>
+    </div>
+    <div style="margin-top:10px; font-size:11px; color:#c3b99f; line-height:1.5;">
+      Toggle lives above the pitch. Switching flips rotation chips ↔ dashes in 120ms. Starting GK chip stays either way.
+    </div>
+  </div>
+
+  <!-- Tile 3 — Rotation number auto-assignment logic -->
+  <div class="tile">
+    <span class="tag">State C · Auto-assigning rotation numbers 1–6</span>
+    <h3>Deterministic, captain-overridable</h3>
+    <p>
+      When the captain picks the starting GK, the remaining 6 players are auto-numbered 1–6 by default order:
+      <strong>DEF → CDM → W → ST</strong>, ties broken by season leaderboard rank (stronger player = earlier number so
+      they rotate into goal sooner while the game is still close).
+      Captain can long-press any rotation chip and drag to reorder. Order is persisted in
+      <code style="font-family:'JetBrains Mono',monospace; font-size:11px;">formations.rotation_order</code> (int[]).
+    </p>
+    <div class="visual">
+      <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
+        <span class="ex" style="background:#d4a84a; color:#0a1628; border-color:#d4a84a;">GK · OK</span>
+        <span style="font-size:11px; color:#6b7684;">then rotates →</span>
+        <span class="ex">1 · SM</span>
+        <span class="ex">2 · RP</span>
+        <span class="ex">3 · BK</span>
+        <span class="ex">4 · AR</span>
+        <span class="ex">5 · TH</span>
+        <span class="ex">6 · FM</span>
+      </div>
+      <div style="font-size:11px; color:#6b7684; line-height:1.5;">
+        Minute 0–10: OK in goal. 10–20: SM swaps in, OK returns to DEF. 20–30: RP. And so on. Game pauses briefly at each
+        rotation tick — in practice captains align swaps with natural stoppages.
+      </div>
+    </div>
+  </div>
+
+  <!-- Tile 4 — Realtime share / update toast -->
+  <div class="tile dark">
+    <span class="tag">State D · Realtime share &amp; update</span>
+    <h3>Non-captains see every edit within 2 seconds</h3>
+    <p>
+      Supabase realtime subscription on <code style="font-family:'JetBrains Mono',monospace; font-size:11px;">formations</code>
+      + <code style="font-family:'JetBrains Mono',monospace; font-size:11px;">formation_rotation_order</code>. Tokens
+      animate to new positions in 200ms; roster rotation chips cross-fade. Re-shares after the first are throttled —
+      max one push notification per viewer per 60s. Offline viewers see a "Last synced HH:mm" chip until reconnect;
+      formation stays cached locally.
+    </p>
+    <div class="visual dark">
+      <div style="padding:10px 12px; background:#223251; border:1px solid #2e9d63; border-radius:12px; display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <span style="width:8px; height:8px; border-radius:50%; background:#2e9d63; flex-shrink:0; box-shadow:0 0 0 4px rgba(46,157,99,0.25);"></span>
+        <span style="font-size:12px; color:#f2ead6;"><strong>Capt. Omar updated the formation</strong> · just now</span>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <span class="ex">formations</span>
+        <span class="ex">formation_rotation_order</span>
+        <span class="ex">share_formation()</span>
+      </div>
+      <div style="margin-top:10px; font-size:11px; color:#c3b99f; line-height:1.5;">
+        Target latency &lt; 2s. Offline fallback shows "Last synced 22:09" pill until reconnect.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

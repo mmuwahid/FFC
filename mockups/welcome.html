@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>FFC — Session S005 (S009 safe-area retrofit)</title>
+<style>
+  :root {
+    --ink: #0a1628;
+    --paper: #f6f1e4;
+    --accent: #c8102e;
+    --gold: #d4a84a;
+    --muted: #6b7684;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif;
+    background: radial-gradient(ellipse at top, #faf6ea 0%, #f0e9d7 100%);
+    color: var(--ink);
+    display: grid;
+    place-items: center;
+    padding: 4rem 1.25rem;
+  }
+  .card {
+    max-width: 640px;
+    width: 100%;
+    background: var(--paper);
+    border: 1px solid rgba(10, 22, 40, 0.08);
+    border-radius: 18px;
+    padding: 2.5rem 2.5rem 2rem;
+    box-shadow: 0 20px 60px -20px rgba(10, 22, 40, 0.25), 0 2px 0 rgba(10, 22, 40, 0.04);
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--gold) 100%);
+  }
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+  }
+  h1 {
+    font-family: "Fraunces", "Playfair Display", Georgia, serif;
+    font-size: clamp(1.75rem, 2.5vw + 1rem, 2.5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.01em;
+  }
+  h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 1.75rem;
+  }
+  .meta {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    border-top: 1px solid rgba(10, 22, 40, 0.08);
+    padding-top: 1.25rem;
+  }
+  .meta div {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .meta strong {
+    display: block;
+    color: var(--ink);
+    font-size: 15px;
+    margin-top: 4px;
+    letter-spacing: 0;
+    text-transform: none;
+    font-weight: 600;
+  }
+  .list {
+    margin: 0 0 1.5rem;
+    padding: 0;
+    list-style: none;
+  }
+  .list li {
+    padding: 0.45rem 0 0.45rem 1.25rem;
+    position: relative;
+    font-size: 15px;
+  }
+  .list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.95rem;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+  }
+  .hint {
+    margin-top: 1.5rem;
+    font-size: 13px;
+    color: var(--muted);
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <span class="tag">Session S005 · 19/APR/2026</span>
+    <h1>Section&nbsp;3 — <em>Screens &amp; Navigation</em></h1>
+    <p class="sub">Visual Companion is live. Mockups will appear here as we walk through the Phase&nbsp;1 screens.</p>
+
+    <ul class="list">
+      <li>Depth&nbsp;B approved — screen spec + mockup gate per screen</li>
+      <li>S005 scope — 3.0 nav/IA + core three screens (Poll · Leaderboard · Player profile)</li>
+      <li>Mockup-first rule — every screen gets an HTML mockup before any code</li>
+    </ul>
+
+    <div class="meta">
+      <div>STACK<strong>React PWA · Supabase</strong></div>
+      <div>VIEWPORT<strong>390 × 844</strong></div>
+      <div>PALETTE<strong>FFC editorial crest</strong></div>
+    </div>
+
+    <p class="hint">Starting with §3.0 — Navigation &amp; Information Architecture in the terminal (text-only, per Companion usage rule).</p>
+  </div>
+</body>
+</html>

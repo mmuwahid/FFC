@@ -1,0 +1,1540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>§3.14 Player Profile — FFC Phase 1 mockup · v4 (S009 safe-area retrofit)</title>
+<style>
+  /* ============================================================= */
+  /* Design tokens — carried from §3.7 and §3.13                    */
+  /* ============================================================= */
+  .light {
+    --ink: #0a1628;
+    --ink-soft: #293a55;
+    --paper: #f6f1e4;
+    --paper-dim: #ece4d0;
+    --paper-dimmer: #e3d8bc;
+    --line: rgba(10, 22, 40, 0.08);
+    --line-strong: rgba(10, 22, 40, 0.18);
+    --accent: #c8102e;
+    --accent-dim: #a40c24;
+    --gold: #d4a84a;
+    --muted: #6b7684;
+    --success: #16a34a;
+    --success-tint: rgba(22, 163, 74, 0.1);
+    --warn: #b7791f;
+    --danger: #dc2626;
+    --row-bg: #ece4d0;
+    --row-bg-hover: #e0d4b6;
+    --nav-bg: rgba(246, 241, 228, 0.95);
+    --medal-gold: #d4a84a;
+    --medal-silver: #9ca3af;
+    --medal-bronze: #b87333;
+    --card-shadow: 0 10px 40px -15px rgba(10, 22, 40, 0.35), 0 1px 0 rgba(10, 22, 40, 0.05);
+  }
+  .dark {
+    --ink: #f2ead6;
+    --ink-soft: #c3b99f;
+    --paper: #0e1826;
+    --paper-dim: #182437;
+    --paper-dimmer: #223251;
+    --line: rgba(242, 234, 214, 0.08);
+    --line-strong: rgba(242, 234, 214, 0.2);
+    --accent: #e63349;
+    --accent-dim: #bf2639;
+    --gold: #e5ba5b;
+    --muted: #85929f;
+    --success: #2e9d63;
+    --success-tint: rgba(46, 157, 99, 0.14);
+    --warn: #dca049;
+    --danger: #e63349;
+    --row-bg: #182437;
+    --row-bg-hover: #233351;
+    --nav-bg: rgba(14, 24, 38, 0.9);
+    --medal-gold: #e5ba5b;
+    --medal-silver: #a5adb8;
+    --medal-bronze: #cb8a5d;
+    --card-shadow: 0 10px 40px -15px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  :root {
+    --pos-gk:  #d4a84a;
+    --pos-def: #1e3a8a;
+    --pos-cdm: #065f46;
+    --pos-w:   #ea580c;
+    --pos-st:  #c8102e;
+    --last-w:  #16a34a;
+    --last-d:  #9ca3af;
+    --last-l:  #dc2626;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif;
+  }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #faf6ea 0%, #ead9b8 60%, #b39a72 100%);
+    color: #0a1628;
+    padding: 3rem 1.5rem 6rem;
+  }
+
+  /* ========== Page header ========== */
+  .page-header {
+    max-width: 1400px;
+    margin: 0 auto 2rem;
+  }
+  .page-header .tag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #c8102e;
+    font-weight: 700;
+  }
+  .page-header h1 {
+    font-family: "Fraunces", "Playfair Display", Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(1.75rem, 2.5vw + 1rem, 2.4rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    color: #0a1628;
+    margin: 0.25rem 0 0.6rem;
+  }
+  .page-header h1 em {
+    font-style: italic;
+    color: #c8102e;
+    font-weight: 500;
+  }
+  .page-header p {
+    color: #293a55;
+    font-size: 14px;
+    line-height: 1.55;
+    max-width: 900px;
+    margin: 0;
+  }
+
+  /* ========== Phone frames ========== */
+  .phones {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(390px, 1fr));
+    gap: 2.5rem;
+    max-width: 1100px;
+    margin: 0 auto 3rem;
+    justify-items: center;
+  }
+  .phone-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .phone-label {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #293a55;
+    margin-bottom: 12px;
+  }
+  .phone-label.dark-label { color: #0a1628; opacity: 0.8; }
+  .phone {
+    width: 390px;
+    height: 844px;
+    border-radius: 48px;
+    background: #000;
+    padding: 10px;
+    box-shadow:
+      0 40px 80px -20px rgba(10,22,40,0.35),
+      0 0 0 2px rgba(0,0,0,0.2),
+      inset 0 0 0 2px rgba(255,255,255,0.1);
+    position: relative;
+    /* S009 — simulated iPhone-14-Pro safe-area for desktop mockup preview.
+       env(safe-area-inset-*) returns 0 on desktop (var IS defined, resolves to 0)
+       so fallback arg is never used. Hardcoded for mockup; production reads env(). */
+    --safe-top:    59px;
+    --safe-right:  0px;
+    --safe-bottom: 34px;
+    --safe-left:   0px;
+  }
+  /* S009 — simulated Dynamic Island cutout so the obstruction is visible at review time */
+  .phone::after {
+    content: "";
+    position: absolute;
+    top: 21px; left: 50%;
+    transform: translateX(-50%);
+    width: 124px; height: 37px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 100;
+    pointer-events: none;
+  }
+  .phone-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: 40px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--paper);
+    color: var(--ink);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    /* S012: tabbar is now position:sticky (in-flow), so the 110px bottom padding
+       that was needed when tabbar was position:absolute is removed. */
+  }
+  /* S009 v2 — statusbar IS the safe-area-top zone: time/battery flank the
+     island on left/right, island centered in the middle. */
+  .statusbar {
+    height: var(--safe-top);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 calc(28px + var(--safe-right)) 0 calc(28px + var(--safe-left));
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+  }
+  .statusbar .icons {
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    opacity: 0.85;
+  }
+
+  /* ========== Top nav (back + edit) ========== */
+  .nav-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 18px 0;
+  }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: grid; place-items: center;
+    color: var(--ink);
+    background: var(--paper-dim);
+    font-size: 18px;
+    font-weight: 700;
+    border: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .icon-btn.edit {
+    background: var(--accent);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 14px -4px rgba(200, 16, 46, 0.6);
+  }
+  .dark .icon-btn.edit { box-shadow: 0 4px 14px -4px rgba(230, 51, 73, 0.6); }
+
+  /* ========== Hero band ========== */
+  .hero {
+    padding: 14px 22px 18px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .hero .avatar {
+    width: 72px; height: 72px; border-radius: 22px;
+    background: var(--accent);
+    color: #fff;
+    display: grid; place-items: center;
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+    flex-shrink: 0;
+    box-shadow: 0 8px 24px -8px rgba(200,16,46,0.5);
+  }
+  .hero .avatar.other { background: var(--ink-soft); color: var(--paper); box-shadow: none; }
+  .hero .avatar.gold { background: var(--gold); color: var(--ink); }
+  .hero .identity { flex: 1; min-width: 0; padding-top: 2px; }
+  .hero .name-row {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .hero .name {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+  .hero .you-chip {
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--accent);
+    color: #fff;
+  }
+  .hero .role-chip {
+    padding: 3px 9px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--gold);
+    color: var(--ink);
+  }
+  .hero .joined {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    letter-spacing: 0.04em;
+  }
+  .hero .pills-big {
+    display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;
+  }
+  .pos-big {
+    height: 28px;
+    padding: 0 12px;
+    border-radius: 8px;
+    display: inline-flex; align-items: center;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+  }
+  .pos-big.fill-gk  { background: var(--pos-gk);  color: #3b2a00; }
+  .pos-big.fill-def { background: var(--pos-def); color: #fff; }
+  .pos-big.fill-cdm { background: var(--pos-cdm); color: #fff; }
+  .pos-big.fill-w   { background: var(--pos-w);   color: #fff; }
+  .pos-big.fill-st  { background: var(--pos-st);  color: #fff; }
+  .pos-big.out-gk  { border: 1.5px solid var(--pos-gk);  color: var(--pos-gk); }
+  .pos-big.out-def { border: 1.5px solid var(--pos-def); color: var(--pos-def); }
+  .pos-big.out-cdm { border: 1.5px solid var(--pos-cdm); color: var(--pos-cdm); }
+  .pos-big.out-w   { border: 1.5px solid var(--pos-w);   color: var(--pos-w); }
+  .pos-big.out-st  { border: 1.5px solid var(--pos-st);  color: var(--pos-st); }
+  .dark .pos-big.out-def { color: #7fa0e8; border-color: #7fa0e8; }
+  .dark .pos-big.out-cdm { color: #49b388; border-color: #49b388; }
+
+  /* ========== Season chip ========== */
+  .season-chip {
+    margin: 0 22px 14px;
+    padding: 9px 14px;
+    background: var(--paper-dim);
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    max-width: calc(100% - 44px);
+  }
+  .season-chip .season-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--success);
+  }
+  .season-chip .caret { color: var(--muted); font-size: 10px; margin-left: auto; }
+
+  /* ========== Cards ========== */
+  .card {
+    margin: 0 18px 12px;
+    background: var(--paper-dim);
+    border-radius: 16px;
+    border: 1px solid var(--line);
+    overflow: hidden;
+    flex-shrink: 0; /* S012: prevent flex-column phone-inner from compressing cards; overflow:hidden triggers auto→0 min-height override */
+  }
+  .card-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 12px 16px 6px;
+  }
+  .card-title .label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .card-title .hint {
+    font-size: 11px;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* Season stats grid */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    padding: 4px 12px 12px;
+    gap: 4px;
+  }
+  .kpi {
+    padding: 10px 8px;
+    text-align: center;
+    border-radius: 10px;
+    background: transparent;
+    /* S009 FIX — enforce block flow so inline-flex .wdl-triplet + .l label stack cleanly
+       and every cell reserves room for label underneath the numeric value. */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    min-height: 52px;
+    line-height: 1.1;
+  }
+  .kpi .v {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    display: block;
+  }
+  .kpi .v.mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 17px; }
+  /* W-D-L colour triplet */
+  .wdl-triplet {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 1px;
+  }
+  .wdl-triplet .w  { color: var(--last-w); }
+  .wdl-triplet .d  { color: var(--last-d); }
+  .wdl-triplet .l  { color: var(--last-l); }
+  .wdl-triplet .sep { color: var(--muted); margin: 0 2px; }
+  .wdl-triplet.small { font-size: 13px; }
+  .wdl-triplet.muted .w, .wdl-triplet.muted .d, .wdl-triplet.muted .l { opacity: 0.4; }
+
+  /* S007 FIX — override .kpi .l specificity collision inside .wdl-triplet.
+     Previously the loss digit inherited .kpi .l's 9px uppercase + margin-top:6px,
+     so "L" rendered smaller and sat lower than W/D. Reset here, then re-apply colour. */
+  .kpi .wdl-triplet .w,
+  .kpi .wdl-triplet .d,
+  .kpi .wdl-triplet .l {
+    font-size: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
+    text-transform: none;
+    color: inherit;
+    margin-top: 0;
+    line-height: 1;
+  }
+  .kpi .wdl-triplet .w { color: var(--last-w); }
+  .kpi .wdl-triplet .d { color: var(--last-d); }
+  .kpi .wdl-triplet .l { color: var(--last-l); }
+
+  /* Totals card scope dropdown */
+  .scope-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    background: var(--paper);
+    border: 1px solid var(--line-strong);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .scope-picker .caret { font-size: 9px; color: var(--muted); }
+  .kpi .v.accent { color: var(--accent); font-size: 30px; }
+  .kpi .v.muted { color: var(--muted); }
+  .kpi .l {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    /* S009 FIX — margin-top replaced by parent flex gap. Explicit line-height
+       stops label baseline from riding up into the value above. */
+    margin-top: 0;
+    line-height: 1.3;
+    display: block;
+  }
+  .kpi.wide { grid-column: span 1; }
+
+  /* Last-5 strip card */
+  .last5-card {
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .last5-card .label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .last5-strip {
+    display: flex;
+    gap: 6px;
+  }
+  .last5-strip .circle {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: grid; place-items: center;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0;            /* S007 FIX — letter-spacing nudged glyph off-centre */
+    line-height: 1;               /* S007 FIX — ensure single-char centers in grid cell */
+    font-variant-numeric: tabular-nums;
+  }
+  .last5-strip .circle.W { background: var(--last-w); }
+  .last5-strip .circle.D { background: var(--last-d); color: #fff; }
+  .last5-strip .circle.L { background: var(--last-l); }
+
+  /* Achievements card (S007 — replaces Totals card) */
+  .achievements-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    padding: 4px 12px 14px;
+    gap: 6px;
+  }
+  .achievement-tile {
+    padding: 12px 8px 12px;
+    text-align: center;
+    border-radius: 12px;
+    background: var(--paper-soft, rgba(10, 22, 40, 0.03));
+    border: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px;
+    line-height: 1.2;
+    /* S009 FIX — guarantee vertical room for icon + value + label + ctx so tile
+       can't visually clip the 4-line stack on small viewport renders. */
+    min-height: 96px;
+  }
+  .achievement-tile .icon {
+    font-size: 20px;
+    line-height: 1;
+    margin-bottom: 2px;
+    display: block;
+  }
+  .achievement-tile .big {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    display: block;
+  }
+  .achievement-tile .lbl {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 0;
+    line-height: 1.3;
+    display: block;
+  }
+  .achievement-tile .ctx {
+    font-size: 10px;
+    font-style: italic;
+    color: var(--ink-soft);
+    line-height: 1.25;
+    display: block;
+  }
+  .achievement-tile.positive .big { color: var(--last-w); }
+  .achievement-tile.negative .big { color: var(--last-l); }
+  .dark .achievement-tile { background: rgba(242, 234, 214, 0.04); }
+
+  /* Career totals card */
+  .career-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 2px;
+    padding: 4px 12px 12px;
+  }
+  .career-row .kpi .v { font-size: 16px; }
+  .career-row .kpi .v.mono { font-size: 13px; }
+  .career-row .kpi .l { font-size: 8px; letter-spacing: 0.1em; }
+
+  /* Recent matches list */
+  .recent-head {
+    padding: 0 22px 6px;
+  }
+  .recent-list {
+    margin: 0 12px 12px;
+  }
+  .recent-row {
+    display: grid;
+    grid-template-columns: auto 36px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 10px;
+    border-radius: 12px;
+    margin-bottom: 4px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .dark .recent-row { background: var(--paper-dim); border-color: var(--line); }
+  .recent-row .date-block {
+    min-width: 78px;
+  }
+  .recent-row .date {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: 0.02em;
+  }
+  .recent-row .season-cap {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 1px;
+  }
+  .result-badge {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: grid; place-items: center;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+  .result-badge.W { background: var(--last-w); }
+  .result-badge.D { background: var(--last-d); }
+  .result-badge.L { background: var(--last-l); }
+
+  .match-meta { min-width: 0; }
+  .team-score-row {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 2px;
+  }
+  .team-chip {
+    padding: 2px 7px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    border-radius: 4px;
+  }
+  .team-chip.white { border: 1px solid var(--line-strong); background: rgba(255,255,255,0.6); color: var(--ink); }
+  .dark .team-chip.white { background: rgba(242,234,214,0.1); color: var(--ink); border-color: var(--line-strong); }
+  .team-chip.black { background: #0a1628; color: #f2ead6; border: 1px solid #0a1628; }
+  .dark .team-chip.black { background: #000; color: #f2ead6; border-color: var(--line-strong); }
+  .score {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .player-line {
+    font-size: 11px;
+    color: var(--ink-soft);
+    letter-spacing: 0.01em;
+  }
+  .dark .player-line { color: var(--ink-soft); }
+  .player-line .motm { color: var(--gold); font-weight: 700; }
+  .player-line .card-y { color: var(--warn); font-weight: 700; }
+  .player-line .card-r { color: var(--danger); font-weight: 700; }
+  .recent-row .nav-caret {
+    font-size: 16px;
+    color: var(--muted);
+    opacity: 0.6;
+  }
+
+  /* Footer */
+  .profile-footer {
+    padding: 4px 22px 24px;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .profile-footer a {
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-decoration: none;
+  }
+
+  /* ========== Bottom tab bar ==========
+     S012 fix: was position:absolute; bottom:0 — worked only while content
+     fit inside 824px (because scroll-content bottom == scroll-viewport bottom).
+     After the card flex-shrink:0 fix the content is ~1100px, so the abs-positioned
+     tabbar sat at y=1100 (bottom of scroll CONTENT), appearing in the middle of
+     the viewport. position:sticky keeps it pinned to the bottom of the scroll
+     viewport regardless of content length. Same container, same bottom:0. */
+  .tabbar {
+    position: sticky;
+    bottom: 0; left: 0; right: 0;
+    margin-top: auto;  /* pushes tabbar to the end of the flex column when content is short */
+    z-index: 10;
+    padding-top: 10px;
+    padding-left: calc(12px + var(--safe-left));
+    padding-right: calc(12px + var(--safe-right));
+    padding-bottom: calc(22px + var(--safe-bottom));
+    background: var(--nav-bg);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 2px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .tab .ico { font-size: 18px; }
+  .tab.active { color: var(--accent); }
+  .tab.active .ico {
+    transform: translateY(-1px);
+  }
+
+  /* ========== Tiles ========== */
+  .tiles {
+    max-width: 1200px;
+    margin: 0 auto 2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 1.25rem;
+  }
+  .tile {
+    background: rgba(255,255,255,0.9);
+    border-radius: 20px;
+    border: 1px solid rgba(10,22,40,0.08);
+    padding: 18px 20px 22px;
+    box-shadow: 0 8px 28px -16px rgba(10,22,40,0.35);
+  }
+  .tile.dark {
+    background: #0e1826;
+    color: #f2ead6;
+    border-color: rgba(242,234,214,0.12);
+  }
+  .tile .tag {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent, #c8102e);
+    font-weight: 700;
+  }
+  .tile.dark .tag { color: #e63349; }
+  .tile h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 4px 0 8px;
+    letter-spacing: -0.01em;
+  }
+  .tile p {
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: #293a55;
+    margin: 0 0 12px;
+  }
+  .tile.dark p { color: #c3b99f; }
+  .tile .visual {
+    background: #f6f1e4;
+    border-radius: 14px;
+    padding: 14px;
+    margin-top: 8px;
+    color: #0a1628;
+  }
+  .tile .visual.dark {
+    background: #0e1826;
+    color: #f2ead6;
+  }
+
+  /* Edit sheet tile */
+  .sheet {
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 22px 22px 0 0;
+    padding: 18px 18px calc(24px + var(--safe-bottom, 0px));
+    position: relative;
+  }
+  .sheet.dark { background: var(--paper); }
+  .sheet::before {
+    content: "";
+    display: block;
+    width: 48px; height: 5px;
+    border-radius: 4px;
+    background: rgba(10,22,40,0.22);
+    margin: 0 auto 14px;
+  }
+  .sheet h4 {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+  .sheet .section-label {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 14px 0 6px;
+  }
+  .chip-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    padding: 7px 11px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    border-radius: 8px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .chip.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: transparent;
+  }
+  .chip.pos.active.gk  { background: var(--pos-gk);  color: #3b2a00; }
+  .chip.pos.active.def { background: var(--pos-def); color: #fff; }
+  .chip.pos.active.cdm { background: var(--pos-cdm); color: #fff; }
+  .chip.pos.active.w   { background: var(--pos-w);   color: #fff; }
+  .chip.pos.active.st  { background: var(--pos-st);  color: #fff; }
+  .chip.disabled {
+    opacity: 0.4;
+    text-decoration: line-through;
+    cursor: not-allowed;
+  }
+  .save-btn {
+    margin-top: 16px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    width: 100%;
+    box-shadow: 0 8px 24px -12px rgba(200,16,46,0.6);
+  }
+
+  /* Ghost tile */
+  .ghost-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px;
+    border-radius: 12px;
+    background: rgba(107, 118, 132, 0.1);
+    border: 1px dashed var(--line-strong);
+  }
+  .ghost-row .avatar {
+    width: 48px; height: 48px; border-radius: 14px;
+    background: var(--ink-soft);
+    color: var(--paper);
+    display: grid; place-items: center;
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700;
+    font-size: 18px;
+    opacity: 0.9;
+  }
+  .ghost-row .ghost-name { font-family: "Fraunces", Georgia, serif; font-weight: 700; font-size: 16px; }
+  .ghost-row .ghost-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .onboarding {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--success-tint);
+    border: 1px solid var(--success);
+    font-size: 11.5px;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+
+  /* Banned chip */
+  .banned-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 9px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: rgba(220,38,38,0.12);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+  }
+
+  /* Zero-match tile */
+  .empty-hero {
+    text-align: center;
+    padding: 20px 14px;
+    background: var(--paper-dim);
+    border-radius: 14px;
+  }
+  .empty-hero .em {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+  .empty-hero .sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .empty-hero .cta {
+    padding: 10px 16px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    display: inline-block;
+  }
+
+  /* Season picker sheet tile */
+  .picker-sheet {
+    padding: 14px 16px;
+    background: var(--paper);
+    border-radius: 16px 16px 0 0;
+    color: var(--ink);
+  }
+  .picker-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .picker-row:last-child { border-bottom: none; }
+  .picker-row.active .p-name { color: var(--accent); font-weight: 700; }
+  .p-name { font-size: 13px; font-weight: 600; }
+  .p-dates { font-size: 10px; color: var(--muted); margin-top: 1px; letter-spacing: 0.04em; }
+  .p-tag {
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+  }
+  .p-tag.ongoing { background: var(--success-tint); color: var(--success); }
+  .p-tag.archived { background: rgba(107,118,132,0.14); color: var(--muted); }
+  .p-tag.ended { background: rgba(200,16,46,0.1); color: var(--accent); }
+
+  /* Callout */
+  .callout {
+    max-width: 1100px;
+    margin: 2rem auto 0;
+    padding: 18px 22px;
+    background: rgba(255,255,255,0.94);
+    border-left: 4px solid #c8102e;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px -18px rgba(10,22,40,0.3);
+  }
+  .callout h4 {
+    margin: 0 0 8px;
+    font-family: "Fraunces", Georgia, serif;
+    color: #c8102e;
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+  }
+  .callout ul { margin: 0; padding-left: 1.2rem; color: #293a55; font-size: 13px; line-height: 1.6; }
+  .callout li { margin-bottom: 4px; }
+  .callout li strong { color: #0a1628; }
+  .callout code {
+    background: #ece4d0;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <span class="tag">Session S006 + S007 refinements · §3.14</span>
+  <h1>Player profile — <em>self + other-player views</em>, light + dark · v3</h1>
+  <p>Self-view on the left (Mohammed Muwahid · logged-in user · Season 2 · edit pencil in hero; no "You" chip). Other-player view on the right (Omar Khalil · dark mode · no edit button). W-D-L rendered in a green/grey/red triplet everywhere. <strong>S007 refinements:</strong> (1) W-D-L alignment bug fixed — all three digits now share the same baseline and size; (2) last-5 circles centred correctly inside the 24 px disc; (3) <strong>MP (matches played)</strong> added to the Season stats grid (Rank removed from the grid since it's already shown as the <em>rank 1st 🥇</em> header hint); (4) <strong>Totals card replaced by an Achievements card</strong> — career MOTMs, best win streak, total goals, yellows, reds, longest losing streak. Both phones render the full IA: hero → season picker → Season stats 3×2 (now 6 KPIs incl. MP) → last-5 strip → Achievements 3×2 → recent matches list → tertiary footer link. Below: six alternate-state tiles — edit sheet open, ghost profile, banned player, zero-match player, season picker sheet, admin viewing other.</p>
+</div>
+
+<div class="phones">
+
+  <!-- ================================================ -->
+  <!-- LIGHT PHONE — SELF VIEW                            -->
+  <!-- ================================================ -->
+  <div class="phone-wrap">
+    <span class="phone-label">Light · Self view (your own profile · Season 2)</span>
+    <div class="phone">
+      <div class="phone-inner light">
+        <div class="statusbar">
+          <span>9:41</span>
+          <span class="icons">•••• 5G 92%</span>
+        </div>
+
+        <div class="nav-top">
+          <div class="icon-btn" title="Back">←</div>
+          <div class="icon-btn edit" title="Edit profile">✎</div>
+        </div>
+
+        <div class="hero">
+          <div class="avatar">MM</div>
+          <div class="identity">
+            <div class="name-row">
+              <div class="name">Mohammed Muwahid</div>
+            </div>
+            <div class="pills-big">
+              <span class="pos-big fill-def">DEF</span>
+              <span class="pos-big out-cdm">CDM</span>
+            </div>
+            <div class="joined">Joined 05/JAN/2026 · Season 2 member</div>
+          </div>
+        </div>
+
+        <div class="season-chip">
+          <span class="season-dot"></span>
+          Season 2 · APR – ongoing
+          <span class="caret">▾</span>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span class="label">Season 2 stats</span>
+            <span class="hint">rank 1st 🥇</span>
+          </div>
+          <div class="kpi-grid">
+            <div class="kpi"><div class="v accent">22</div><div class="l">Points</div></div>
+            <div class="kpi"><div class="v">9</div><div class="l">MP</div></div>
+            <div class="kpi"><span class="wdl-triplet"><span class="w">7</span><span class="sep">–</span><span class="d">1</span><span class="sep">–</span><span class="l">1</span></span><div class="l">W – D – L</div></div>
+            <div class="kpi"><div class="v">11</div><div class="l">Goals</div></div>
+            <div class="kpi"><div class="v">3</div><div class="l">MOTM</div></div>
+            <div class="kpi"><div class="v muted">0</div><div class="l">Late-cancel</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="last5-card">
+            <span class="label">Last 5 games (season)</span>
+            <div class="last5-strip">
+              <span class="circle W">W</span>
+              <span class="circle W">W</span>
+              <span class="circle L">L</span>
+              <span class="circle W">W</span>
+              <span class="circle W">W</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span class="label">Achievements</span>
+            <span class="hint">career highlights</span>
+          </div>
+          <div class="achievements-grid">
+            <div class="achievement-tile">
+              <span class="icon">⭐</span>
+              <span class="big">8</span>
+              <span class="lbl">MOTMs</span>
+              <span class="ctx">career</span>
+            </div>
+            <div class="achievement-tile positive">
+              <span class="icon">🔥</span>
+              <span class="big">4</span>
+              <span class="lbl">W-streak</span>
+              <span class="ctx">Season 2 · best</span>
+            </div>
+            <div class="achievement-tile">
+              <span class="icon">🎯</span>
+              <span class="big">28</span>
+              <span class="lbl">Goals</span>
+              <span class="ctx">career total</span>
+            </div>
+            <div class="achievement-tile">
+              <span class="icon">🟨</span>
+              <span class="big">2</span>
+              <span class="lbl">Yellows</span>
+              <span class="ctx">career</span>
+            </div>
+            <div class="achievement-tile">
+              <span class="icon">🟥</span>
+              <span class="big">0</span>
+              <span class="lbl">Reds</span>
+              <span class="ctx">career · clean</span>
+            </div>
+            <div class="achievement-tile negative">
+              <span class="icon">📉</span>
+              <span class="big">2</span>
+              <span class="lbl">L-streak</span>
+              <span class="ctx">Season 1 · longest</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="recent-head">
+          <span class="label" style="font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted)">Recent matches</span>
+        </div>
+        <div class="recent-list">
+
+          <div class="recent-row">
+            <div class="date-block">
+              <div class="date">16/APR/2026</div>
+              <div class="season-cap">Season 2</div>
+            </div>
+            <div class="result-badge W">W</div>
+            <div class="match-meta">
+              <div class="team-score-row">
+                <span class="team-chip white">WHITE</span>
+                <span class="score">4 – 2</span>
+              </div>
+              <div class="player-line">You scored 2 · <span class="motm">MOTM ⭐</span></div>
+            </div>
+            <div class="nav-caret">›</div>
+          </div>
+
+          <div class="recent-row">
+            <div class="date-block">
+              <div class="date">09/APR/2026</div>
+              <div class="season-cap">Season 2</div>
+            </div>
+            <div class="result-badge W">W</div>
+            <div class="match-meta">
+              <div class="team-score-row">
+                <span class="team-chip black">BLACK</span>
+                <span class="score">3 – 1</span>
+              </div>
+              <div class="player-line">You scored 1</div>
+            </div>
+            <div class="nav-caret">›</div>
+          </div>
+
+          <div class="recent-row">
+            <div class="date-block">
+              <div class="date">02/APR/2026</div>
+              <div class="season-cap">Season 2</div>
+            </div>
+            <div class="result-badge L">L</div>
+            <div class="match-meta">
+              <div class="team-score-row">
+                <span class="team-chip white">WHITE</span>
+                <span class="score">1 – 3</span>
+              </div>
+              <div class="player-line">You scored 1 · <span class="card-y">🟨 1</span></div>
+            </div>
+            <div class="nav-caret">›</div>
+          </div>
+
+        </div>
+
+        <div class="profile-footer">
+          Joined 05/JAN/2026 · Season 2 member<br>
+          <a href="#">View full leaderboard →</a>
+        </div>
+
+        <div class="tabbar">
+          <div class="tab"><span class="ico">🏠</span>Home</div>
+          <div class="tab"><span class="ico">📋</span>Poll</div>
+          <div class="tab"><span class="ico">📊</span>Table</div>
+          <div class="tab active"><span class="ico">👤</span>Profile</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- DARK PHONE — OTHER-PLAYER VIEW                     -->
+  <!-- ================================================ -->
+  <div class="phone-wrap">
+    <span class="phone-label dark-label">Dark · Other-player view (Omar Khalil · Season 2)</span>
+    <div class="phone">
+      <div class="phone-inner dark">
+        <div class="statusbar">
+          <span>9:41</span>
+          <span class="icons">•••• 5G 88%</span>
+        </div>
+
+        <div class="nav-top">
+          <div class="icon-btn" title="Back">←</div>
+          <!-- No edit button on other-player view -->
+          <div></div>
+        </div>
+
+        <div class="hero">
+          <div class="avatar other">OK</div>
+          <div class="identity">
+            <div class="name-row">
+              <div class="name">Omar Khalil</div>
+            </div>
+            <div class="pills-big">
+              <span class="pos-big fill-st">ST</span>
+              <span class="pos-big out-w">W</span>
+            </div>
+            <div class="joined">Joined 11/FEB/2026 · Season 2 member</div>
+          </div>
+        </div>
+
+        <div class="season-chip">
+          <span class="season-dot"></span>
+          Season 2 · APR – ongoing
+          <span class="caret">▾</span>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span class="label">Season 2 stats</span>
+            <span class="hint">rank 2nd 🥈</span>
+          </div>
+          <div class="kpi-grid">
+            <div class="kpi"><div class="v accent">19</div><div class="l">Points</div></div>
+            <div class="kpi"><div class="v">9</div><div class="l">MP</div></div>
+            <div class="kpi"><span class="wdl-triplet"><span class="w">6</span><span class="sep">–</span><span class="d">1</span><span class="sep">–</span><span class="l">2</span></span><div class="l">W – D – L</div></div>
+            <div class="kpi"><div class="v">14</div><div class="l">Goals</div></div>
+            <div class="kpi"><div class="v">2</div><div class="l">MOTM</div></div>
+            <div class="kpi"><div class="v muted">0</div><div class="l">Late-cancel</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="last5-card">
+            <span class="label">Last 5 games (season)</span>
+            <div class="last5-strip">
+              <span class="circle W">W</span>
+              <span class="circle D">D</span>
+              <span class="circle W">W</span>
+              <span class="circle W">W</span>
+              <span class="circle L">L</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span class="label">Achievements</span>
+            <span class="hint">career highlights</span>
+          </div>
+          <div class="achievements-grid">
+            <div class="achievement-tile">
+              <span class="icon">⭐</span>
+              <span class="big">5</span>
+              <span class="lbl">MOTMs</span>
+              <span class="ctx">career</span>
+            </div>
+            <div class="achievement-tile positive">
+              <span class="icon">🔥</span>
+              <span class="big">3</span>
+              <span class="lbl">W-streak</span>
+              <span class="ctx">Season 2 · best</span>
+            </div>
+            <div class="achievement-tile">
+              <span class="icon">🎯</span>
+              <span class="big">34</span>
+              <span class="lbl">Goals</span>
+              <span class="ctx">career total</span>
+            </div>
+            <div class="achievement-tile">
+              <span class="icon">🟨</span>
+              <span class="big">4</span>
+              <span class="lbl">Yellows</span>
+              <span class="ctx">career</span>
+            </div>
+            <div class="achievement-tile">
+              <span class="icon">🟥</span>
+              <span class="big">0</span>
+              <span class="lbl">Reds</span>
+              <span class="ctx">career · clean</span>
+            </div>
+            <div class="achievement-tile negative">
+              <span class="icon">📉</span>
+              <span class="big">4</span>
+              <span class="lbl">L-streak</span>
+              <span class="ctx">Season 1 · longest</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="recent-head">
+          <span class="label" style="font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted)">Recent matches</span>
+        </div>
+        <div class="recent-list">
+
+          <div class="recent-row">
+            <div class="date-block">
+              <div class="date">16/APR/2026</div>
+              <div class="season-cap">Season 2</div>
+            </div>
+            <div class="result-badge L">L</div>
+            <div class="match-meta">
+              <div class="team-score-row">
+                <span class="team-chip black">BLACK</span>
+                <span class="score">2 – 4</span>
+              </div>
+              <div class="player-line">Scored 2 · <span class="card-y">🟨 1</span></div>
+            </div>
+            <div class="nav-caret">›</div>
+          </div>
+
+          <div class="recent-row">
+            <div class="date-block">
+              <div class="date">09/APR/2026</div>
+              <div class="season-cap">Season 2</div>
+            </div>
+            <div class="result-badge W">W</div>
+            <div class="match-meta">
+              <div class="team-score-row">
+                <span class="team-chip white">WHITE</span>
+                <span class="score">3 – 1</span>
+              </div>
+              <div class="player-line">Scored 2 · <span class="motm">MOTM ⭐</span></div>
+            </div>
+            <div class="nav-caret">›</div>
+          </div>
+
+          <div class="recent-row">
+            <div class="date-block">
+              <div class="date">02/APR/2026</div>
+              <div class="season-cap">Season 2</div>
+            </div>
+            <div class="result-badge D">D</div>
+            <div class="match-meta">
+              <div class="team-score-row">
+                <span class="team-chip black">BLACK</span>
+                <span class="score">2 – 2</span>
+              </div>
+              <div class="player-line">Scored 1</div>
+            </div>
+            <div class="nav-caret">›</div>
+          </div>
+
+        </div>
+
+        <div class="profile-footer">
+          Joined 11/FEB/2026 · Season 2 member<br>
+          <a href="#">View full leaderboard →</a>
+        </div>
+
+        <div class="tabbar">
+          <div class="tab"><span class="ico">🏠</span>Home</div>
+          <div class="tab"><span class="ico">📋</span>Poll</div>
+          <div class="tab"><span class="ico">📊</span>Table</div>
+          <div class="tab active"><span class="ico">👤</span>Profile</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ================================================ -->
+<!-- STATE TILES                                         -->
+<!-- ================================================ -->
+<div class="tiles">
+
+  <!-- Tile 1 — Edit sheet open (self view) -->
+  <div class="tile">
+    <span class="tag">State · Edit sheet</span>
+    <h3>Edit sheet open (self-view)</h3>
+    <p>Slide-up sheet. Three sections. Positions require explicit Save (primary required; CHECK enforces primary ≠ secondary — the chip matching primary is disabled with a tooltip). Theme and leaderboard-sort chips auto-save on tap.</p>
+    <div class="visual light" style="padding: 0;">
+      <div class="sheet">
+        <h4>Edit profile</h4>
+        <div class="section-label">Primary position <span style="color:var(--accent)">*</span></div>
+        <div class="chip-row">
+          <span class="chip pos gk">GK</span>
+          <span class="chip pos def active">DEF</span>
+          <span class="chip pos cdm">CDM</span>
+          <span class="chip pos w">W</span>
+          <span class="chip pos st">ST</span>
+        </div>
+        <div class="section-label">Secondary position · optional</div>
+        <div class="chip-row">
+          <span class="chip">None</span>
+          <span class="chip pos gk">GK</span>
+          <span class="chip pos def disabled">DEF</span>
+          <span class="chip pos cdm active">CDM</span>
+          <span class="chip pos w">W</span>
+          <span class="chip pos st">ST</span>
+        </div>
+        <div class="section-label">Theme · auto-save</div>
+        <div class="chip-row">
+          <span class="chip">Light</span>
+          <span class="chip">Dark</span>
+          <span class="chip active">System</span>
+        </div>
+        <div class="section-label">Leaderboard sort · auto-save</div>
+        <div class="chip-row">
+          <span class="chip active">Points</span>
+          <span class="chip">Goals</span>
+          <span class="chip">MOTM</span>
+          <span class="chip">Wins</span>
+          <span class="chip">Last-5</span>
+        </div>
+        <button class="save-btn">Save positions</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tile 2 — Ghost / legacy profile (self-view, first-time) -->
+  <div class="tile">
+    <span class="tag">State · Ghost profile</span>
+    <h3>First-time self-view (ghost profile claimed)</h3>
+    <p>Legacy profile just claimed via signup approval. <code>primary_position IS NULL</code> → no pills in hero. Edit sheet auto-opens on first entry with a dismissible onboarding hint. Until the player sets a primary, they don't appear on the captain-helper list.</p>
+    <div class="visual light">
+      <div class="ghost-row">
+        <div class="avatar">RF</div>
+        <div style="flex:1;min-width:0">
+          <div class="ghost-name">Rashid Farid</div>
+          <div class="ghost-sub">Joined 01/FEB/2024 · no positions set</div>
+        </div>
+      </div>
+      <div class="onboarding">
+        👋 Welcome back, Rashid! Set your positions to appear on the captain-helper list and show pills on your leaderboard row.
+      </div>
+    </div>
+  </div>
+
+  <!-- Tile 3 — Banned player -->
+  <div class="tile dark">
+    <span class="tag">State · Banned (dark)</span>
+    <h3>Active ban row (public view)</h3>
+    <p>Hero renders a <code>banned through DD/MMM/YYYY</code> chip below the positions. Stats remain visible — the ban doesn't hide history. If self-view and banned, edit sheet still accessible for theme/sort; positions still editable.</p>
+    <div class="visual dark">
+      <div class="hero" style="padding: 0 0 12px;">
+        <div class="avatar other">AN</div>
+        <div class="identity" style="padding-top:0">
+          <div class="name-row">
+            <div class="name">Ahmed Nassar</div>
+          </div>
+          <div class="pills-big">
+            <span class="pos-big fill-gk">GK</span>
+          </div>
+          <div style="margin-top:8px">
+            <span class="banned-chip">⛔ banned through 24/APR/2026</span>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);letter-spacing:0.04em;padding-top:6px;border-top:1px solid var(--line);margin-top:4px">
+        Triggered by cancel on matchday 09/APR/2026 within 24h of kickoff. 7-day automatic ban · enforcement Phase 2.
+      </div>
+    </div>
+  </div>
+
+  <!-- Tile 4 — Zero-match player (career-wide) -->
+  <div class="tile">
+    <span class="tag">State · Zero matches</span>
+    <h3>Career starts here (new player, self-view)</h3>
+    <p>Signed up and approved this week — no matches played yet. Season-stats card shows all zeros with "You haven't played this season yet". Achievements card is replaced by a single CTA tile linking to Poll (or Home if poll is closed).</p>
+    <div class="visual light">
+      <div class="kpi-grid" style="padding: 8px 4px 14px">
+        <div class="kpi"><div class="v muted">0</div><div class="l">Points</div></div>
+        <div class="kpi"><div class="v muted">0</div><div class="l">MP</div></div>
+        <div class="kpi"><span class="wdl-triplet muted"><span class="w">0</span><span class="sep">–</span><span class="d">0</span><span class="sep">–</span><span class="l">0</span></span><div class="l">W – D – L</div></div>
+        <div class="kpi"><div class="v muted">0</div><div class="l">Goals</div></div>
+        <div class="kpi"><div class="v muted">0</div><div class="l">MOTM</div></div>
+        <div class="kpi"><div class="v muted">0</div><div class="l">Late-cancel</div></div>
+      </div>
+      <div class="empty-hero">
+        <div class="em">Your career starts here</div>
+        <div class="sub">RSVP Thursday's match — play one game to appear on the table.</div>
+        <div class="cta">Go to Poll →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tile 5 — Season picker sheet -->
+  <div class="tile">
+    <span class="tag">State · Season picker</span>
+    <h3>Season picker bottom sheet</h3>
+    <p>Same component reused across §3.13 and §3.14 for visual coherence. Active season flagged <code>ongoing</code>, ended-but-not-archived as <code>ended</code>, archived as <code>archived</code>. Sorted by <code>starts_on DESC</code>.</p>
+    <div class="visual light" style="padding: 0;">
+      <div class="picker-sheet">
+        <div class="picker-row active">
+          <div>
+            <div class="p-name">Season 2 · Spring</div>
+            <div class="p-dates">04/APR/2026 – ongoing</div>
+          </div>
+          <span class="p-tag ongoing">ongoing</span>
+        </div>
+        <div class="picker-row">
+          <div>
+            <div class="p-name">Season 1 · Winter</div>
+            <div class="p-dates">05/JAN/2026 – 28/MAR/2026</div>
+          </div>
+          <span class="p-tag archived">archived</span>
+        </div>
+        <div class="picker-row">
+          <div>
+            <div class="p-name">Pre-season friendlies</div>
+            <div class="p-dates">01/DEC/2025 – 28/DEC/2025</div>
+          </div>
+          <span class="p-tag ended">ended</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tile 6 — Admin viewing other (footer link) -->
+  <div class="tile dark">
+    <span class="tag">State · Admin viewing other</span>
+    <h3>Admin view of another player (dark)</h3>
+    <p>Admin sees the public view — no pencil in the hero. A footer link routes to Admin → Players for fuller control (rename, deactivate, force-position). Keeps the player-facing screen simple and avoids permission creep.</p>
+    <div class="visual dark" style="padding: 14px 14px 18px">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+        <div class="avatar other" style="width:48px;height:48px;border-radius:14px;font-size:16px">NK</div>
+        <div style="flex:1">
+          <div style="font-family:Fraunces,Georgia,serif;font-weight:700;font-size:16px">Nasser Khan</div>
+          <div style="display:flex;gap:4px;margin-top:4px">
+            <span class="pos-big fill-cdm" style="height:22px;font-size:10px;padding:0 8px">CDM</span>
+            <span class="pos-big out-def" style="height:22px;font-size:10px;padding:0 8px">DEF</span>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px;margin-top:4px">
+        — public view (stats visible, no edit button) —
+      </div>
+      <div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(229,186,91,0.12);border:1px solid var(--gold);font-size:11.5px;color:var(--gold);font-weight:600">
+        🔧 Admin · <a href="#" style="color:var(--gold);text-decoration:underline">Edit in Admin → Players</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="callout">
+  <h4>S006 decisions · S007 refinements (cross-ref design spec §3.14)</h4>
+  <ul>
+    <li><strong>P1 · "Best season finish" → COMPUTE LIVE.</strong> Client-side scan of <code>v_season_standings</code> across all seasons on profile load. Materialize into a new view in Phase 2 only if latency becomes painful.</li>
+    <li><strong>P2 · Recent-matches row tap → FULLY TAPPABLE.</strong> Normal tappable affordance in Phase 1. Destination resolved as P5 (match-detail bottom sheet).</li>
+    <li><strong>P3 · Email visibility → EDIT SHEET ONLY.</strong> Hero stays clean; email surfaces only inside the edit sheet.</li>
+    <li><strong>P4 · "You" indicator → DROPPED.</strong> Self-view is implied by the edit pencil + entering via the bottom-nav profile tab. Removed from the hero.</li>
+    <li><strong>P5 · Recent-matches row tap destination → READ-ONLY MATCH-DETAIL SHEET (§3.15).</strong> Full Depth-B spec + mockup for the sheet deferred past S007; stub carried in the design spec and Phase 1 backlog.</li>
+    <li><strong>W-D-L colour triplet (S006 review).</strong> All W-D-L renderings use green W / grey D / red L (same palette as §3.2 last-5 strip and result badges). Applies to season-stats and anywhere the triplet appears.</li>
+    <li><strong>Copy tweak (S006 review).</strong> Last-5 strip card label reads "Last 5 games (season)" for clarity (previously "Last 5 (season)").</li>
+    <li><strong>S007 · W-D-L alignment fix.</strong> Loss digit previously inherited <code>.kpi .l</code> label styling (9px + margin-top). Specificity-override added so W/D/L all render at 17px with matching baseline.</li>
+    <li><strong>S007 · Last-5 circle centering fix.</strong> Letter-spacing reset to 0 + explicit <code>line-height: 1</code> on circles — glyph now sits centred in the 24 px disc.</li>
+    <li><strong>S007 · MP stat added to Season stats.</strong> Matches-played joins the 6-KPI grid (Points · MP · W-D-L · Goals · MOTM · Late-cancel). Rank removed from grid — already shown as the <em>rank 1st 🥇</em> hint at the card header.</li>
+    <li><strong>S007 · Totals card removed; Achievements card added.</strong> Totals duplicated Season stats without context. Achievements surfaces career highlights instead: MOTMs · best W-streak · total goals · yellows · reds · longest L-streak. Scope dropdown retired with the Totals card.</li>
+  </ul>
+  <p style="margin-top:1rem;font-size:12.5px;color:#0a1628"><strong>§3.14 APPROVED</strong> · refined in S007 (20/APR/2026).</p>
+</div>
+
+</body>
+</html>

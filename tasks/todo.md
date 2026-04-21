@@ -1,0 +1,715 @@
+# FFC Todo
+
+## NEXT SESSION — S015 (Phase 1 implementation kickoff)
+
+**Cold-start checklist:**
+- Read `CLAUDE.md` (S014 summary at top — status now reads `Design Phase 1 APPROVED — implementation ready`), `sessions/INDEX.md` (S014 row), `sessions/S014/session-log.md` (full close — masterplan V2.8 + approval + collaborator brief docx).
+- Memory auto-loads all prior rules. `project_ffc.md` description now reflects approved state + S015 plan.
+- **Design gate is cleared.** S015 is the first code session.
+
+**Status at S014 close:**
+- Design Phase 1 **FORMALLY APPROVED** on 21/APR/2026. CLAUDE.md status header flipped. Memory updated.
+- Masterplan **V2.8 landed** (378 lines): 11-file migration order + implementation sequencing with acceptance criteria per step.
+- Collaborator brief Word doc at `docs/FFC-Collaborator-Brief.docx` (14.2 MB · 10 mockup screenshots embedded).
+- Design spec unchanged at ~3,100 lines · 20 tables · 20 RPCs · 18 enums · 19 notification kinds · 7 app_settings keys · 9 approved mockups.
+- `_wip/` is empty; `shared/` has `FF_LOGO_FINAL.pdf` + `COLORS.pdf` (transparent PNG/SVG export still pending from user).
+- Brand palette re-alignment still on backburner.
+
+### S015 agenda
+
+1. **Logo rollout** (unblocks when user delivers assets to `shared/`):
+   - Transparent PNG at 512 · 192 · 180 · 32 + SVG master (from `shared/FF_LOGO_FINAL.pdf`).
+   - Wire into `welcome.html` + all 9 phone-frame mockups (replacing JPG stopgap on `3-7-poll-screen.html`).
+   - Add PWA manifest `icons[]` block to implementation (Vite scaffold).
+   - Prep WhatsApp OG image 1200×630.
+   - If logo not yet exported at session start: skip and proceed to item 2; revisit later in session.
+
+2. **Phase 1 implementation kickoff — Steps 0–2 of V2.8 sequencing:**
+   - **GitHub repo** `mmuwahid/FFC` (private until MVP). Enforce committer identity: `git -c user.name="Mohammed Muwahid" -c user.email="m.muwahid@gmail.com"`. First commit can be a README + `.gitignore`.
+   - **Supabase project** — create NEW org (must be separate from PadelHub's `nkvqbwdsoxylkqhubhig`). Record `project_ref` + anon key + service role key securely.
+   - **Vercel project** on team `team_HYo81T72HYGzt54bLoeLYkZx`. Link to the GitHub repo. Wire env vars: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (Edge Function use only).
+   - **Acceptance (Step 0):** `git push` triggers Vercel preview build on a blank Vite scaffold; env vars resolve.
+   - **Vite scaffold** inside `ffc/` using PadelHub boot patterns:
+     - Vite + React 18 + PWA plugin (service worker + `manifest.webmanifest`)
+     - Inline splash HTML (kills cold-start flash)
+     - `index.css` global safe-area CSS + dark-theme default
+     - Plain-object React Context (no `useMemo` cascades — CLAUDE.md Rule #8)
+     - `ErrorBoundary` at route layout level
+     - Supabase client singleton + `onAuthStateChange` subscription
+   - **Acceptance (Step 1):** welcome screen renders; mock auth state change flips route layouts.
+   - **Run 11 migration files** in order via `npx supabase db push` (global install broken on work PC — always `npx`):
+     - `0001_enums.sql` → `0002_base.sql` → `0003_match_data.sql` → `0004_poll_ref.sql` → `0005_operational.sql` → `0006_views.sql` → `0007_helpers.sql` → `0008_rpcs.sql` → `0009_rls.sql` → `0010_grants.sql` → `0011_seed_super_admin.sql`.
+     - Verify on Supabase SQL editor: 20 tables · 20 RPC functions · RLS enabled on every table · 7 `app_settings` rows seeded · super-admin row present.
+   - **Acceptance (Step 2):** `SELECT * FROM seasons` returns one row; `SELECT * FROM profiles WHERE role='super_admin'` returns `m.muwahid@gmail.com`.
+   - Smoke-test: `npx supabase` CLI works + hello-world Edge Function deploys.
+
+3. **First feature slice — Step 3 of V2.8 sequencing** (if scope permits in the same session — likely its own session):
+   - Auth (email/password + Google OAuth via Supabase Auth).
+   - Welcome screen (ship existing mockup as React component — wire CSS contracts from mockup).
+   - Self-signup pending flow — `pending_signups` INSERT.
+   - Admin approval via `approve_signup` RPC.
+   - Ref tokens generation + SMS stub (Phase 2 = real SMS).
+   - §3.7 Poll screen state machine up to State 3 (voted, pre-lock).
+   - **Acceptance (Step 3):** super-admin approves a pending signup; approved player signs in and commits a poll vote; `committed_at` row visible in `poll_votes` with correct ordering.
+
+4. **Brand palette re-alignment** — still deferred unless user surfaces it.
+
+5. **Close S015** — session log · INDEX row · CLAUDE.md bump · todo.md S016 plan.
+
+## Completed in S014 (21/APR/2026, Home PC — full close)
+- [x] Cold-start briefing produced (session-resume skill); INDEX + S013 log + todo.md NEXT SESSION read; 5-item agenda presented
+- [x] **Item 1 — Masterplan V2.8 written** (`planning/FFC-masterplan-V2.8.md` · 378 lines · within 350–500 target). Revision history (5 S013 delta groups) · §§1–15 carryover · **§16 NEW 5v5/7v7** (decisions + data model + format-awareness + UI parameterisation tables) · Section 2 delta with SQL for `effective_format` + `roster_cap` + `log_admin_action` + CHECK expansion · 10-drift reconciliation table · 11-file migration order (supersedes V2.7) · implementation sequencing notes (Steps 0–3 each with acceptance criterion). V2.7 preserved.
+- [x] **Item 2 — Phase 1 design FORMALLY APPROVED.** CLAUDE.md status header flipped (`Brainstorming` → `Design Phase 1 APPROVED — implementation ready`). Memory file `project_ffc.md` updated (4 edits: frontmatter description · opening paragraph · masterplan reference · Latest/Next session blocks).
+- [x] **Item 3 — Collaborator Word brief built** (`docs/FFC-Collaborator-Brief.docx` · 14.2 MB · 305 paragraphs · 33 archive files · **all 10 approved mockup PNGs embedded**). Sections: Cover · Executive Summary · What We're Building · Core Features · Tech Stack · Current Progress · Data Model Snapshot · 10-page mockup gallery · What's Next. Built via `docs/build-collaborator-brief.js` (Node · docx-js · reusable). Pivoted from `preview_screenshot` (timed out) to headless Chrome (`chrome.exe --headless=new --screenshot`) for direct-to-disk PNGs. 10 PNGs saved to `docs/brief-screenshots/` (~13 MB total).
+- [x] **Bash path bug fix** — mixed forward/back slashes broke `${f}` expansion; fixed by using forward slashes end-to-end.
+- [x] **Docx validation** — skill's `validate.py` crashed on Windows cp1252 console encoding (its own Unicode arrow output); sanity-checked via `python -c zipfile + xml.etree` — archive opens cleanly · document.xml valid XML · 305 paragraphs · all 10 media files present at expected sizes.
+- [x] S014 session log written · INDEX row added · CLAUDE.md bumped · todo.md S015 plan (this block)
+- [ ] **Logo rollout** — DEFERRED to S015 (still blocked on user asset export)
+- [ ] **Implementation kickoff** — DEFERRED to S015 (clean handoff for fresh-focus session)
+- [ ] **Brand palette re-alignment** — continues deferred
+
+---
+
+## (Previous) NEXT SESSION — S014 (masterplan V2.8 + logo rollout + formal Phase 1 approval + optional implementation kickoff) [SUPERSEDED — see S015 above]
+
+### Previously-planned S014 agenda (all items executed or explicitly deferred — see "Completed in S014" block above):
+1. Write masterplan V2.8 — **DONE**
+2. Logo rollout — **DEFERRED** (user asset export still pending)
+3. Formally approve Phase 1 design — **DONE**
+4. Kick off Phase 1 implementation — **DEFERRED** (scope; cleanest as own session)
+5. Close S014 — **DONE**
+
+## Completed in S013 (21/APR/2026, Home PC — partial close)
+- [x] Cold-start briefing produced (session-resume skill); INDEX + S012 log + todo.md read; agenda presented
+- [x] **Item 1** — §1 non-goal inconsistency fix (captain-draft / auto-pick scoping); stale top-of-file status block refreshed
+- [x] **Item 2** — §2 Data Model full walkthrough, S009–S011 deltas from V2.7 all landed: 3 new enums (`user_role+=rejected`, `draft_status`, `draft_reason`), 6 new `notification_kind` values, 2 new columns (`profiles.reject_reason`, `match_players.substituted_in_by`), 4 new tables (`admin_audit_log`, `draft_sessions`, `draft_picks`, `formations`), 3 new `app_settings` keys, 7 new RPCs (#14–20; RPC count 13 → 20) + `log_admin_action` helper + admin-audit convention + ERRCODE matrix + grants, 4 new RLS policy blocks (with `formations` shared_at gating), §2.9 migration layout notes updated
+- [x] **Item 3** — §3.0 clean; §3.2–§3.6 10 drift fixes reconciling S002 sub-designs against §2 DDL (voted_at→committed_at, is_admin→user_role, match_guests.goals_scored→match_players, pending_match_entries shape, ref_tokens.used_at→consumed_at, rejected ghost-profile audit, "your position changed" cut)
+- [x] **Item 4** — 5v5/7v7 multi-format feature spec: 4 decisions locked (A/B/C/D all option (i)); `match_format` enum + `seasons.default_format` + `matchdays.format` + `effective_format()` + `roster_cap()` helpers + `formations_pattern_valid` CHECK expanded to 5v5 patterns; §2.7 format-awareness convention table; §3.5 guest cap parameterised; §3.6 waitlist parameterised; §3.7 state table amended (5 states); §3.18 Format chip + Matchday-creation sub-section; §3.19 5v5 pattern coordinates + rotation 1..N-1 + 13th AC; WhatsApp `{{roster_cap}}` placeholder
+- [x] **Item 5** — §3.14 AC gained 2 S012 CSS contract items (.card flex-shrink:0 + sticky-tabbar); §3.19 gained Layout contract + GK-picker contract paragraphs
+- [x] **Item 8** — 3 WIP files moved from `_wip/` to `archive/` (`cp+rm` due to OneDrive `mv` lock); `_wip/` now empty
+- [x] New feedback memory saved: `feedback_table_presentation.md` (DB/spec tables render as tables, not prose)
+- [x] `project_ffc.md` memory refreshed to S013 close
+- [x] MEMORY.md index updated
+- [x] S013 session log written · INDEX row added · CLAUDE.md bumped · todo.md S014 plan (this block)
+- [ ] **Masterplan V2.8** — DEFERRED to S014 (substantial consolidation doc deserving fresh-session focus)
+- [ ] **Logo rollout** — DEFERRED to S014 (blocked on user asset export)
+- [ ] **Formal Phase 1 approval** — DEFERRED to S014 (cleaner after V2.8)
+- [ ] **Implementation kickoff** — DEFERRED to S014 (or its own session)
+- [ ] **Brand palette re-alignment** — continues deferred
+
+---
+
+## (Previous) NEXT SESSION — S013 (finish Phase 1 review + 5v5/7v7 feature spec + logo rollout + approval) [SUPERSEDED — see S014 above]
+
+**Cold-start checklist:**
+- Read `CLAUDE.md` (S012 summary at top), `sessions/INDEX.md` (S012 row added at bottom), `sessions/S012/session-log.md` (full walkthrough incl. 2 bug diagnoses + brand discovery + 5v5/7v7 scope lock).
+- Memory auto-loads DD/MMM/YYYY · W-D-L colour triplet · fixed column widths · no data without explanation · CSS specificity first · FFC naming rule · always-visible rosters · pill switches · rotating-GK rule. **Add in S013 cold-start:** statusbar v2.2 defensive rule (`.phone-inner > * { flex-shrink: 0; }`) + sticky-tabbar pattern + "re-inspect positioning after content-height changes."
+
+**Status at S012 close:**
+- Phase 1 design spec **mostly complete**, but Sections 2, 3.0, 3.2–3.6 not walked through with user yet.
+- All 9 phone mockups render correctly. **7 approved** · **2 fixed this session** (Player Profile · Formation) — user re-verified and approved ("formation is perfect now", Profile tabbar fix acknowledged in close-out request).
+- Brand logo integrated as JPG stopgap on Poll; user flagged 2 follow-ups (transparent PNG/SVG export · use on every FFC-avatar surface).
+- Brand palette re-alignment explicitly deferred (user chose to keep current red/navy mockup palette).
+- **New scope locked:** 5v5/7v7 multi-format (season default + per-matchday override). Spec work deferred to S013.
+
+### S013 agenda
+
+1. **User review of Section 2 (Data Model).** Walk §2.1 enums → §2.9 migration layout. Flag any remaining DDL questions.
+
+2. **User review of §3.0 Platform safe-area + §3.2 Last-5 + §3.3 Self-signup + §3.4 Ref entry + §3.5 +1 guest + §3.6 Vote order & waitlist.** Text-only sub-designs; no new mockups needed.
+
+3. **Draft 5v5/7v7 format feature spec additions** across the design spec:
+   - **§2.1 Enums** — new `match_format` enum: `'7v7' | '5v5'`.
+   - **§2.2 Base entities** — `seasons.default_format match_format NOT NULL DEFAULT '7v7'` (new column).
+   - **§2.3 Match data** — `matchdays.format match_format NULL` (inherits from season if null; explicit override if set).
+   - **§3.5 +1 guest mechanic** — guest cap becomes 4 in 5v5 (10 total players = 10 commitments; roster-lock threshold drops from 14 to 10; auto-unlock timing unchanged).
+   - **§3.7 Poll screen** — poll caps vary by matchday format; status card shows "You're confirmed #N of {10|14}"; waitlist behaviour same.
+   - **§3.18 Admin Matches** — matchday creation UI gets a Format chip (7v7 / 5v5), defaulting to season default; admin can override per matchday.
+   - **§3.19 Formation planner** — 5v5 patterns added: 1-2-1 · 2-1-1 · 1-1-2 · Custom; rotation uses 4 outfield slots instead of 6; dedicated-GK option unchanged; auto-assign rotation numbers 1–4 in 5v5.
+   - **§2.7 RPCs** — `v_match_commitments`, `v_captain_eligibility`, `pick_captains_random`, `approve_match_entry`, `create_match_draft` all need format-aware logic for slot counts and captain-eligibility thresholds (`min 5 matches` scales? user decision needed).
+   - **§2.5 app_settings** — consider `default_season_format` flag, or keep it per-season only.
+   - **§3.13 Leaderboard** — stats comparable across formats? Or split leaderboards per format? (user decision).
+   - **§3.14 Player profile** — filter season stats by format? (user decision).
+
+4. **Fix Section 1 inconsistency** — line 43–44 "Captain draft flow (Phase 2)" non-goal contradicts S009+ Phase 1 additions. Rewrite to: *"Captain **auto-pick** on lock remains Phase 2 — Phase 1 includes the captain helper, manual captain draft with live visibility (§3.7 State 6.5), and post-lock reroll."*
+
+5. **Patch §3.14 + §3.19 spec** to reference S012 CSS fixes (flex-shrink:0 on all phone-inner children + sticky tabbar pattern). Add a short implementation note in each section pointing to lessons.md S012 rows.
+
+6. **Logo rollout (user delivers transparent PNG/SVG; I wire it):**
+   - User exports from `FF_LOGO_FINAL.pdf` → transparent PNG 512×512, 192×192, 180×180, 32×32 + SVG. Drop in `shared/` with kebab-case filenames.
+   - Wire into mockups that need an FFC crest: audit welcome.html + any sign-in/splash/landing state tile across the 9 mockups.
+   - Add PWA manifest `icons[]` stub to masterplan V2.8 migration notes (or to a new §1.x Brand Assets subsection).
+   - Document WhatsApp Open Graph image requirements (1200×630 with logo + "Join FFC — Weekly 7v7 poll" copy).
+
+7. **Formally approve Phase 1 design.** User says "approved" after sections 2-6 above clear. Update CLAUDE.md status from "Design Phase 1 not yet fully approved" to "Design Phase 1 APPROVED — implementation ready".
+
+8. **Archive 3 WIP files** → move `_wip/item-b-draft-reroll-spec.md` · `_wip/item-settings-v2-amendments.md` · `_wip/item-formation-planner-spec.md` to `archive/`.
+
+9. **Write masterplan V2.8** if 5v5/7v7 lands in S013 (it's a material data-model addition).
+
+10. **Kick off Phase 1 implementation** if scope permits: GitHub repo creation + Supabase project + Vite scaffold.
+
+11. **Close S013** — session log · INDEX row · CLAUDE.md bump · todo.md S014 plan (or mark Phase 1 design APPROVED).
+
+## Completed in S012 (21/APR/2026, Home PC — partial close, review deferred to S013)
+- [x] Cold-start briefing produced (session-resume skill format); preview server started; Section 1 walked through
+- [x] User bulk-approved 7 mockups (Poll · Admin Matches · Admin Players · Settings · Match Details · Leaderboard · Captain Helper)
+- [x] **Player Profile bug diagnosed + fixed** — Bug A (`.card` compressed from `overflow: hidden` triggering flex auto→0 min-height) → `.card { flex-shrink: 0 }`. Bug B (tabbar mid-scroll after cards uncompressed) → `.tabbar { position: sticky; margin-top: auto }` + removed leftover `padding-bottom: 110px` on `.phone-inner`. DOM-verified.
+- [x] **Formation mockup bugs diagnosed + fixed** — every direct `.phone-inner` child compressed; fixed with defensive `.phone-inner > * { flex-shrink: 0; }`. Pitch went 112→506px (4.5×), roster 83→374px, team-strip 34→73px, pattern row 19→52px.
+- [x] **GK picker converted** from 4-row radio-card list to native `<select class="gk-select">` with 7 player options (position + rotation slot + minute range), styled for light + dark modes.
+- [x] **FFC brand discovered** in `shared/` (FF_LOGO_FINAL.pdf + COLORS.pdf + PHOTO-...jpg). Logo inspected (classic shield crest, gold monogram, laurel + stars). Palette captured (black, white, khaki-gold #AEA583, cream #EDE9E1).
+- [x] **Brand palette gap flagged** — mockups use red + navy, neither in brand. User explicitly chose "keep current palette, swap crest only." Deferred palette re-alignment.
+- [x] **Logo wired into Poll mockup** — copied `PHOTO-...jpg` → `content/ffc-logo.jpg`; replaced CSS-only shield placeholder with `<img class="crest" src="ffc-logo.jpg">` on both light + dark phone headers. Known defect: JPG has white bg baked in, visible on dark mode.
+- [x] **New feature scope locked** — 5v5/7v7 multi-format support. Default 7v7, admin can override per matchday, entire season can be 5v5. Spec work deferred to S013.
+- [x] Added 2 new durable rules to `tasks/lessons.md`: statusbar v2.2 (extend flex-shrink:0 to all phone-inner children) + sticky-tabbar pattern + positioning-audit-after-content-change rule.
+- [x] S012 session log written · INDEX row added · CLAUDE.md latest-session bumped · todo.md S013 plan (this block)
+- [ ] Section 1 inconsistency fix (captain-draft non-goal line) — DEFERRED to S013
+- [ ] §2 + §3.0 + §3.2–§3.6 section reviews — DEFERRED to S013
+- [ ] 5v5/7v7 feature spec additions — DEFERRED to S013
+- [ ] §3.14 + §3.19 spec patches referencing S012 fixes — DEFERRED to S013
+- [ ] Transparent PNG/SVG logo (user export) — DEFERRED to S013
+- [ ] Logo on every FFC-avatar surface — DEFERRED to S013
+- [ ] Formal Phase 1 approval — DEFERRED to S013
+- [ ] Archive 3 WIP files — DEFERRED to S013
+
+---
+
+## (Previous) NEXT SESSION — S012 (Phase 1 design review + approval) [SUPERSEDED — see S013 above]
+
+**Cold-start checklist:**
+- Read `CLAUDE.md` (S011 latest-session summary), `sessions/INDEX.md` (S011 row added), `sessions/S011/session-log.md` (full handoff — all items complete).
+- Memory auto-loads DD/MMM/YYYY · W-D-L colour-triplet · fixed-column-widths · no-data-without-explanation · CSS-specificity-first diagnostic · Visual Companion usage · FFC naming rule · Always-visible rosters (≤14 inline) · Pill switches over checkboxes · Text-cutoff diagnostic order · FFC rotating-GK rule.
+
+**Status:** Phase 1 design spec is **feature-complete**. All 10 mockups exist and pass the safe-area contract. All Depth-B specs written. Masterplan V2.7 captures all data-model deltas. S012 is a review + approval session — no new feature design work expected.
+
+### S012 agenda
+
+1. **User review of full design spec.** Read `docs/superpowers/specs/2026-04-17-ffc-phase1-design.md` section by section. User flags any remaining gaps, inconsistencies, or amendments.
+
+2. **Mockup review pass.** If user wants to re-verify any screen after S011 fixes: start preview server on `.superpowers/brainstorm/635-1776592878/content/`, navigate to each screen, confirm layout is correct.
+
+3. **Resolve any gaps surfaced.** Apply spec amendments and mockup tweaks as needed.
+
+4. **Formally approve Phase 1 design.** User says "approved" on the full spec. Update `CLAUDE.md` status from "Design Phase 1 not yet fully approved" to "Design Phase 1 APPROVED — implementation ready".
+
+5. **Archive WIP files.** Move `_wip/item-b-draft-reroll-spec.md` · `_wip/item-settings-v2-amendments.md` · `_wip/item-formation-planner-spec.md` to `archive/` since all content has been integrated into the master spec.
+
+6. **Kick off Phase 1 implementation.** Begin the Phase 1 backlog at the bottom of this file. Recommended starting point: GitHub repo creation + Supabase project + Vite scaffold.
+
+7. **Close S012.** Session log · INDEX row · CLAUDE.md status bump · todo.md S013 plan.
+
+## Completed in S011 (21/APR/2026, Home PC — full close)
+- [x] Cold-start briefing produced; continued immediately on user "continue"
+- [x] **Item 0 CRITICAL** — `flex-shrink: 0` applied to `.statusbar` in all 9 phone-frame mockups; Profile + Formation verified at 59px computed height via DOM inspection
+- [x] **Item 1** — `_wip/item-b-draft-reroll-spec.md` integrated: §3.7 State 6.5 "Draft in progress" inserted; captain reroll sub-section appended; §3.18 Phase 5.5 + always-visible roster added
+- [x] **Item 2** — `_wip/item-settings-v2-amendments.md` integrated: §3.16 dark default, 6 push keys, pill-toggle UI, AC1–AC7, Section-5 wiring stub
+- [x] **Item 3** — `_wip/item-formation-planner-spec.md` integrated: §3.19 full Depth-B spec inserted with rotating-GK toggle, formations DDL, 12 acceptance criteria
+- [x] **Item 4** — §3.18 always-visible roster documented; tap-to-expand text removed
+- [x] **Item 5** — §3.7 spec states table fully synced: "Nine key states" header; State 6/6.5/7/8 all updated; AC9 + AC10 added
+- [x] **Item 6** — `planning/FFC-masterplan-V2.7.md` created (full S009+S010+S011 consolidation)
+- [x] **Item 7** — S011 close-out: session log created · INDEX row added · CLAUDE.md bumped · todo.md S012 plan written
+
+---
+
+## NEXT SESSION — S011 (continuation of S010 — close-out deferred) [SUPERSEDED — see S012 above]
+
+### 0. CRITICAL — statusbar `flex-shrink: 0` fix (diagnosed S010, deferred at user request)
+
+User reported Profile + Formation still render with layout shifted up behind Dynamic Island despite all other S010 fixes. Diagnosed personally via `preview_inspect`: `.phone-inner` is `display: flex; flex-direction: column` so the first flex child `.statusbar` inherits default `flex-shrink: 1`. When content overflows the 844px phone height (only on Profile + Formation — longest-content mockups), flex compresses the statusbar from 59px → 17–25px. All content drifts up, topbar/team-strip sits BEHIND the Dynamic Island cutout. Other 8 mockups are unaffected because their content fits.
+
+**Fix:**
+```css
+.statusbar {
+  /* existing rules… */
+  flex-shrink: 0;   /* or: flex: 0 0 var(--safe-top); */
+}
+```
+
+**Apply to ALL 10 phone-frame mockups** (not just Profile + Formation) to prevent the bug recurring on any future content expansion:
+- `welcome.html`
+- `3-1-v2-captain-helper.html`
+- `3-7-poll-screen.html`
+- `3-13-leaderboard.html`
+- `3-14-player-profile.html`
+- `3-15-match-detail.html`
+- `3-16-settings.html`
+- `3-17-admin-players.html`
+- `3-18-admin-matches.html`
+- `3-19-formation.html`
+
+**Verify in preview** after each edit — `.statusbar` computed height should equal `--safe-top` (59px) regardless of content length. Hard-reload with `?v=${Date.now()}` to bypass cache. If Profile or Formation still drift after the fix, next suspect is `.phone-inner` interaction with `overflow-y: auto` — wrap content in an inner `.content` div so `.phone-inner` arranges `.statusbar` + `.content` at their natural heights.
+
+**Update lesson row already landed** — reference `tasks/lessons.md` S010 row for diagnostic walkthrough.
+
+### 1. Integrate subagent B scratch (`_wip/item-b-draft-reroll-spec.md`) into master spec
+
+- **§3.7 states table:** insert new State 6.5 "Draft in progress" between current State 6 (Roster locked) and State 8 (Teams revealed). Preserve sub-numbering (6.5 / 8.5) per subagent B's recommendation rather than renumbering 7→8→9.
+- **§3.7 new sub-section:** append "Post-lock substitution with captain reroll right" after the current Phase-2-deferred block. Covers `dropout_after_lock` notification · captain modal `[Accept substitute]` green / `[Request reroll]` amber · reroll triggers new `draft_sessions` row with `reason='reroll_after_dropout'` · 12h-before-kickoff cutoff · captain-is-the-dropout routed via `captain_dropout_needs_replacement` to admin.
+- **§3.18 Admin Matches touch-up:** add "Phase 5.5 · Draft in progress" to phases ladder + admin action "Force complete draft / abandon" for stuck sessions (threshold from `app_settings.draft_stuck_threshold_hours`, default 6).
+- **V2.7 migration-notes block:** append new tables `draft_sessions` + `draft_picks` + `match_players.substituted_in_by` column + new enums `draft_status` + `draft_reason` + RPCs `promote_from_waitlist` · `accept_substitute` · `request_reroll` · `submit_draft_pick` + notifications `dropout_after_lock` · `draft_reroll_started` · `reroll_triggered_by_opponent` · `captain_dropout_needs_replacement` + app_settings keys.
+
+### 2. Integrate subagent A scratch (`_wip/item-settings-v2-amendments.md`) into §3.16 master spec
+
+- Replace §3.16 row 1 (Theme): **default = dark** (was `system`); document 2026-04-20 preference change.
+- Replace §3.16 row 2 (Push notifications): updated push_prefs shape (6 keys, no `position_changed`, + `dropout_after_lock`); layout ASCII updated; `poll_reminder` timing = 2 min before poll close.
+- Replace §3.16 acceptance criteria block with scratch's AC3–AC7 additions.
+- Add Section-5 wiring note (from scratch): `poll_reminder` fires at `poll_close_at - 2 min`; `dropout_after_lock` fires to full roster + admins on cancel-after-lock trigger; `position_changed` removed (migration: ignore legacy jsonb key, no DDL change).
+- Update §3.16 to reflect **pill-toggle UI** (not checkbox) per S010 user feedback — see `feedback_pill_toggles_over_checkboxes.md` memory.
+- **Flag for user review:** subagent A documented 2-min `poll_reminder` is intentionally aggressive — if post-launch feedback pushes back, Section 5 could expose timing as a Phase-2 user-configurable preference.
+
+### 3. Integrate subagent C scratch (`_wip/item-formation-planner-spec.md`) into master spec
+
+- Insert full **§3.19 Formation planner (NEW in S009)** after §3.18. Update spec to reflect S010 additions:
+  - **Rotating-GK gameplay rule** — captain picks starter + toggle `Dedicated GK` vs `Rotate every 10 min` + auto-assign 1–6 rotation numbers for outfield swaps.
+  - Team-colour header strip contract (WHITE/BLACK with "YOU'RE ON {team}" headline).
+  - Roster card: avatar · name · position pill · rotation chip (fixed column widths).
+- Append V2.7 migration notes: new `formations` table + **`formation_rotation_order`** jsonb column + starting-GK pointer + `upsert_formation` / `share_formation` RPCs + `formation_reminder` / `formation_shared` notifications.
+- §3.19 mockup safe-area contract already verified by subagent D (6-point checklist passed), but re-verify AFTER item 0 `flex-shrink: 0` fix lands.
+
+### 4. Admin matches spec touch-up
+
+- §3.18 master spec must document always-visible-roster pattern (S010 user feedback) per `feedback_always_visible_rosters.md` memory. Remove any spec text about tap-to-expand behaviour.
+
+### 5. Update §3.7 spec state table to reflect S010 additions (all mockup work DONE in S010, spec still needs sync)
+
+- State 6 row: document green+red button row (`[Keep my spot]` safe-confirm green · `[Cancel anyway]` destructive-confirm red). Call out as durable app-wide rule: green = safe-confirm, red = destructive-confirm.
+- State 7 row: same green+red rule. `[Keep my spot]` + `[Confirm cancel]`.
+- State 8 row: update to describe 2-team section layout (WHITE TEAM header + 7 rows · BLACK TEAM header + 7 rows) — NOT single-list + per-row pills. Remove per-row `[W]/[B]` pill contract (section header is the team indicator).
+- Add State 6.5 row: "Draft in progress" — live Supabase realtime view of `draft_sessions` + `draft_picks`. Live chip + two-column picks-so-far + pool + last-pick footer.
+- Header count: "Eight key states" → "Nine key states" OR keep 6.5/8.5 sub-numbering per subagent B — user to decide.
+- Acceptance criteria: add criterion for 2-team layout render + criterion for State 6.5 realtime sync.
+
+### 6. Write masterplan V2.7
+
+`planning/FFC-masterplan-V2.7.md` — consolidate S009+S010 deliverables: §3.0 / §3.15 upgrade / §3.16 / §3.17 / §3.18 / §3.19 + safe-area pattern v2.1 + live draft visibility + captain reroll + formation planner + rotating-GK rule + Settings v2 defaults + data-model deltas (see S009 log + item 1–3 above for consolidated list).
+
+### 7. Close S011
+
+Session log · INDEX row · CLAUDE.md latest-session bump · todo.md S012 plan (or mark Phase 1 design APPROVED if no new gaps surface).
+
+---
+
+## Completed in S010 (21/APR/2026, Home PC — partial close, spec integration deferred)
+- [x] Cold-start briefing produced (resume-session skill format)
+- [x] 5 new S009 mockups reviewed with user; 4 approved (Captain helper · Leaderboard · Match detail · Admin players); 5 amendments requested
+- [x] **5 parallel subagents dispatched + completed** — amendments applied to Profile · Settings · Admin matches · Formation · Poll
+- [x] **Admin matches** — full 14-player roster always-visible (7 WHITE + 7 BLACK), tap-to-expand removed
+- [x] **Settings** — 12 pill toggles (10 ON red, 2 OFF muted) replacing checkboxes; dark variant verified
+- [x] **Player profile** — `.kpi` + `.achievement-tile` flex-column + min-height fix applied (agent fix correct; rendered visible in isolation)
+- [x] **Formation planner** — major redesign: Dynamic Island clearance (`align-items: flex-end` + `padding-bottom: 8px`), team-colour header strip, 7-player roster with rotation chips, rotating-GK toggle, GK-selection radio card, rotation numbers 1–7 on pitch tokens, 4 state tiles
+- [x] **Poll mockup S009 backlog closed** — State 6 + State 7 green/red action buttons, State 8 restructured to 2-section (WHITE 7 rows · BLACK 7 rows), NEW State 6.5 "Draft in progress" tile with live-chip + pulsing dot + two-column picks + pool + last-pick footer
+- [x] 4 memory files saved + MEMORY.md index updated: `feedback_always_visible_rosters.md` · `feedback_pill_toggles_over_checkboxes.md` · `feedback_text_cutoff_diagnostic.md` · `project_rotating_gk_rule.md`
+- [x] **Late-session statusbar flex-shrink bug diagnosed personally** (no subagent) via `preview_inspect` — `.phone-inner` flex-column compresses `.statusbar` from 59px → 17–25px when content overflows 844px; only Profile + Formation hit it
+- [x] lessons.md updated with 2 new rows (S009 statusbar v2 flank-island · S010 statusbar v2.1 flex-shrink)
+- [x] sessions/S010/session-log.md written (~180 lines with diagnostic walkthrough)
+- [x] sessions/INDEX.md S010 row added + S011 next-session line
+- [x] tasks/todo.md updated (this block) — S011 plan with item 0 CRITICAL bug fix
+- [x] CLAUDE.md latest-session bumped to S010
+- [ ] Item 0–6 above (bug fix + 3 scratch integrations + admin matches spec touch-up + §3.7 spec update + masterplan V2.7) — all DEFERRED to S011
+- [ ] S011 close-out
+
+---
+
+## NEXT SESSION — S010 (continuation of S009 — forced pause on tokens)
+
+**Cold-start checklist:**
+- Read `CLAUDE.md`, `sessions/INDEX.md` (S009 row added), `sessions/S009/session-log.md` (full handoff detail), `sessions/S009/agent-prompts.md` (subagent prompts to relaunch if needed), `tasks/lessons.md` (S008 + S009 env() rows present; add statusbar-v2 row).
+- Memory auto-loads DD/MMM/YYYY · W-D-L colour-triplet · fixed-column-widths · no-data-without-explanation · CSS-specificity-first diagnostic · Visual Companion usage · **FFC naming rule** (app is "FFC" only — never "Friends FC" or "Friends Football Club").
+
+**Items 1–6 of S008 plan = DONE in S009.** S009 hit a forced pause with subagent C (formation planner) still in-flight and 3 scratch files awaiting integration. S010 is an integration + mockup-finishing + close-out session.
+
+### 0. Check subagent residue (do first)
+
+- `ls _wip/` — expect: `item-b-draft-reroll-spec.md` (329 lines, DONE by subagent B) · `item-settings-v2-amendments.md` (138 lines, DONE by subagent A) · `item-formation-planner-spec.md` (check if subagent C finished after pause).
+- `ls .superpowers/brainstorm/635-1776592878/content/` — expect: all 8 existing mockups + `3-19-formation.html` if subagent C finished.
+- If `item-formation-planner-spec.md` or `3-19-formation.html` MISSING, relaunch subagent C using the prompt in `sessions/S009/agent-prompts.md`.
+
+### 1. Integrate subagent B scratch (`_wip/item-b-draft-reroll-spec.md`) into master spec
+
+- **§3.7 states table:** insert new State 6.5 "Draft in progress" between current State 6 (Roster locked) and State 8 (Teams revealed). Preserve sub-numbering (6.5 / 8.5) per subagent B's recommendation rather than renumbering 7→8→9.
+- **§3.7 new sub-section:** append "Post-lock substitution with captain reroll right" after the current Phase-2-deferred block. Covers `dropout_after_lock` notification · captain modal `[Accept substitute]` green / `[Request reroll]` amber · reroll triggers new `draft_sessions` row with `reason='reroll_after_dropout'` · 12h-before-kickoff cutoff · captain-is-the-dropout routed via `captain_dropout_needs_replacement` to admin.
+- **§3.18 Admin Matches touch-up:** add "Phase 5.5 · Draft in progress" to phases ladder + admin action "Force complete draft / abandon" for stuck sessions (threshold from `app_settings.draft_stuck_threshold_hours`, default 6).
+- **V2.7 migration-notes block:** append new tables `draft_sessions` + `draft_picks` + `match_players.substituted_in_by` column + new enums `draft_status` + `draft_reason` + RPCs `promote_from_waitlist` · `accept_substitute` · `request_reroll` · `submit_draft_pick` + notifications `dropout_after_lock` · `draft_reroll_started` · `reroll_triggered_by_opponent` · `captain_dropout_needs_replacement` + app_settings keys.
+
+### 2. Integrate subagent A scratch (`_wip/item-settings-v2-amendments.md`) into §3.16 master spec
+
+- Replace §3.16 row 1 (Theme): **default = dark** (was `system`); document 2026-04-20 preference change.
+- Replace §3.16 row 2 (Push notifications): updated push_prefs shape (6 keys, no `position_changed`, + `dropout_after_lock`); layout ASCII updated; `poll_reminder` timing = 2 min before poll close.
+- Replace §3.16 acceptance criteria block with scratch's AC3–AC7 additions.
+- Add Section-5 wiring note (from scratch): `poll_reminder` fires at `poll_close_at - 2 min`; `dropout_after_lock` fires to full roster + admins on cancel-after-lock trigger; `position_changed` removed (migration: ignore legacy jsonb key, no DDL change).
+- **Flag for user review:** subagent A documented 2-min `poll_reminder` is intentionally aggressive — if post-launch feedback pushes back, Section 5 could expose timing as a Phase-2 user-configurable preference.
+
+### 3. Integrate subagent C scratch (`_wip/item-formation-planner-spec.md`) into master spec
+
+- If scratch file exists: insert full **§3.19 Formation planner (NEW in S009)** after §3.18. Otherwise relaunch subagent C first (see item 0).
+- Append V2.7 migration notes: new `formations` table + `upsert_formation` / `share_formation` RPCs + `formation_reminder` / `formation_shared` notifications.
+- Verify `3-19-formation.html` mockup uses correct statusbar v2 safe-area pattern (NOT `padding-top: var(--safe-top)`).
+
+### 4. Finish 3-7 poll mockup updates (not yet applied at S009 pause)
+
+- **State 7 mini-tile:** replace current `<span class="pill danger">−1 PT + 7-DAY BAN</span><span>Confirm?</span>` with actual `[Keep my spot]` green + `[Confirm cancel]` red action buttons. Add `.btn-success { background: var(--success); color: #fff; ... }` + `.btn-danger { background: var(--danger); color: #fff; ... }` button styles.
+- **State 8 mini-tile:** expand to show 2-team roster layout — `WHITE TEAM` header + 7 rows, `BLACK TEAM` header + 7 rows (currently only shows 3 proof-of-concept rows). Each row = avatar + name + position pills. Guest rows keep gold-italic treatment.
+- **Add State 6.5 mini-tile:** "Draft in progress" — visualisation of picked/unpicked players while captains pick (after subagent B integrated).
+
+### 5. Update §3.7 spec state table to reflect S010 additions
+
+- State 7 row: document button colour rule (`[Keep my spot]` success-green default focus · `[Confirm cancel]` danger-red destructive). Call out as durable app-wide rule: green = safe-confirm, red = destructive-confirm.
+- State 8 row: update to describe 2-team section layout (was single-list + per-row pills).
+- Header count: "Eight key states" → "Nine key states" OR keep 6.5/8.5 sub-numbering per subagent B — user to decide.
+- Acceptance criteria: add criterion for 2-team layout render + criterion for State 6.5 realtime sync.
+
+### 6. Log new lessons
+
+- `tasks/lessons.md` — add 3rd row for S009 v2 statusbar-flank lesson: `padding-top: var(--safe-top)` on statusbar was wrong (pushes content below notch); correct pattern is `height: var(--safe-top) + display: flex + justify-content: space-between` so time/battery flank the island on left/right. TWO iOS pattern mistakes from one retrofit.
+
+### 7. Write masterplan V2.7
+
+`planning/FFC-masterplan-V2.7.md` — consolidate S009 deliverables: §3.0 / §3.15-upgrade / §3.16 / §3.17 / §3.18 / §3.19 + safe-area pattern + live draft visibility + captain reroll + formation planner + Settings v2 defaults + data-model deltas (consolidated list already in S009 log).
+
+### 8. Close S010
+
+Session log · INDEX row · CLAUDE.md latest-session bump · todo.md S011 plan.
+
+---
+
+## Completed in S009 (20/APR/2026, Home PC — forced pause)
+- [x] **Item 0 v1 + v2** — Safe-area retrofit on all 5 approved mockups (took 2 iterations — env() fallback semantic + statusbar-flank-island semantic)
+- [x] **Item 3** — §2.7 new RPCs `set_matchday_captains` + `update_guest_stats` + §2.3 `match_guests` audit cols landed
+- [x] **Item 6** — `_wip/iphone-safe-area-research.md` → `docs/platform/iphone-safe-area.md` · §3.0 Platform safe-area cross-cutting sub-section · CLAUDE.md Rule #10 expanded
+- [x] **Item 5 (partial)** — §3.7 State 8 "Teams revealed" added + acceptance criterion #8 + Phase-2-deferred line deleted + State 8 mini-tile added to mockup. STATE 7 BUTTONS + STATE 8 ROSTER REDESIGN NOT DONE.
+- [x] **Item 1** — §3.16 Settings Depth-B spec + `3-16-settings.html` mockup (integrated)
+- [x] **Item 2** — §3.15 Match-detail upgraded STUB → Depth-B + `3-15-match-detail.html` mockup (integrated)
+- [x] **Item 4** — §3.17 Admin Players + §3.18 Admin Matches Depth-B specs + 2 mockups (integrated)
+- [x] Safe-area v2 fix applied to 7 phone mockups (statusbar `height: var(--safe-top)` flex-flank pattern)
+- [x] FFC naming corrected — "Friends FC" / "Friends Football Club" removed from CLAUDE.md + poll crest (historical session logs preserved as audit record)
+- [x] User memory saved — `user_app_name.md` (FFC only, never expand)
+- [x] FFC crest logo upgraded — poll-mockup crest widened to shield-monogram "FFC"
+- [x] lessons.md S009 env() fallback row added
+- [x] **Subagent B** — captain reroll + live draft scratch DONE at `_wip/item-b-draft-reroll-spec.md` (329 lines, not yet integrated)
+- [x] **Subagent A** — Settings v2 scratch DONE at `_wip/item-settings-v2-amendments.md` (138 lines, not yet integrated); `3-16-settings.html` directly updated (dark default, 6 checkboxes, statusbar v2)
+- [ ] **Subagent C** — Formation planner in-flight at forced pause (check S010 open)
+- [ ] Integrate 3 scratch files into master spec → see S010 item 1–3 above
+- [ ] Finish 3-7 poll mockup updates (state 7 green/red buttons, state 8 roster redesign, state 6.5 tile) → see S010 item 4
+- [ ] Update §3.7 spec states table with S010 additions → see S010 item 5
+- [ ] Log lessons.md v2 statusbar-flank row → see S010 item 6
+- [ ] Masterplan V2.7 → see S010 item 7
+- [ ] Session close-out (S009 close was partial; S010 completes it)
+
+---
+
+## NEXT SESSION — S009 (home PC, continuation of S008)
+
+**Cold-start checklist:**
+- Read `CLAUDE.md`, `sessions/INDEX.md`, `sessions/S008/session-log.md` (→ S007 log only if decision context is fuzzy), `planning/FFC-masterplan-V2.6.md`, `docs/superpowers/specs/2026-04-17-ffc-phase1-design.md` (Section 1 ✓ · Section 2 ✓ w/ S005+S006+S007 amendments · Section 3.0 ✓ · **§3.7 Poll APPROVED** · §3.1 SUPERSEDED · **§3.1-v2 Captain helper APPROVED** · §3.2–§3.6 from S002 carry · **§3.13 Leaderboard APPROVED** · **§3.14 Player profile APPROVED v3 with S007 R1–R6** · **§3.15 Match-detail STUB**).
+- Memory auto-loads DD/MMM/YYYY date format + W-D-L colour-triplet rule + fixed-column-widths rule + **no-data-without-explanation rule** + **CSS-specificity-first diagnostic rule** + Visual Companion rule.
+- Continue working in Depth B (screen spec + mockup gate).
+
+**Decisions already LOCKED in S008 (no framing work needed in S009 — go straight to execution):**
+1. **§3.7 Poll team-colour preview = Option A.** Full state 8 — status card row `You're on ⚪/⚫` + per-row `[W]/[B]` pills on all members + guests. Delete the Phase-2-deferred line 1512 from §3.7.
+2. **§3.15 Match-detail:** W/D/L chip = profile-owner's perspective · guest rows lighter (goals/cards only, no S007 rating chip / description) · wide-viewport = max 640w × 80vh above 768px (user to verify in mockup).
+3. **Settings screen = 6 rows.** Theme · Push prefs · Leaderboard sort · Positions re-entry · **Display name (new)** · Account. State tile #2 = first-visit push-permission-prompt (signed-out dropped, screen auth-gated).
+4. **NEW — iPhone notch / Dynamic Island.** Research complete in `_wip/iphone-safe-area-research.md`. Pattern = `viewport-fit=cover` meta + CSS `env(safe-area-inset-*)`. Dynamic Island uses same `safe-area-inset-top` as classic notch. **GAP:** all 5 approved mockups need retrofit (they currently don't reference safe-area).
+
+### 0. MOCKUP SAFE-AREA RETROFIT (new S009 priority — do first before any new mockups)
+
+- Retrofit all 5 approved mockups: `3-7-poll-screen.html` · `3-13-leaderboard.html` · `3-14-player-profile.html` · `3-1-v2-captain-helper.html` · `welcome.html`.
+- Add to `<head>`: `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">`.
+- Add CSS root custom props (`--safe-top/right/bottom/left` bound to `env(safe-area-inset-*)`).
+- Apply `padding-top: var(--safe-top)` to `.topbar`; `padding-bottom: var(--safe-bottom)` to `.bottom-nav` and fixed CTA stacks.
+- Sheets (§3.5 invite, §3.7 penalty, §3.14 edit sheet) pad internal scroll with `calc(var(--safe-bottom) + 16px)`.
+- **Add an iPhone-14-Pro Dynamic-Island cutout** to the phone-frame CSS so safe-area padding is visually obvious at mockup review.
+- Bake the pattern into the mockup template for future screens.
+
+### 1. Settings screen — Depth B + mockup
+
+**Scope locked (6 rows):**
+
+**Session plan (priority order):**
+
+### 1. Settings screen skeleton — Depth B + mockup
+
+Small scope; closes a near-final Phase 1 gap and gives the profile edit sheet a sibling entry point.
+
+- **Theme row** — three chips `Light · Dark · System`. Writes to `profiles.theme_preference` (same handler as §3.14 edit sheet).
+- **Push prefs** — master toggle + category toggles (poll, match, admin events). v1.1 per-notification controls explicitly deferred.
+- **Leaderboard sort row** — five chips `Points · Goals · MOTM · Wins · Last-5`. Writes to `profiles.leaderboard_sort` (same handler as §3.14).
+- **Positions entry point** — text row routing to §3.14 edit sheet positions section (not duplicated).
+- **Display name row (S008 addition)** — text row opening an inline rename sheet. Writes to `profiles.display_name`. Validation: 1–40 chars, no pure-whitespace, unique? (confirm during spec — probably not required since it's a social label).
+- **Account section** — email (read-only), change password link, logout.
+- Mockup: light + dark phones side-by-side; 2 state tiles — **push-permission-prompt (first-visit)** + **push-permission-denied fallback**. Signed-out tile dropped (screen is auth-gated).
+
+### 2. §3.15 Match-detail sheet — full Depth-B + mockup
+
+Last Phase 1 player-side stub. Scope locked in S006, S008 sub-decisions applied:
+
+- Read-only bottom sheet (85% viewport height on mobile, **640w × 80vh max above 768px** — user to verify), drag handle, swipe-dismiss, scroll-preserved on return.
+- Data sources: `matches` + `matchdays` + `seasons` + `match_players` + `match_guests`.
+- Content layout: header strip (**W/D/L chip from profile-owner's perspective** — S008 decision) · MOTM row (guest MOTM italic + gold avatar) · White roster · Black roster · **late-cancel penalties strip** · footer line.
+- **Guest rows = lighter rendering** (S008 decision): goals/cards inline same as members, italic + gold avatar preserved for visual distinction, **no S007 rating chip or description** (those stay poll-screen recruitment context only).
+- Entry: tap any §3.14 Recent-matches row.
+- Acceptance criteria (5 items from S006 stub); Phase-1 out-of-scope items enumerated (timeline, assists, H2H, share-as-image).
+- Mockup: light + dark phones + ≥2 state tiles (game with late-cancels, game with no MOTM). **Apply safe-area retrofit from item 0.**
+
+### 3. §2.7 Part 5B RPC follow-up
+
+Finalize the RPCs queued during S007:
+- **`set_matchday_captains(matchday_id, white_profile_id, black_profile_id) → record`** (admin, SECURITY DEFINER). Validates roster membership + non-guest + non-banned. Writes `is_captain` flags + `matches.captain_assigned_at` + `matches.captain_assigned_by`. Concurrency: last write wins.
+- **`update_guest_stats(guest_id, primary_position, secondary_position, stamina, accuracy, rating, description) → record`** (admin, SECURITY DEFINER). Allows admin to correct guest stats if the inviter got them wrong. Enforces the CHECKs defensively. Audit trail via a new `match_guests.updated_by` + `.updated_at` pair (to be added in the same edit).
+
+### 4. Admin dashboard family — start
+
+5-screen family (Players · Matches · Seasons · Admins · Schedule) + match-results edit screen + super-admin management. Big batch; may span S008 + S009. For S008, focus:
+
+- **Players admin screen** (list · filter · invite · edit · deactivate · position override · role assign). Entry via admin tab.
+- **Matches admin screen** (list by matchday · approve pending · edit approved results with audit trail · override MOTM).
+
+Other three screens (Seasons · Admins · Schedule) queued for S009.
+
+### 5. §3.7 Poll spec amendment — Option A (State 8 "Teams revealed")
+
+S008 locked Option A. Execute in S009:
+- **Delete** the Phase-2-deferred line in §3.7 spec (currently line 1512: "Admin's team-colour pre-assignment preview on this screen once roster is locked (still-open S005 decision)").
+- **Add State 8 to the 7-state table** — "Teams revealed" — trigger: `match_players` rows exist for active matchday AND viewer's `profile_id` is among them. Status card gains `You're on ⚪ White` or `You're on ⚫ Black` row (tiny chip, same visual weight as rank). Roster list gains `[W]` / `[B]` pill next to position pills on every member + guest row.
+- **Amend acceptance criteria** (add #8 or similar: "State 8 renders viewer's team chip within 500ms of `match_players` materialisation for the matchday").
+- **Update `3-7-poll-screen.html` mockup** — add a State 8 alternate-state tile (both light and dark variants). Captain identity NOT revealed here — reserved for match-prep (Phase-2-deferred). **Apply safe-area retrofit from item 0.**
+- Mark the S005 open decision as CLOSED in the design spec's "Open Decisions" section + in CLAUDE.md.
+
+### 6. §3.0 Platform safe-area sub-section + research doc promotion
+
+- Add a new numbered sub-section to §3.0 Navigation + IA called "Platform safe-area (notch / Dynamic Island / home indicator)". Content: the CSS pattern + why it matters + reference to source file. Every subsequent screen spec inherits this implicitly.
+- Bump CLAUDE.md Rule #10 from one line to a short paragraph that points to the research doc.
+- Promote `_wip/iphone-safe-area-research.md` out of `_wip/` into either `docs/platform/` or `docs/superpowers/specs/` (probably the latter as a companion doc to the Phase 1 design spec).
+
+### 7. Close S009
+
+Session log · INDEX row · CLAUDE.md latest-session bump · todo.md S010 plan · masterplan V2.7 if data-model amendments (e.g., new RPCs in §2.7, audit columns on `match_guests`).
+
+## Completed in S008 (20/APR/2026, Work PC — decisions locked + safe-area research)
+- [x] Cold-start briefing produced (CLAUDE.md + INDEX + S007 log + design-spec §3.7/§3.15 read)
+- [x] **§3.7 poll team-colour-preview LOCKED = Option A** (full state 8). Closes S005 open item.
+- [x] **§3.15 match-detail sub-decisions LOCKED:** W/D/L = profile-owner perspective · guest rows = lighter (goals/cards only) · wide-viewport = 640w × 80vh provisional
+- [x] **Settings screen scope LOCKED = 6 rows** (display-name added; extras deferred; push-permission-prompt tile replaces signed-out)
+- [x] **iPhone notch / Dynamic Island researched** — `_wip/iphone-safe-area-research.md` written. Gap discovered: all 5 approved mockups lack safe-area CSS. Retrofit added as S009 item 0.
+- [x] Lesson logged: mockup review never enforced CLAUDE.md Rule #10.
+- [x] S008 session log written; INDEX row added; CLAUDE.md latest-session bumped; todo.md S009 plan written
+- [ ] *(No design-spec edits or mockup edits — all drafting deferred to S009 on home PC.)*
+
+## Completed in S007 (20/APR/2026)
+- [x] §2.1 amended with `guest_rating` + `guest_trait` enums
+- [x] §2.3 `match_guests` amended with 6 new columns + positions-differ CHECK + description-length CHECK + S007 migration note
+- [x] §3.5 invite flow rewritten with "Tell us about your +1" 2-step form
+- [x] §3.5 data-model-notes paragraph reconciled with §2.3 DDL (drift fixed)
+- [x] §3.5 "Captain formula criterion 1" line fixed (S004 simplification drift)
+- [x] §3.7 Poll screen full Depth-B spec written (~180 lines — closed S005 gap)
+- [x] §3.7 poll mockup v3 — guest rows restructured with pills, rating chip, description (light + dark)
+- [x] §3.14 mockup v3 — R1 W-D-L alignment fix + R2 last-5 centering fix + R3 MP added + R4 Rank removed from KPI grid + R5 Totals → Achievements + R6 zero-match state updated (light + dark + zero-match tile + callout list + header + title)
+- [x] §3.14 spec — all R1–R6 applied (IA point 3, IA point 5, data-sources, loading, acceptance, decisions, section header)
+- [x] §3.1 annotated as SUPERSEDED with pointer to §3.1-v2
+- [x] §3.1-v2 Captain helper Depth-B spec (~180 lines)
+- [x] `3-1-v2-captain-helper.html` v1 mockup (~1,000 lines: light formula-mode + dark randomizer-mode + 4 state tiles)
+- [x] Masterplan V2.6 written (2 new numbered sections §11 + §12); V2.5 preserved
+- [x] Session log S007 written; INDEX row added; CLAUDE.md latest-session bumped; todo.md S008 plan written
+
+## Completed in S006 (19/APR/2026 home + 20/APR/2026 work)
+- [x] §3.13 Leaderboard spec (Depth B) drafted home PC, APPROVED work PC with 4 open decisions (O1–O4) resolved
+- [x] `3-13-leaderboard.html` v1 → v2 mockup (light + dark primary phones + 6 state tiles + callout)
+- [x] W-D-L colour-triplet rule locked as app-wide (green/grey/red)
+- [x] Column-header row + MP column added to leaderboard rows
+- [x] Fixed column widths applied to numeric cells for stable row-to-row alignment
+- [x] Medal tint polish on top-3 leaderboard rows
+- [x] Late-cancel penalty removed from leaderboard column, relocated to §3.15 match-detail sheet
+- [x] §3.14 Player profile spec (Depth B) APPROVED with 5 open decisions (P1–P5) resolved
+- [x] `3-14-player-profile.html` v1 → v2 mockup (light self + dark other primary phones + 6 state tiles)
+- [x] §3.14 Totals card scope dropdown — *retired in S007 R5*
+- [x] §3.14 Edit-sheet spec (positions + theme + leaderboard-sort in one slide-up sheet)
+- [x] §3.15 Match-detail sheet STUB added to spec (Phase 1 scope, full Depth-B deferred)
+- [x] §2.1 new enum `leaderboard_sort`
+- [x] §2.2 new column `profiles.leaderboard_sort` NOT NULL DEFAULT `'points'` + S006 migration note
+- [x] RLS `profiles_self_update` policy stubbed in §2.8 scope
+- [x] Guest-player-stats scope Q1–Q6 all answered (implementation applied in S007)
+- [x] §3.1-v2 captain helper layout locked (drafted in S007)
+- [x] Session log S006 written; INDEX, CLAUDE.md, todo.md updated
+
+## Completed in S006 (19/APR/2026 home + 20/APR/2026 work)
+- [x] §3.13 Leaderboard spec (Depth B) drafted home PC, APPROVED work PC with 4 open decisions (O1–O4) resolved
+- [x] `3-13-leaderboard.html` v1 → v2 mockup (light + dark primary phones + 6 state tiles + callout)
+- [x] W-D-L colour-triplet rule locked as app-wide (green/grey/red)
+- [x] Column-header row + MP column added to leaderboard rows
+- [x] Fixed column widths applied to numeric cells for stable row-to-row alignment
+- [x] Medal tint polish on top-3 leaderboard rows
+- [x] Late-cancel penalty removed from leaderboard column, relocated to §3.15 match-detail sheet
+- [x] §3.14 Player profile spec (Depth B) APPROVED with 5 open decisions (P1–P5) resolved
+- [x] `3-14-player-profile.html` v1 → v2 mockup (light self + dark other primary phones + 6 state tiles)
+- [x] §3.14 Totals card scope dropdown (current season / past seasons / entire career)
+- [x] §3.14 Edit-sheet spec (positions + theme + leaderboard-sort in one slide-up sheet)
+- [x] §3.15 Match-detail sheet STUB added to spec (Phase 1 scope, full Depth-B deferred)
+- [x] §2.1 new enum `leaderboard_sort`
+- [x] §2.2 new column `profiles.leaderboard_sort` NOT NULL DEFAULT `'points'` + S006 migration note
+- [x] RLS `profiles_self_update` policy stubbed in §2.8 scope
+- [x] Guest-player-stats scope Q1–Q6 all answered (implementation deferred to S007)
+- [x] §3.1-v2 captain helper layout locked (1-screen mode toggle + pair-confirmation sheet — draft deferred to S007)
+- [x] Session log S006 written; INDEX, CLAUDE.md, todo.md updated
+
+## Completed in S005 (19/APR/2026)
+- [x] Masterplan V2.4 written (captures S004 refinements)
+- [x] Section 3.0 Navigation + IA approved (4-tab/5-tab/anon modes, 16 routes, auth-aware layouts)
+- [x] §3.7 Poll screen spec (Depth B)
+- [x] §3.7 Poll screen mockup v2 (light + dark + alternate-state tiles)
+- [x] Player positions data model amended (enum + 2 columns + CHECK + index)
+- [x] Light/Dark theme preference data model amended (enum + column + default 'system')
+- [x] Poll screen mockup updated with position pills
+- [x] Masterplan V2.5 written (positions + theme + CM exclusion + Section 3.0 lock)
+- [x] Session log S005 written; INDEX, CLAUDE.md, todo.md updated
+
+## Completed in S004 (19/APR/2026)
+- [x] Part 4 DDL approved — notifications, player_bans, push_subscriptions, app_settings, scheduled_reminders
+- [x] Part 5A DDL approved — views (v_match_commitments, v_season_standings, v_player_last5, v_captain_eligibility)
+- [x] Part 5B DDL approved — SECURITY DEFINER RPCs (11 total incl. captain-pick helpers)
+- [x] Part 5C DDL approved — RLS policies per table per role + anon RPC-only boundary
+- [x] Self-review: column-name drift reconciled (Section 2 authoritative)
+- [x] Self-review: create_match_draft RPC added (separates team-entry INSERT from approval UPDATE)
+- [x] Self-review: pgcrypto + pg_cron extensions noted
+- [x] Self-review: Decisions Locked expanded to 13 enumerated items
+- [x] Section 1 (Architecture & Stack) formally approved
+- [x] Cron schedule revised (5 seeded reminders Mon 17:00 / Tue 21:00 / Wed 20:00 / Wed 22:00 / Thu 12:00)
+- [x] Late-cancel penalties revised (−1 after lock; −1 + 7d ban within 24h)
+- [x] Captain formula simplified (3 per-player criteria + randomizer + White=weaker)
+- [x] Full Section 2 written into `docs/superpowers/specs/2026-04-17-ffc-phase1-design.md` (~580 spec lines)
+- [x] `sessions/S004/session-log.md` written
+- [x] `sessions/INDEX.md`, `CLAUDE.md`, `tasks/todo.md` updated
+
+## Completed in S003 (2026-04-19)
+- [x] Scope locked: Section 2 depth = full production DDL (Option A)
+- [x] Architecture decision: split commitment tables (poll_votes + match_guests)
+- [x] Architecture decision: MOTM single source on `matches` (motm_user_id XOR motm_guest_id)
+- [x] Architecture decision: pending queues stay separate
+- [x] Architecture decision: 3 effective RLS roles; anon ref via SECURITY DEFINER RPC only
+- [x] Part 1 DDL approved — types + base entities (profiles, pending_signups, seasons, matchdays)
+- [x] Part 2 DDL approved — match data (match_guests, matches, match_players)
+- [x] Part 3 DDL approved — poll + ref workflow (poll_votes, ref_tokens, pending_match_entries, pending_match_entry_players)
+- [x] Super-admin tier added: `profiles.is_admin` → `profiles.role user_role` enum
+- [x] Season archive added: `seasons.archived_at` + CHECK constraint
+- [x] Admin edit audit columns: `matches.updated_by` + `match_players.updated_by`
+- [x] Admin dashboards added to Phase 1 scope (players / matches / seasons / admins / schedule)
+- [x] Scheduled reminders + app_settings tables queued for Part 4
+- [x] WhatsApp auto-post strategy = Option A (native share sheet, semi-manual)
+- [x] Masterplan V2.3 written; V2.2 preserved
+- [x] S003 session log written; INDEX.md updated; CLAUDE.md updated
+- [x] Memories saved: DD/MMM/YYYY date format + Visual Companion browser-usage rule
+
+## Completed in S002 (2026-04-18 / 19)
+- [x] Captain selection formula — 5 criteria locked (resolves Open Decision #1)
+- [x] "Who can captain?" admin helper screen (Section 3.1)
+- [x] Last-5 form indicator — per-season, Option B letter-in-circle (Section 3.2)
+- [x] Player self-signup + admin approval + claim-existing-profile (Section 3.3)
+- [x] Ref entry link + admin approval queue (Section 3.4)
+- [x] +1 guest mechanic — auto-unlock 24h before kickoff if < 14 (Section 3.5)
+- [x] Poll vote order + waitlist priority by `voted_at` timestamp (Section 3.6)
+- [x] Multi-season with roster policy (fresh | carry forward)
+- [x] Nice-to-haves confirmed for Phase 4
+- [x] Brand palette + logo captured
+- [x] Masterplan V2.0 → V2.1 → V2.2 written
+- [x] All 5 S002 assumptions approved
+- [x] Phase 1 design spec updated with Sections 3.1–3.6
+- [x] S002 session log + INDEX.md updates
+
+## Phase 1 backlog (will become the implementation plan after spec approval)
+- [ ] Create GitHub repo `mmuwahid/FFC`
+- [ ] Create Supabase project + set env vars on Vercel
+- [ ] Scaffold Vite React PWA inside `ffc/` (copy boot pattern from PadelHub)
+- [ ] Copy inline splash, safe-area CSS, service worker, ErrorBoundary from PadelHub
+- [ ] Shared `formatDate()` helper enforcing DD/MMM/YYYY display format
+- [ ] Auth: email/password + Google OAuth with `redirectTo` preserving query params
+- [ ] Self-signup flow: landing "Sign up" → auth → "Who are you?" screen → pending queue
+- [ ] Admin "Pending approvals" screen + claim/new approval mutation
+- [ ] Supabase schema v1 (full Section 2 tables + RLS + SECURITY DEFINER helpers)
+- [ ] Seed super-admin row for `m.muwahid@gmail.com`
+- [ ] Season-creation admin screen with roster policy picker (fresh | carry forward)
+- [ ] Season lifecycle UI: end + archive + restore from archive
+- [ ] Weekly poll screen + vote / cancel actions + waitlist display
+- [ ] Wednesday 8:15 PM cron job for +1 slot unlock + notification
+- [ ] "Bring a +1" action + `match_guests` insert
+- [ ] Roster-lock flow (admin action when 14 confirmed)
+- [ ] Manual team entry screen (admin types White/Black rosters)
+- [ ] "Who can captain?" helper screen + eligibility query
+- [ ] "Generate ref link" admin action + signed token issuance (sha256 storage)
+- [ ] Ref entry screen (token-gated, no auth) + submit to `pending_match_entries`
+- [ ] Admin "Pending match entries" review screen + approve / edit / reject
+- [ ] Admin **match-results edit** screen (post-approval corrections with audit trail)
+- [ ] Admin **players** screen (add / deactivate / edit)
+- [ ] **Super-admin** admin-management screen (promote / demote with audit)
+- [ ] **Scheduled reminders** admin screen (list / enable / edit cron / fire now)
+- [ ] Supabase `pg_cron` hookup for scheduled reminders
+- [ ] Weekly poll reminder notification → admin push → native share sheet to WhatsApp
+- [ ] Leaderboard recompute on approval (view or trigger-maintained)
+- [ ] Last-5 form indicator component (stateless, Option B letter-in-circle)
+- [ ] Leaderboard screen (incl. last-5 strip) + Player profile screen (larger last-5 strip)
+- [ ] Mockups in `mockups/` for EVERY screen before coding it
+- [ ] Result PNG generator + native share sheet integration
+- [ ] Web Push Edge Function (port PadelHub version) + 13-trigger notification map
+- [ ] Deploy to Vercel, smoke-test on iPhone Safari PWA install
+
+## Open decisions remaining (not blocking Phase 1)
+- [x] ~~Captain selection formula~~ — resolved in S002, **simplified in S004** (3 criteria + randomizer + White=weaker)
+- [x] ~~Commitment architecture~~ — resolved in S003 (split)
+- [x] ~~Guest-MOTM dual storage~~ — resolved in S003 (single source on matches)
+- [x] ~~Admin role model~~ — resolved in S003 (role enum with super_admin)
+- [x] ~~WhatsApp auto-post mechanism~~ — resolved in S003 (Option A native share sheet)
+- [x] ~~Late-cancel point penalty values~~ — resolved in S004 (−1 after lock; −1 + 7d ban within 24h)
+- [x] ~~Player positions catalogue + colors~~ — resolved in S005 (5 codes: GK/DEF/CDM/W/ST)
+- [x] ~~Theme toggle storage model~~ — resolved in S005 (DB-stored on profiles, default `system`)
+- [ ] "Repeat dropout" threshold (Phase 2+)
+- [ ] Snake-draft vs simple-alternate order (Phase 2)
+- [ ] Best Goalie mechanism
+- [ ] Phase 2: admin override window after auto-captain-pick
+- [ ] Share PNG: reuse the last-5 circle treatment? (decide in Section 5)
+- [ ] Pair-balance rule (V2.0 criterion 4, ±5 league positions) — dropped in S004; revisit if pairings feel unbalanced in practice
+- [ ] CAM / generalist CM role — excluded in V2.5; revisit if the 5-position palette feels too coarse (S005)
+- [ ] Does the Poll screen pre-show the admin's team-colour assignment once roster is locked? (S005, still open through S006)
+- [ ] §3.15 Match-detail sheet — STUB only in S006; full Depth-B spec + mockup pending (probably S008 or later)
+
+## Assumptions confirmed by user
+**S002 (2026-04-19):**
+- ✓ Last-5 strip = per-season.
+- ✓ +1 slot collision = first commitment wins.
+- ✓ Rejected signups = polite email + retry.
+- ✓ Guest attribution = inviter user_id on guest row.
+- ✓ Guests do NOT appear on leaderboard.
+- ✓ Rejection email copy = "not a match for FFC right now, reach out if this is a mistake."
+
+**S003 (2026-04-19):**
+- ✓ Admin dashboards in scope for Phase 1.
+- ✓ Super-admin implemented as role enum value (not a separate table).
+- ✓ Multiple super-admins allowed (no singleton constraint).
+- ✓ Season archive requires prior end date.
+- ✓ WhatsApp auto-post = Option A (native share sheet, semi-manual).
+- ✓ Scheduled reminders stored in DB (editable without redeploy).
+
+**S004 (19/APR/2026):**
+- ✓ Captain formula: 3 per-player criteria only (matches ≥5, attendance ≥60%, cooldown ≥4); red/yellow-card and positive-points criteria dropped.
+- ✓ Early-season randomizer: `pick_captains_random` picks 2 from locked-14 when season has <5 approved matchdays.
+- ✓ White = weaker captain (pair-level app logic, not a view column).
+- ✓ Late-cancel: before lock = 0 · after lock outside 24h = −1 · within 24h = −1 + 7d ban row (enforcement Phase 2).
+- ✓ 5 scheduled reminders seeded (Mon 17:00 · Tue 21:00 · Wed 20:00 · Wed 22:00 · Thu 12:00, Asia/Dubai).
+- ✓ Section 1 Architecture & Stack approved.
+- ✓ matches lifecycle = `create_match_draft` inserts draft at team-entry; `approve_match_entry` only ever UPDATEs existing draft.
+
+**S005 (19/APR/2026):**
+- ✓ Section 3 depth = Depth B (screen spec + mockup gate per screen).
+- ✓ Section 3.0 navigation = 4-tab player / 5-tab admin / anon ref (single-screen token).
+- ✓ 16 routes documented; 13 notification kinds mapped to deep links.
+- ✓ §3.7 Poll screen = 7 states, primary = "you're confirmed #N of 14" with cancel + "Bring a +1" CTAs.
+- ✓ 5 positions: `GK` (gold) · `DEF` (deep blue) · `CDM` (dark green) · `W` (orange) · `ST` (FFC accent red). CM excluded.
+- ✓ Primary position required at signup · secondary optional.
+- ✓ Guests get no position pill.
+- ✓ Theme preference = DB-stored on `profiles.theme_preference`, default `system`.
+- ✓ Dark palette: paper `#0e1826`, ink `#f2ead6`, accent `#e63349`, gold `#e5ba5b`.
+- ✓ Root-class toggle architecture (`<html class="light|dark">`).
+
+## Deferred (Phase 2+)
+- Captain draft flow (Phase 2)
+- Automated discipline/ban enforcement (Phase 2)
+- Season awards page + archive display + winners wall (Phase 3)
+- WhatsApp Cloud API integration (re-evaluate Phase 3)
+- H2H compare, deep form guide, payment tracking, badges, injury list (Phase 4)
+- Per-user notification preferences (v1.1)

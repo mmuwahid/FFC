@@ -1,0 +1,1139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>§3.18 Admin Matches — FFC Phase 1 mockup · v1 (S009)</title>
+<style>
+  /* ============================================================= */
+  /* Design tokens — carried from §3.14 / §3.17                     */
+  /* ============================================================= */
+  .light {
+    --ink: #0a1628;
+    --ink-soft: #293a55;
+    --paper: #f6f1e4;
+    --paper-dim: #ece4d0;
+    --paper-dimmer: #e3d8bc;
+    --line: rgba(10, 22, 40, 0.08);
+    --line-strong: rgba(10, 22, 40, 0.18);
+    --accent: #c8102e;
+    --accent-dim: #a40c24;
+    --gold: #d4a84a;
+    --muted: #6b7684;
+    --success: #16a34a;
+    --success-tint: rgba(22, 163, 74, 0.12);
+    --warn: #b7791f;
+    --warn-tint: rgba(183, 121, 31, 0.14);
+    --danger: #dc2626;
+    --danger-tint: rgba(220, 38, 38, 0.1);
+    --row-bg: #ece4d0;
+    --nav-bg: rgba(246, 241, 228, 0.95);
+    --last-w:  #16a34a;
+    --last-d:  #9ca3af;
+    --last-l:  #dc2626;
+  }
+  .dark {
+    --ink: #f2ead6;
+    --ink-soft: #c3b99f;
+    --paper: #0e1826;
+    --paper-dim: #182437;
+    --paper-dimmer: #223251;
+    --line: rgba(242, 234, 214, 0.08);
+    --line-strong: rgba(242, 234, 214, 0.2);
+    --accent: #e63349;
+    --accent-dim: #bf2639;
+    --gold: #e5ba5b;
+    --muted: #85929f;
+    --success: #2e9d63;
+    --success-tint: rgba(46, 157, 99, 0.16);
+    --warn: #dca049;
+    --warn-tint: rgba(220, 160, 73, 0.18);
+    --danger: #e63349;
+    --danger-tint: rgba(230, 51, 73, 0.15);
+    --row-bg: #182437;
+    --nav-bg: rgba(14, 24, 38, 0.9);
+    --last-w:  #2e9d63;
+    --last-d:  #9ca3af;
+    --last-l:  #e63349;
+  }
+  :root {
+    --pos-gk:  #d4a84a;
+    --pos-def: #1e3a8a;
+    --pos-cdm: #065f46;
+    --pos-w:   #ea580c;
+    --pos-st:  #c8102e;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif;
+  }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #faf6ea 0%, #ead9b8 60%, #b39a72 100%);
+    color: #0a1628;
+    padding: 3rem 1.5rem 6rem;
+  }
+
+  /* ========== Page header ========== */
+  .page-header { max-width: 1400px; margin: 0 auto 2rem; }
+  .page-header .tag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #c8102e;
+    font-weight: 700;
+  }
+  .page-header h1 {
+    font-family: "Fraunces", "Playfair Display", Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(1.75rem, 2.5vw + 1rem, 2.4rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    color: #0a1628;
+    margin: 0.25rem 0 0.6rem;
+  }
+  .page-header h1 em { font-style: italic; color: #c8102e; font-weight: 500; }
+  .page-header p {
+    color: #293a55;
+    font-size: 14px;
+    line-height: 1.55;
+    max-width: 900px;
+    margin: 0;
+  }
+
+  /* ========== Phone frames ========== */
+  .phones {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(390px, 1fr));
+    gap: 2.5rem;
+    max-width: 1100px;
+    margin: 0 auto 3rem;
+    justify-items: center;
+  }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; }
+  .phone-label {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #293a55;
+    margin-bottom: 12px;
+  }
+  .phone-label.dark-label { color: #0a1628; opacity: 0.8; }
+  .phone {
+    width: 390px;
+    height: 844px;
+    border-radius: 48px;
+    background: #000;
+    padding: 10px;
+    box-shadow:
+      0 40px 80px -20px rgba(10,22,40,0.35),
+      0 0 0 2px rgba(0,0,0,0.2),
+      inset 0 0 0 2px rgba(255,255,255,0.1);
+    position: relative;
+    --safe-top:    59px;
+    --safe-right:  0px;
+    --safe-bottom: 34px;
+    --safe-left:   0px;
+  }
+  .phone::after {
+    content: "";
+    position: absolute;
+    top: 21px; left: 50%;
+    transform: translateX(-50%);
+    width: 124px; height: 37px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 100;
+    pointer-events: none;
+  }
+  .phone-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: 40px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--paper);
+    color: var(--ink);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 110px;
+  }
+  /* S009 v2 — statusbar IS the safe-area-top zone: time/battery flank the
+     island on left/right, island centered in the middle. */
+  .statusbar {
+    height: var(--safe-top);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 calc(28px + var(--safe-right)) 0 calc(28px + var(--safe-left));
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+  }
+  .statusbar .icons { font-size: 12px; letter-spacing: 0.5px; opacity: 0.85; }
+
+  /* ========== Admin-section header ========== */
+  .admin-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 18px 4px;
+  }
+  .admin-top .title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .admin-top .title .em {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-right: 8px;
+    vertical-align: 3px;
+  }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: grid; place-items: center;
+    color: var(--ink);
+    background: var(--paper-dim);
+    font-size: 16px;
+    border: 1px solid var(--line);
+  }
+
+  /* ========== Admin sub-tabs ========== */
+  .admin-subtabs {
+    display: flex;
+    gap: 4px;
+    padding: 6px 16px 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .admin-subtabs::-webkit-scrollbar { display: none; }
+  .subtab {
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .subtab.active {
+    color: var(--ink);
+    background: var(--paper-dim);
+    border-color: var(--line);
+  }
+
+  /* ========== Segment control ========== */
+  .segments {
+    display: flex;
+    gap: 2px;
+    margin: 4px 18px 14px;
+    padding: 3px;
+    background: var(--paper-dim);
+    border-radius: 12px;
+    border: 1px solid var(--line);
+  }
+  .seg {
+    flex: 1;
+    text-align: center;
+    padding: 7px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    border-radius: 9px;
+    background: transparent;
+  }
+  .seg.active {
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: 0 1px 3px rgba(10,22,40,0.08);
+  }
+
+  /* ========== Matchday card ========== */
+  .matchday-card {
+    margin: 0 16px 14px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 18px -10px rgba(10,22,40,0.2);
+  }
+  .dark .matchday-card { background: var(--paper-dim); }
+  .matchday-head {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .matchday-head .date {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .matchday-head .date .day {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 5px;
+    background: var(--paper-dim);
+    color: var(--muted);
+    font-family: "Inter", sans-serif;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-right: 8px;
+    vertical-align: 2px;
+  }
+  .dark .matchday-head .date .day { background: var(--paper-dimmer); color: var(--ink-soft); }
+  .matchday-head .kickoff {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    margin-top: 3px;
+  }
+  .phase-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 10px;
+    padding: 4px 10px 4px 8px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+  }
+  .phase-chip .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #fff;
+  }
+  .phase-chip.success { background: var(--success); }
+  .phase-chip.warn   { background: var(--warn); }
+  .phase-chip.muted  { background: var(--muted); }
+
+  .roster-count {
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-top: 6px;
+    letter-spacing: 0.02em;
+  }
+  .roster-count .member { color: var(--success); font-weight: 700; }
+  .roster-count .guest  { color: var(--gold); font-weight: 700; }
+
+  /* ========== Primary CTA ========== */
+  .cta-row { padding: 12px 16px; }
+  .cta {
+    width: 100%;
+    padding: 13px 14px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    box-shadow: 0 8px 24px -12px rgba(200,16,46,0.6);
+    text-align: center;
+  }
+  .dark .cta { box-shadow: 0 8px 24px -12px rgba(230,51,73,0.6); }
+  .cta .arrow { margin-left: 6px; }
+
+  /* ========== Roster (full 14-row, always expanded) ========== */
+  .roster-preview {
+    padding: 4px 16px 14px;
+    border-top: 1px solid var(--line);
+    margin-top: 2px;
+  }
+  .roster-preview .label {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 8px 0 8px;
+  }
+  .team-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin: 10px 0 4px;
+  }
+  .team-header .swatch {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 1px solid rgba(10,22,40,0.25);
+    flex-shrink: 0;
+  }
+  .team-header .count {
+    margin-left: auto;
+    font-size: 9px;
+    font-weight: 700;
+    opacity: 0.7;
+    letter-spacing: 0.08em;
+  }
+  .team-header.white {
+    background: #f5f5f5;
+    color: #0a1628;
+  }
+  .team-header.white .swatch { background: #ffffff; }
+  .team-header.black {
+    background: #1a1a1a;
+    color: #f2ead6;
+  }
+  .team-header.black .swatch { background: #000000; border-color: rgba(242,234,214,0.3); }
+  .dark .team-header.white {
+    background: rgba(242,234,214,0.9);
+    color: #0a1628;
+  }
+  .dark .team-header.black {
+    background: #000000;
+    color: #f2ead6;
+  }
+  .roster-row {
+    display: grid;
+    grid-template-columns: 22px 1fr auto;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 6px;
+    border-radius: 8px;
+  }
+  .roster-row + .roster-row { border-top: 1px solid var(--line); }
+  .roster-row .num {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-align: right;
+  }
+  .roster-row .name {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .roster-row .name.guest {
+    font-style: italic;
+    color: var(--ink-soft);
+    background: rgba(212,168,74,0.08);
+    margin: 0 -4px;
+    padding: 0 4px;
+    border-radius: 4px;
+  }
+  .dark .roster-row .name.guest { background: rgba(229,186,91,0.1); }
+  .roster-row .name .plus {
+    color: var(--gold);
+    font-weight: 800;
+    margin-right: 1px;
+  }
+  .roster-row .name .motm {
+    color: var(--gold);
+    font-size: 11px;
+    margin-left: 2px;
+  }
+  .roster-row .pos-pill {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    padding: 3px 7px;
+    border-radius: 5px;
+    color: #fff;
+    text-transform: uppercase;
+  }
+  .pos-pill.gk  { background: var(--pos-gk);  color: #0a1628; }
+  .pos-pill.def { background: var(--pos-def); }
+  .pos-pill.cdm { background: var(--pos-cdm); }
+  .pos-pill.w   { background: var(--pos-w); }
+  .pos-pill.st  { background: var(--pos-st); }
+
+  /* ========== Bottom tab bar ========== */
+  .tabbar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding-top: 10px;
+    padding-left: calc(12px + var(--safe-left));
+    padding-right: calc(12px + var(--safe-right));
+    padding-bottom: calc(22px + var(--safe-bottom));
+    background: var(--nav-bg);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+  .tab {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 6px 2px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .tab .ico { font-size: 18px; }
+  .tab.active { color: var(--accent); }
+
+  /* ========== Tiles ========== */
+  .tiles {
+    max-width: 1200px;
+    margin: 0 auto 2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 1.25rem;
+  }
+  .tile {
+    background: rgba(255,255,255,0.9);
+    border-radius: 20px;
+    border: 1px solid rgba(10,22,40,0.08);
+    padding: 18px 20px 22px;
+    box-shadow: 0 8px 28px -16px rgba(10,22,40,0.35);
+  }
+  .tile.dark { background: #0e1826; color: #f2ead6; border-color: rgba(242,234,214,0.12); }
+  .tile .tag {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #c8102e;
+    font-weight: 700;
+  }
+  .tile.dark .tag { color: #e63349; }
+  .tile h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 4px 0 8px;
+    letter-spacing: -0.01em;
+  }
+  .tile p {
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: #293a55;
+    margin: 0 0 12px;
+  }
+  .tile.dark p { color: #c3b99f; }
+  .tile .visual {
+    background: #f6f1e4;
+    border-radius: 14px;
+    padding: 14px;
+    margin-top: 8px;
+    color: #0a1628;
+    border: 1px solid rgba(10,22,40,0.08);
+  }
+  .tile.dark .visual {
+    background: #0e1826;
+    color: #f2ead6;
+    border-color: rgba(242,234,214,0.1);
+  }
+
+  /* ========== Result-pending row (state tile) ========== */
+  .result-pending {
+    padding: 14px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--warn);
+    border-radius: 12px;
+  }
+  .result-pending .submitted {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+    margin-bottom: 6px;
+  }
+  .result-pending .submitted .by { color: var(--ink-soft); }
+  .result-pending .score {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    margin: 8px 0;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .result-pending .score .team {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    padding: 3px 8px;
+    border-radius: 5px;
+    text-transform: uppercase;
+    font-family: "Inter", sans-serif;
+  }
+  .result-pending .score .team.white { background: rgba(255,255,255,0.7); border: 1px solid var(--line-strong); color: var(--ink); }
+  .result-pending .score .team.black { background: #0a1628; color: #f2ead6; }
+  .result-pending .score .num {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 22px;
+    font-weight: 800;
+  }
+  .result-pending .detail {
+    font-size: 12px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    margin-bottom: 12px;
+  }
+  .result-pending .detail .motm { color: var(--gold); font-weight: 800; }
+  .result-pending .detail .strong { color: var(--ink); font-weight: 700; }
+  .result-pending .actions {
+    display: flex; gap: 8px;
+  }
+  .btn {
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    border: none;
+    flex: 1;
+  }
+  .btn.primary {
+    background: var(--success);
+    color: #fff;
+  }
+  .btn.outline {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line-strong);
+  }
+
+  /* ========== Guest-edit sub-sheet ========== */
+  .sub-sheet {
+    padding: 16px;
+    background: var(--paper);
+    border-radius: 18px 18px 0 0;
+    border: 1px solid var(--line);
+    border-bottom: none;
+  }
+  .sub-sheet::before {
+    content: "";
+    display: block;
+    width: 48px; height: 5px;
+    border-radius: 4px;
+    background: rgba(10,22,40,0.22);
+    margin: 0 auto 12px;
+  }
+  .sub-sheet h4 {
+    margin: 0 0 2px;
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .sub-sheet .by {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+  }
+  .field {
+    margin-bottom: 10px;
+  }
+  .field .lbl {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .field .val {
+    padding: 8px 10px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--ink);
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .field .stars { color: var(--gold); letter-spacing: 1px; font-size: 14px; }
+  .field .val.desc {
+    font-style: italic;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    min-height: 50px;
+    align-items: flex-start;
+    padding-top: 8px;
+  }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sheet-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .sheet-actions .btn.primary { background: var(--accent); }
+
+  /* ========== Callout ========== */
+  .callout {
+    max-width: 1100px;
+    margin: 2rem auto 0;
+    padding: 18px 22px;
+    background: rgba(255,255,255,0.94);
+    border-left: 4px solid #c8102e;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px -18px rgba(10,22,40,0.3);
+  }
+  .callout h4 {
+    margin: 0 0 8px;
+    font-family: "Fraunces", Georgia, serif;
+    color: #c8102e;
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+  }
+  .callout ul { margin: 0; padding-left: 1.2rem; color: #293a55; font-size: 13px; line-height: 1.6; }
+  .callout li { margin-bottom: 4px; }
+  .callout li strong { color: #0a1628; }
+  .callout code {
+    background: #ece4d0;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <span class="tag">Session S009 · §3.18</span>
+  <h1>Admin Matches — <em>match lifecycle workhorse</em>, light + dark · v1</h1>
+  <p>Both phones show the <strong>This week</strong> segment with a Phase 3 matchday card (<code>roster locked — pick captains</code>) for Thursday 23/APR/2026. The primary CTA <strong>Pick captains</strong> routes to §3.1-v2; below it, the <strong>full locked 7+7 roster</strong> is rendered inline — WHITE team header + 7 rows, then BLACK team header + 7 rows, including two italicised gold-tinted guest rows (Samir on White, Nabil on Black). Position pills use the §3.14 colour scale (GK gold · DEF blue · CDM dark-green · W orange · ST accent-red). MOTM star visible on Mohammed M. No tap-to-expand — density is the point on an admin screen. Below the phones: the <strong>Result-pending row</strong> state tile (ref Omar K. submitted WHITE 4–2 BLACK) and the <strong>Guest-stats correction sub-sheet</strong> state tile showing all six S007 editable fields. Dates DD/MMM/YYYY uppercase. Safe-area cutout visible.</p>
+</div>
+
+<div class="phones">
+
+  <!-- ================================================ -->
+  <!-- LIGHT PHONE — THIS WEEK (PHASE 3)                 -->
+  <!-- ================================================ -->
+  <div class="phone-wrap">
+    <span class="phone-label">Light · This week · Phase 3 (pick captains)</span>
+    <div class="phone">
+      <div class="phone-inner light">
+        <div class="statusbar">
+          <span>9:41</span>
+          <span class="icons">•••• 5G 92%</span>
+        </div>
+
+        <div class="admin-top">
+          <div class="title"><span class="em">Admin</span>Matches</div>
+          <div class="icon-btn" title="Admin settings">⚙</div>
+        </div>
+
+        <div class="admin-subtabs">
+          <div class="subtab">Players</div>
+          <div class="subtab active">Matches</div>
+          <div class="subtab">Seasons</div>
+          <div class="subtab">Admins</div>
+          <div class="subtab">Schedule</div>
+        </div>
+
+        <div class="segments">
+          <div class="seg active">This week</div>
+          <div class="seg">Upcoming</div>
+          <div class="seg">Results</div>
+        </div>
+
+        <div class="matchday-card">
+          <div class="matchday-head">
+            <div class="date"><span class="day">Thu</span>23/APR/2026</div>
+            <div class="kickoff">Kickoff 19:00 · Season 2 · matchday 10</div>
+            <span class="phase-chip">
+              <span class="dot"></span>Phase 3 · Roster locked
+            </span>
+            <div class="roster-count">
+              <span class="member">12 members</span> + <span class="guest">2 guests</span> · 14 confirmed
+            </div>
+          </div>
+
+          <div class="cta-row">
+            <button class="cta">Pick captains <span class="arrow">→</span></button>
+          </div>
+
+          <div class="roster-preview">
+            <div class="label">Full roster · 14 players</div>
+
+            <div class="team-header white">
+              <span class="swatch"></span>
+              <span>White</span>
+              <span class="count">7 players</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">1.</span>
+              <span class="name">Hassan Al-Rashid</span>
+              <span class="pos-pill gk">GK</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">2.</span>
+              <span class="name">Mohammed Muwahid <span class="motm">⭐</span></span>
+              <span class="pos-pill def">DEF</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">3.</span>
+              <span class="name">Karim Al-Sayed</span>
+              <span class="pos-pill def">DEF</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">4.</span>
+              <span class="name">Jad Haddad</span>
+              <span class="pos-pill cdm">CDM</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">5.</span>
+              <span class="name">Tarek Maalouf</span>
+              <span class="pos-pill w">W</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">6.</span>
+              <span class="name">Omar Khalil</span>
+              <span class="pos-pill st">ST</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">7.</span>
+              <span class="name guest"><span class="plus">+1</span>Samir (guest)</span>
+              <span class="pos-pill w">W</span>
+            </div>
+
+            <div class="team-header black">
+              <span class="swatch"></span>
+              <span>Black</span>
+              <span class="count">7 players</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">8.</span>
+              <span class="name">Fadi Nasser</span>
+              <span class="pos-pill gk">GK</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">9.</span>
+              <span class="name">Bilal Kassem</span>
+              <span class="pos-pill def">DEF</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">10.</span>
+              <span class="name">Rami Zein</span>
+              <span class="pos-pill def">DEF</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">11.</span>
+              <span class="name">Yusuf Al-Mansour</span>
+              <span class="pos-pill cdm">CDM</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">12.</span>
+              <span class="name">Ali Jaber</span>
+              <span class="pos-pill w">W</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">13.</span>
+              <span class="name">Ziad Fakhoury</span>
+              <span class="pos-pill st">ST</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">14.</span>
+              <span class="name guest"><span class="plus">+1</span>Nabil (guest)</span>
+              <span class="pos-pill w">W</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="tabbar">
+          <div class="tab"><span class="ico">🏠</span>Home</div>
+          <div class="tab"><span class="ico">📋</span>Poll</div>
+          <div class="tab"><span class="ico">📊</span>Table</div>
+          <div class="tab active"><span class="ico">🛠</span>Admin</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- DARK PHONE — THIS WEEK (PHASE 3)                  -->
+  <!-- ================================================ -->
+  <div class="phone-wrap">
+    <span class="phone-label dark-label">Dark · This week · Phase 3 (pick captains)</span>
+    <div class="phone">
+      <div class="phone-inner dark">
+        <div class="statusbar">
+          <span>9:41</span>
+          <span class="icons">•••• 5G 88%</span>
+        </div>
+
+        <div class="admin-top">
+          <div class="title"><span class="em">Admin</span>Matches</div>
+          <div class="icon-btn" title="Admin settings">⚙</div>
+        </div>
+
+        <div class="admin-subtabs">
+          <div class="subtab">Players</div>
+          <div class="subtab active">Matches</div>
+          <div class="subtab">Seasons</div>
+          <div class="subtab">Admins</div>
+          <div class="subtab">Schedule</div>
+        </div>
+
+        <div class="segments">
+          <div class="seg active">This week</div>
+          <div class="seg">Upcoming</div>
+          <div class="seg">Results</div>
+        </div>
+
+        <div class="matchday-card">
+          <div class="matchday-head">
+            <div class="date"><span class="day">Thu</span>23/APR/2026</div>
+            <div class="kickoff">Kickoff 19:00 · Season 2 · matchday 10</div>
+            <span class="phase-chip">
+              <span class="dot"></span>Phase 3 · Roster locked
+            </span>
+            <div class="roster-count">
+              <span class="member">12 members</span> + <span class="guest">2 guests</span> · 14 confirmed
+            </div>
+          </div>
+
+          <div class="cta-row">
+            <button class="cta">Pick captains <span class="arrow">→</span></button>
+          </div>
+
+          <div class="roster-preview">
+            <div class="label">Full roster · 14 players</div>
+
+            <div class="team-header white">
+              <span class="swatch"></span>
+              <span>White</span>
+              <span class="count">7 players</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">1.</span>
+              <span class="name">Hassan Al-Rashid</span>
+              <span class="pos-pill gk">GK</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">2.</span>
+              <span class="name">Mohammed Muwahid <span class="motm">⭐</span></span>
+              <span class="pos-pill def">DEF</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">3.</span>
+              <span class="name">Karim Al-Sayed</span>
+              <span class="pos-pill def">DEF</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">4.</span>
+              <span class="name">Jad Haddad</span>
+              <span class="pos-pill cdm">CDM</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">5.</span>
+              <span class="name">Tarek Maalouf</span>
+              <span class="pos-pill w">W</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">6.</span>
+              <span class="name">Omar Khalil</span>
+              <span class="pos-pill st">ST</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">7.</span>
+              <span class="name guest"><span class="plus">+1</span>Samir (guest)</span>
+              <span class="pos-pill w">W</span>
+            </div>
+
+            <div class="team-header black">
+              <span class="swatch"></span>
+              <span>Black</span>
+              <span class="count">7 players</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">8.</span>
+              <span class="name">Fadi Nasser</span>
+              <span class="pos-pill gk">GK</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">9.</span>
+              <span class="name">Bilal Kassem</span>
+              <span class="pos-pill def">DEF</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">10.</span>
+              <span class="name">Rami Zein</span>
+              <span class="pos-pill def">DEF</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">11.</span>
+              <span class="name">Yusuf Al-Mansour</span>
+              <span class="pos-pill cdm">CDM</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">12.</span>
+              <span class="name">Ali Jaber</span>
+              <span class="pos-pill w">W</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">13.</span>
+              <span class="name">Ziad Fakhoury</span>
+              <span class="pos-pill st">ST</span>
+            </div>
+            <div class="roster-row">
+              <span class="num">14.</span>
+              <span class="name guest"><span class="plus">+1</span>Nabil (guest)</span>
+              <span class="pos-pill w">W</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="tabbar">
+          <div class="tab"><span class="ico">🏠</span>Home</div>
+          <div class="tab"><span class="ico">📋</span>Poll</div>
+          <div class="tab"><span class="ico">📊</span>Table</div>
+          <div class="tab active"><span class="ico">🛠</span>Admin</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ================================================ -->
+<!-- ALTERNATE STATE TILES                              -->
+<!-- ================================================ -->
+<div class="tiles">
+
+  <div class="tile">
+    <span class="tag">State · Results (pending approval)</span>
+    <h3>Ref submitted, admin to sign off</h3>
+    <p>Results-pending rows are FIFO: oldest submission first. Full score + MOTM + goals breakdown + card summary visible inline. Admin picks <strong>Approve as submitted</strong> (runs <code>approve_match_entry(id)</code>) or <strong>Edit, then approve</strong> (opens a full editor that writes a corrected entry and approves in the same transaction). <code>Reject</code> is Phase-2 deferred.</p>
+    <div class="visual light">
+      <div class="result-pending">
+        <div class="submitted">
+          <span>16/APR/2026 · matchday 9</span>
+          <span class="by">Submitted by Omar K.</span>
+        </div>
+        <div class="score">
+          <span class="team white">WHITE</span>
+          <span class="num">4 – 2</span>
+          <span class="team black">BLACK</span>
+        </div>
+        <div class="detail">
+          MOTM: <span class="motm">Mohammed M. ⭐</span><br>
+          Goals: <span class="strong">MM ×2</span>, OK ×1, JH ×1, Samir (+1) ×1<br>
+          Cards: 🟨 × 2 (Hassan, Nabil guest) · 🟥 × 0
+        </div>
+        <div class="actions">
+          <button class="btn primary">Approve as submitted</button>
+          <button class="btn outline">Edit, then approve</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tile dark">
+    <span class="tag">State · Guest-stats correction sub-sheet</span>
+    <h3>Long-press a guest row → edit S007 fields</h3>
+    <p>From any roster view (This-week card, Results-pending, Results-approved detail) a long-press on a guest row opens this slide-up sheet. All six S007 fields are editable; save writes via <code>update_guest_stats(guest_id, patch)</code> with before/after audit. <code>match_guests.updated_by</code> + <code>updated_at</code> get stamped (new audit columns in §2.3).</p>
+    <div class="visual dark">
+      <div class="sub-sheet" style="background:#182437; border-color:rgba(242,234,214,0.08);">
+        <h4 style="color:#f2ead6;">+1 Samir (guest)</h4>
+        <div class="by" style="color:#85929f;">Invited by Yusuf Al-Mansour · matchday 23/APR/2026</div>
+
+        <div class="field">
+          <div class="lbl" style="color:#85929f;">Rating</div>
+          <div class="val" style="background:#223251; border-color:rgba(242,234,214,0.1); color:#f2ead6;">
+            <span class="stars" style="color:#e5ba5b;">★★★★</span>
+            <span style="margin-left:auto; font-size:11px; color:#85929f;">4 / 5</span>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <div class="lbl" style="color:#85929f;">Primary trait</div>
+            <div class="val" style="background:#223251; border-color:rgba(242,234,214,0.1); color:#f2ead6;">
+              Pacey ▾
+            </div>
+          </div>
+          <div class="field">
+            <div class="lbl" style="color:#85929f;">Secondary trait</div>
+            <div class="val" style="background:#223251; border-color:rgba(242,234,214,0.1); color:#f2ead6;">
+              Clinical ▾
+            </div>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <div class="lbl" style="color:#85929f;">Goals hint</div>
+            <div class="val" style="background:#223251; border-color:rgba(242,234,214,0.1); color:#f2ead6;">
+              2
+            </div>
+          </div>
+          <div class="field">
+            <div class="lbl" style="color:#85929f;">Confirmed</div>
+            <div class="val" style="background:#223251; border-color:rgba(242,234,214,0.1); color:#f2ead6;">
+              ✓ Yes
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="lbl" style="color:#85929f;">Description</div>
+          <div class="val desc" style="background:#223251; border-color:rgba(242,234,214,0.1); color:#c3b99f;">
+            "Fast runner up the left flank. Has played friendlies with Yusuf's work team. Left foot only."
+          </div>
+        </div>
+
+        <div class="sheet-actions">
+          <button class="btn outline" style="color:#f2ead6; border-color:rgba(242,234,214,0.2);">Cancel</button>
+          <button class="btn primary" style="background:#e63349;">Save guest stats</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="callout">
+  <h4>§3.18 Admin Matches · v1 design notes (read before approval)</h4>
+  <ul>
+    <li><strong>Phase indicator drives the card.</strong> The phase chip is the single source of truth for what the admin should do next — <code>Poll open</code> (no CTA) → <code>Lock roster pending</code> (warn amber) → <code>Roster locked — pick captains</code> (accent) → <code>Captains set — enter teams</code> → <code>Result pending</code> → <code>Final</code> (success green). Each phase exposes exactly one primary CTA.</li>
+    <li><strong>Captain picking lives in §3.1-v2, not here.</strong> The Phase 3 CTA deep-links to §3.1-v2 with the <code>matchday_id</code> query param and returns here on back. <code>set_matchday_captains(matchday_id, white, black)</code> is the new RPC (S009 addition to §2.7).</li>
+    <li><strong>Guest-stats correction is long-press, not tap.</strong> Tap on a guest row is a regular navigation action (opens guest profile view, Phase 2); long-press opens the correction sub-sheet. Discoverable via an "Edit guest" overflow affordance on each guest line in Results-pending expanded view.</li>
+    <li><strong>Edit-after-approval writes audit.</strong> <code>edit_match_result(match_id, patch)</code> writes the full before/after diff to <code>admin_audit_log</code> and cascades to <code>v_season_standings</code>. No silent overwrites — the standings-refresh toast confirms propagation.</li>
+    <li><strong>Late-cancel penalty edits go through <code>edit_match_result</code>.</strong> No dedicated penalty-edit UI in Phase 1; admin zeroes <code>late_cancel_points_delta</code> in the match patch if a penalty was applied in error. Dedicated UI deferred.</li>
+    <li><strong>Safe area.</strong> Dynamic Island cutout visible at the top of both phone frames; tabbar padding uses <code>var(--safe-bottom)</code> per §3.0.</li>
+  </ul>
+</div>
+
+</body>
+</html>
