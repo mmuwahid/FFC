@@ -1,69 +1,65 @@
 # FFC Todo
 
-## NEXT SESSION — S017 (Step 2 migrations + CRLF chore + lesson retraction)
+## NEXT SESSION — S018 (Step 3 — auth flow + Welcome screen + self-signup + admin approval)
 
 **Cold-start checklist:**
-- Read `CLAUDE.md` (S016 summary at top — status now reads `Phase 1 implementation — Step 1 of V2.8 COMPLETE`), `sessions/INDEX.md` (S016 row), `sessions/S016/session-log.md` (full close — Step 1 live, 2 commits `c7b2b74` + `dd0c00b`).
-- Memory auto-loads all prior rules plus S016 lessons (legacy-peer-deps via `.npmrc`, Windows `&`-in-path `.cmd` wrapper breakage, `gh` CLI works fine on both PCs).
-- **Home-PC workspace is OneDrive working tree + `C:/Users/User/FFC-git/` external `.git/`.** `git status` / `git log` / `git push` all run from the OneDrive path.
-- **`git pull` before starting** — sync from work PC if anything was pushed there.
-- If not yet done: reconnect Supabase MCP in Claude settings with a PAT scoped to the FFC org (optional — `npx supabase` CLI is the fallback).
+- Read `CLAUDE.md` (S017 summary — status now `Steps 1 & 2 of V2.8 COMPLETE`), `sessions/INDEX.md` (S017 row), session tmp at `~/.claude/session-data/2026-04-21-ffc-s017-session.tmp`.
+- Memory auto-loads all prior rules plus S016/S017 lessons (`.npmrc` peer-dep fix; Windows `&`-in-path `node ./node_modules/` bypass; `supabase gen types 2>/dev/null`; `supabase db query --linked` not `--remote`).
+- **Home-PC workspace:** OneDrive working tree + `C:/Users/User/FFC-git/` external `.git/`. Run `git status` / `git log` / `git push` from the OneDrive path.
+- **`git pull` before starting** — sync from work PC if anything was pushed.
+- **Supabase CLI:** `supabase` globally installed (v2.90.0). `supabase link` already done — no re-link needed on same machine. Use `supabase db query --linked "SQL"` for remote queries.
 
-**Status at S016 close:**
-- Step 1 of V2.8 **FULLY COMPLETE and LIVE** at https://ffc-gilt.vercel.app. Elaborated scaffold: Supabase client singleton, plain-object React Context (Rule #8), ErrorBoundary, safe-area CSS, 3 layouts, 14 page stubs, auth-aware router, PWA SW via vite-plugin-pwa, inline splash.
-- 2 commits shipped: `c7b2b74` Step 1 (36 files, +8,344/−422) · `dd0c00b` `.npmrc` fix (Vercel `npm install` peer-dep workaround).
-- Home-PC workspace aligned to separate-git-dir architecture (matches work PC).
-- `gh` CLI confirmed working on both PCs (S015 lesson stale).
-- 47 non-ffc/ files still show as modified in `git status` — pure CRLF drift, zero content drift. Deferred to S017 chore commit.
-- `_wip/` still empty. Design spec unchanged at ~3,100 lines.
+**Status at S017 close:**
+- Steps 1 & 2 of V2.8 **FULLY COMPLETE.** Database live at `hylarwwsedjxwavuwjrn`: 20 tables, 11 migrations applied, 20 RPCs, RLS on all tables, 7 app_settings, 5 scheduled_reminders, Season 1 + super_admin seeded.
+- `ffc/src/lib/database.types.ts` — 1816 lines, generated from live schema, zero TS errors.
+- `ffc/src/lib/supabase.ts` — typed `createClient<Database>()`.
+- `ffc/package.json` build script — Windows-safe `node ./node_modules/...` invocation.
+- 2 commits this session: `3cd2677` (CRLF .gitattributes) · `cab85b9` (Step 2 complete, 16 files, 4260 insertions).
+- Live app still showing Step 1 shell (DB-only step has no UI change).
+- **`auth_user_id` on super_admin profile is NULL** — Step 3 auth flow will claim it via `approve_signup` RPC.
 
-### S017 agenda
+### S018 agenda
 
-1. **`git pull` + `git status`** at session start. Verify clean (modulo the 47-file CRLF drift which S017 item 2 absorbs).
+1. **`git pull` + `git status`** at session start.
 
-2. **Chore commit: renormalise line endings** across the 47 pre-existing CRLF-drift files (mockups/, planning/, docs/, archive/, sessions/S009–S014, tasks/). Safe now that `core.autocrlf=true` is set. Single commit, gets out of the way before Step 2 touches anything.
+2. **Wire `onAuthStateChange` → profile lookup in `AppContext.tsx`:**
+   - After `setSession(session)`, if `session.user` exists: call `supabase.from('profiles').select('id, role').eq('auth_user_id', session.user.id).maybeSingle()`.
+   - Set `role` in context from the result (currently always null).
+   - Handle null result (approved users only have `auth_user_id` set; pending/rejected have none yet).
 
-3. **Step 2 of V2.8 — 11 migration files + super-admin seed.** Full plan:
-   - Either reconnect Supabase MCP (Claude settings → MCP connectors → Supabase → PAT with FFC-org scope) OR `npx supabase link --project-ref hylarwwsedjxwavuwjrn` (DB password from password manager).
-   - Write SQL files in `supabase/migrations/` per V2.8 §2.9 authoritative order (copy from design spec §2):
-     - `0001_enums.sql` (18 enums)
-     - `0002_base.sql` (profiles, seasons, app_settings)
-     - `0003_match_data.sql` (matchdays, match_players, match_guests, match_events)
-     - `0004_poll_ref.sql` (poll_votes, ref_tokens, pending_signups)
-     - `0005_operational.sql` (admin_audit_log, draft_sessions, draft_picks, formations, notifications, player_bans, push_subscriptions, scheduled_reminders)
-     - `0006_views.sql` (v_match_commitments, v_captain_eligibility, etc.)
-     - `0007_helpers.sql` (effective_format, roster_cap, log_admin_action)
-     - `0008_rpcs.sql` (20 SECURITY DEFINER RPCs)
-     - `0009_rls.sql` (RLS policies — 3 roles: player / admin / super_admin)
-     - `0010_grants.sql` (`GRANT ... TO authenticated, anon;`)
-     - `0011_seed_super_admin.sql` (insert `m.muwahid@gmail.com` as super_admin + seed 7 app_settings rows)
-   - `npx supabase db push` (or `apply_migration` per file via MCP).
-   - **Generate TS types:** `npx supabase gen types typescript --linked > ffc/src/lib/database.types.ts` (or via MCP `generate_typescript_types`).
-   - **Verify on Supabase Studio:** 20 tables in `public` schema · RLS enabled on every table · 20 RPC functions visible under Database → Functions · 7 `app_settings` rows seeded · `profiles` has 1 row with `role='super_admin'`, email `m.muwahid@gmail.com`.
-   - **Smoke-test Edge Function:** deploy `supabase/functions/hello/index.ts` via `npx supabase functions deploy hello`; invoke via `curl`.
-   - **Acceptance (Step 2):** `SELECT * FROM seasons` returns one row · `SELECT role, email FROM profiles` returns `super_admin | m.muwahid@gmail.com` · `ffc/src/lib/database.types.ts` exists and compiles against the `supabase` singleton import.
+3. **Login page (`ffc/src/pages/Login.tsx`):**
+   - Email/password sign-in: `supabase.auth.signInWithPassword({ email, password })`.
+   - Google OAuth: `supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })`.
+   - On success, router navigates to `/poll` (AppContext wakes up via `onAuthStateChange`).
+   - Error states: wrong credentials, unconfirmed email, blocked user.
 
-4. **Retract S015 `gh` CLI lesson** in `tasks/lessons.md` — append a "Corrected at S016" note since `gh auth status` works on both home and work PCs. Leave the original lesson text but annotate it as network-specific rather than tool-wide.
+4. **Signup page (`ffc/src/pages/Signup.tsx`):**
+   - `supabase.auth.signUp({ email, password, options: { data: { display_name } } })`.
+   - On success: INSERT to `pending_signups` — `supabase.from('pending_signups').insert({ email, display_name, requested_at: new Date().toISOString() })`.
+   - Show "Awaiting approval" state — do NOT navigate to `/poll` (user has no profile yet).
 
-5. **Local Windows `&`-in-path build fix (nice-to-have).** Two options:
-   - Document in CLAUDE.md: "On Windows, use `node ./node_modules/<pkg>/bin/<bin>` instead of `npm run <script>` — `.cmd` wrappers truncate at `&` in path."
-   - Or rewrite `package.json` build script: `"build": "node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build"` (works on both Windows and Vercel's Linux).
-   - Recommend: both. Document + rewrite.
+5. **Welcome screen (`ffc/src/pages/Welcome.tsx`):**
+   - Port real content from `mockups/welcome.html`.
+   - FFC crest (CSS-gradient placeholder until logo exported) + "Friends, football, Thursdays." headline + Sign in → `/login` CTA + Request to join → `/signup` CTA.
+   - Safe-area aware (top/bottom insets on fixed elements).
 
-6. **Logo rollout** if user has exported transparent PNG/SVG from `shared/FF_LOGO_FINAL.pdf` (512/192/180/32 PNG + SVG master + WhatsApp OG 1200×630). Wire into `ffc/public/` + update `manifest.webmanifest` icons array + replace the CSS-gradient crest on Welcome.
+6. **Admin approval — `AdminPlayers.tsx` pending tab:**
+   - List `pending_signups WHERE resolution='pending'` via Supabase select.
+   - "Approve" button calls `approve_signup(signup_id, null)` RPC (null = create new profile, not claim ghost).
+   - "Reject" button calls `reject_signup(signup_id, reason)` RPC.
+   - After approval, the `pending_signups.resolution` flips to `'approved'` and a new `profiles` row appears.
 
-7. **(Optional) Start Step 3 of V2.8 — First feature slice** (only if scope permits; likely its own session):
-   - Auth (email/password + Google OAuth via Supabase Auth).
-   - Welcome screen as React component — port from `mockups/welcome.html`.
-   - Self-signup pending flow — `pending_signups` INSERT.
-   - Admin approval via `approve_signup` RPC.
-   - Ref tokens generation (SMS stub for Phase 2).
-   - §3.7 Poll screen state machine up to State 3 (voted, pre-lock).
-   - **Acceptance (Step 3):** super-admin approves a pending signup; approved player signs in and commits a poll vote; `committed_at` row visible in `poll_votes`.
+7. **Step 3 acceptance test (manual):**
+   - New browser tab → `/signup` → fill form → submit.
+   - Super-admin browser tab → `/admin/players` pending tab → approve the signup.
+   - Approved-user browser tab → `/login` → sign in → lands on `/poll` with correct role in context.
+   - `SELECT role, auth_user_id FROM profiles` on approved user shows role='player' and non-null auth_user_id.
 
-8. **Brand palette re-alignment** — still deferred unless user surfaces it.
+8. **(Optional) Wire `auth_user_id` on super_admin profile:** After `m.muwahid@gmail.com` signs in for the first time via Supabase Auth, the `onAuthStateChange` handler will find no matching profile (since `auth_user_id IS NULL`). The `approve_signup` RPC's `p_claim_profile_id` parameter handles this — run `approve_signup(signup_id, <super_admin_profile_id>)` to bind auth user to the ghost super_admin profile. OR: manual SQL `UPDATE profiles SET auth_user_id = '<auth-uuid>' WHERE email = 'm.muwahid@gmail.com'`.
 
-9. **Close S017** — session log · INDEX row · CLAUDE.md bump · todo.md S018 plan · lessons.md row.
+9. **Logo rollout** (if user has exported from `shared/FF_LOGO_FINAL.pdf`) — 512/192/180/32 PNG + SVG master + WhatsApp OG 1200×630. Wire into `ffc/public/` + `manifest.webmanifest` icons + Welcome screen.
+
+10. **Close S018** — session log · INDEX row · CLAUDE.md bump · todo.md S019 plan · lessons.md row.
 
 ## Completed in S016 (21/APR/2026, Home PC — full close)
 - [x] Cold-start briefing produced (resume-session skill); INDEX + S015 log + todo.md NEXT SESSION read; user chose "start with Step 1 of V2.8".

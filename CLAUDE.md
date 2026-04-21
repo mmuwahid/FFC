@@ -1,6 +1,6 @@
 # FFC
 
-**Status:** Phase 1 implementation — **Step 1 of V2.8 COMPLETE** (21/APR/2026, S016). Elaborated Vite scaffold with PadelHub boot patterns live at https://ffc-gilt.vercel.app: Supabase client singleton, plain-object React Context (Rule #8), ErrorBoundary, safe-area-aware global CSS (dark default), three layouts (Public/Role/Ref), 14 page stubs wired through auth-aware react-router tree, PWA service worker via `vite-plugin-pwa`, inline splash. Welcome page has real content; all other screens are placeholder stubs (spec-ref + title) until Step 3. Next gate: Step 2 (write & run 11 migration files + super-admin seed + TS types). See `planning/FFC-masterplan-V2.8.md` → "Implementation sequencing notes".
+**Status:** Phase 1 implementation — **Steps 1 & 2 of V2.8 COMPLETE** (21/APR/2026, S017). PWA shell live at https://ffc-gilt.vercel.app. Database live at Supabase project `hylarwwsedjxwavuwjrn`: 20 tables, 11 migrations applied, 20 SECURITY DEFINER RPCs, RLS on all tables, 4 views, 7 app_settings rows, 5 scheduled_reminders, Season 1 + super_admin seeded. TypeScript types generated (`ffc/src/lib/database.types.ts`, 1816 lines). Next gate: Step 3 (auth flow — email/password + Google OAuth, real Welcome screen, self-signup pending flow, admin approval via `approve_signup` RPC). See `planning/FFC-masterplan-V2.8.md` → "Implementation sequencing notes".
 
 FFC is a mobile-first PWA for managing a weekly 7v7 friends football league: Monday poll → Thursday game cycle, with match history, leaderboard, seasons, awards, and WhatsApp share integration.
 
@@ -65,7 +65,40 @@ Working across work PC (`UNHOEC03`) and home PC.
 - **GitHub CLI (`gh`) is blocked by TLS cert-interception on this network** — Go binaries don't use Windows cert store. Use Chrome for repo/PR creation; raw `git` for everything else. See lessons.md S015 entries.
 
 ## Latest session
-**S016 (21/APR/2026 home — Step 1 of V2.8 FULLY COMPLETE · elaborated scaffold live end-to-end · home-PC workspace aligned to separate-git-dir architecture).** https://ffc-gilt.vercel.app now serves a real PWA shell — not the placeholder Vite template. Welcome page renders under PublicLayout; 13 spec-ref stubs wired through auth-aware react-router tree under PublicLayout / RoleLayout (4-tab bottom nav, 5-tab when admin) / RefLayout.
+**S017 (21/APR/2026 home — Step 2 of V2.8 FULLY COMPLETE · 11 Supabase migration files applied · TypeScript types generated · CRLF chore · Windows build fix).**
+
+**What landed in S017:**
+
+- **CRLF normalization (commit `3cd2677`).** `.gitattributes` added (`* text=auto eol=lf` + binary exclusions). `git add --renormalize .` resolved all 47 pre-existing CRLF-drift files in a single chore commit. Zero content diff confirmed before committing.
+
+- **11 Supabase migration files written and applied.** All files in `supabase/migrations/` per V2.8 §2.9 authoritative order: `0001_enums.sql` (18 enums + pgcrypto + pg_cron) → `0002_base_entities.sql` (profiles, pending_signups, seasons, matchdays) → `0003_match_data.sql` (match_guests, matches, match_players) → `0004_poll_ref_workflow.sql` (poll_votes, ref_tokens, pending_match_entries) → `0005_operational.sql` (notifications, player_bans, push_subscriptions, app_settings ×7, scheduled_reminders, admin_audit_log, draft_sessions, draft_picks, formations, format helpers) → `0006_views.sql` (4 views) → `0007_rls_helpers.sql` (4 STABLE role functions) → `0008_security_definer_rpcs.sql` (20 RPCs + log_admin_action + grants) → `0009_rls_policies.sql` (RLS on 20 tables) → `0010_pg_cron_bindings.sql` (fire_due_reminders wrapper) → `0011_seed_super_admin.sql` (super_admin profile, 5 scheduled_reminders, Season 1, pg_cron jobs via DO block).
+
+- **Deployed via Supabase CLI.** `supabase link --project-ref hylarwwsedjxwavuwjrn` (cached auth, no DB password) + `supabase db push` applied all 11 migrations. Verified: 20 tables, 11 schema_migrations rows, 30 functions, 7 app_settings, 5 scheduled_reminders, Season 1, super_admin `m.muwahid@gmail.com`. Note: `auth_user_id = NULL` on super_admin profile — Step 3 sign-in flow will bind it via `approve_signup` RPC.
+
+- **TypeScript types generated.** `supabase gen types typescript --linked 2>/dev/null > ffc/src/lib/database.types.ts` — 1816 lines. The `2>/dev/null` redirect is essential; without it the "Initialising login role..." diagnostic line goes to stdout and corrupts the types file (causes TS1434 errors).
+
+- **`ffc/src/lib/supabase.ts` typed.** Added `import type { Database } from './database.types'`; changed client to `createClient<Database>(url, anonKey, ...)` with explicit `SupabaseClient<Database>` type annotation.
+
+- **Windows build script fix.** `ffc/package.json` build script changed from `tsc -b && vite build` (`.cmd` wrappers truncate at `&` in the OneDrive path "11 - AI & Digital") to `node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build`. Vercel Linux CI is unaffected; both environments now use the explicit node invocation.
+
+- **Zero TypeScript errors confirmed.** `node ./node_modules/typescript/bin/tsc -b --noEmit` produced no output after wiring the Database type.
+
+- **Commit `cab85b9`** — 16 files, 4260 insertions. Pushed to main (`3cd2677..cab85b9`).
+
+**Supabase MCP note:** MCP PAT is scoped to PadelHub org only — `execute_sql` returns 403 on FFC project `hylarwwsedjxwavuwjrn`. Workaround: Supabase CLI throughout. No fix needed unless MCP access to FFC project is wanted (update PAT in Claude settings → MCP connectors → Supabase).
+
+**Durable lessons captured** (see `tasks/lessons.md` S017 entries):
+- `supabase gen types typescript --linked 2>/dev/null` — the `2>/dev/null` redirect is mandatory; "Initialising login role..." goes to stdout not stderr on first run.
+- `supabase db query --linked "SQL"` is the correct syntax in CLI v2.90.0 (not `--remote`; `db execute` subcommand does not exist).
+- `supabase link` uses cached auth token — no DB password needed on a machine already authenticated.
+
+**Stats at S017 close:** repo `main` at `cab85b9`. 20 tables live. 11 migrations applied. `ffc/src/lib/database.types.ts` 1816 lines. Zero TS errors.
+
+**Next: S018** — Step 3 of V2.8: auth flow (email/password + Google OAuth), real Welcome screen ported from `mockups/welcome.html`, self-signup pending flow (`pending_signups` INSERT), admin approval via `approve_signup` RPC, bind `auth_user_id` on super_admin. Acceptance: new user signs up → admin approves → user signs in → reaches `/poll`.
+
+---
+
+### Prior: S016 (21/APR/2026 home — Step 1 of V2.8 FULLY COMPLETE · elaborated scaffold live end-to-end · home-PC workspace aligned to separate-git-dir architecture). https://ffc-gilt.vercel.app now serves a real PWA shell — not the placeholder Vite template. Welcome page renders under PublicLayout; 13 spec-ref stubs wired through auth-aware react-router tree under PublicLayout / RoleLayout (4-tab bottom nav, 5-tab when admin) / RefLayout.
 
 **What landed in S016:**
 
@@ -100,7 +133,7 @@ Working across work PC (`UNHOEC03`) and home PC.
 
 **Stats at S016 close:** repo +37 files on `main` vs S015 close. Design spec unchanged (~3,100 lines). `_wip/` still empty.
 
-**Next: S017** — (a) `git pull` at session start; home PC workspace is OneDrive working tree + `C:/Users/User/FFC-git/` external git dir. (b) **Step 2 of V2.8** — write & run 11 migration files per V2.8 §2.9 order (`0001_enums.sql` → `0011_seed_super_admin.sql`); reconnect Supabase MCP with FFC-org PAT OR `npx supabase link --project-ref hylarwwsedjxwavuwjrn` + `npx supabase db push`; generate TS types → `ffc/src/lib/database.types.ts`; deploy hello-world Edge Function. Acceptance: `SELECT * FROM seasons` returns 1 row; `SELECT role, email FROM profiles` returns super-admin row. (c) **Chore commit: renormalise line endings** on the 47 pre-existing CRLF-drift files (`core.autocrlf=true` now set). (d) **Retract S015 `gh` CLI lesson** in `tasks/lessons.md`. (e) **`package.json` build script Windows workaround** (or document in this file). (f) Logo rollout if assets ready. See `sessions/S016/session-log.md`.
+**S017 COMPLETE** — Step 2 of V2.8 done. See `sessions/INDEX.md` S017 row and `~/.claude/session-data/2026-04-21-ffc-s017-session.tmp` for full close-out details.
 
 ---
 
