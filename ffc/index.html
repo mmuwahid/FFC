@@ -7,8 +7,8 @@
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/ffc-logo-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/ffc-logo-180.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="FFC" />
@@ -30,17 +30,15 @@
       }
       #ffc-splash.hide { opacity: 0; pointer-events: none; }
       #ffc-splash-crest {
-        width: 96px; height: 96px; border-radius: 24px;
-        background: linear-gradient(135deg, #e63349, #8a1830);
-        display: grid; place-items: center;
-        color: #fff; font-weight: 800; font-size: 32px; letter-spacing: 0.06em;
-        box-shadow: 0 10px 30px rgba(230, 51, 73, 0.35);
+        width: 128px; height: 128px;
+        object-fit: contain;
+        filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.4));
       }
     </style>
   </head>
   <body>
     <div id="ffc-splash" aria-hidden="true">
-      <div id="ffc-splash-crest">FFC</div>
+      <img id="ffc-splash-crest" src="/ffc-logo-192.png" alt="" />
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
