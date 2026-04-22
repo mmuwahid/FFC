@@ -44,10 +44,20 @@ export function Login() {
    * Clear the query-param once consumed so a refresh doesn't re-trigger it. */
   useEffect(() => {
     if (params.get('err') === 'rejected') {
+      let body = 'Reach out to an admin if you think this is a mistake.'
+      try {
+        const reason = sessionStorage.getItem('ffc_reject_reason')
+        if (reason) {
+          body = `Reason: "${reason}". Reach out to an admin if you think this is a mistake.`
+          sessionStorage.removeItem('ffc_reject_reason')
+        }
+      } catch {
+        /* storage blocked — fall back to generic body */
+      }
       setBanner({
         kind: 'danger',
         title: 'Your signup was not approved.',
-        body: 'Reach out to an admin if you think this is a mistake.',
+        body,
       })
       params.delete('err')
       setParams(params, { replace: true })

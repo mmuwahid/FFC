@@ -84,7 +84,7 @@ export function AppProvider({ children }: AppProviderProps) {
     setProfileLoading(true)
     supabase
       .from('profiles')
-      .select('id, role')
+      .select('id, role, reject_reason')
       .eq('auth_user_id', userId)
       .maybeSingle()
       .then(({ data, error }) => {
@@ -93,6 +93,22 @@ export function AppProvider({ children }: AppProviderProps) {
           console.warn('[FFC] profile lookup failed', error.message)
           setProfileId(null)
           setRole(null)
+        } else if (data && data.role === 'rejected') {
+          // Rejected users must not stay signed in. Stash reason for the
+          // /login banner, sign out, and hard-redirect — AppContext can't
+          // call the router's navigate, and onAuthStateChange will race the
+          // Signup/Home route logic otherwise.
+          try {
+            if (data.reject_reason) {
+              sessionStorage.setItem('ffc_reject_reason', data.reject_reason)
+            }
+          } catch {
+            /* private-mode / storage-blocked — banner falls back to generic copy */
+          }
+          void supabase.auth.signOut().then(() => {
+            window.location.replace('/login?err=rejected')
+          })
+          return
         } else if (data) {
           setProfileId(data.id)
           setRole(data.role as UserRole)
