@@ -1,6 +1,8 @@
 # FFC Todo
 
-## NEXT SESSION — S018 (Step 3 — auth flow + Welcome screen + self-signup + admin approval)
+## NEXT SESSION — S019 (Step 3 — auth flow + Welcome screen + self-signup + admin approval)
+
+> **Note:** S018 (22/APR/2026) was a housekeeping session — CLAUDE.md optimization + `docs/ui-conventions.md` extracted. Step 3 agenda below is unchanged and now moves forward as S019. See `sessions/S018/session-log.md`.
 
 **Cold-start checklist:**
 - Read `CLAUDE.md` (S017 summary — status now `Steps 1 & 2 of V2.8 COMPLETE`), `sessions/INDEX.md` (S017 row), session tmp at `~/.claude/session-data/2026-04-21-ffc-s017-session.tmp`.
