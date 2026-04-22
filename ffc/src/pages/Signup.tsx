@@ -23,8 +23,8 @@ type GhostProfile = Pick<
   'id' | 'display_name' | 'primary_position'
 >
 
-type Banner = { kind: 'danger' | 'warn'; text: string } | null
-type Stage = 'auth' | 'who' | 'waiting'
+type Banner = { kind: 'danger' | 'warn' | 'success'; text: string } | null
+type Stage = 'auth' | 'confirm_email' | 'who' | 'waiting'
 
 export function Signup() {
   const { session, signOut, role, profileLoading } = useApp()
@@ -47,7 +47,10 @@ export function Signup() {
   /* Derive which stage to show. */
   useEffect(() => {
     if (!session) {
-      setStage('auth')
+      // Preserve confirm_email stage across renders — the user is waiting on an
+      // inbox click, not on a new form interaction. Only reset to 'auth' if we
+      // were elsewhere (e.g. user signed out from 'waiting').
+      setStage((prev) => (prev === 'confirm_email' ? prev : 'auth'))
       return
     }
     if (role) {
@@ -104,13 +107,32 @@ export function Signup() {
       return
     }
     setBusy(true)
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({ email, password })
     setBusy(false)
     if (error) {
       setBanner({ kind: 'danger', text: error.message })
       return
     }
-    // onAuthStateChange fires → AppContext picks up session → the effect above lands us in 'who'.
+    // When Supabase "Confirm email" is ON, signUp returns user + session=null.
+    // onAuthStateChange never fires for an unconfirmed user, so we must surface
+    // the inbox-check UI ourselves. When confirmations are OFF, a session is
+    // returned and AppContext's onAuthStateChange transitions us to 'who'.
+    if (!data.session) {
+      setStage('confirm_email')
+      return
+    }
+  }
+
+  const handleResendConfirm = async () => {
+    setBanner(null)
+    setBusy(true)
+    const { error } = await supabase.auth.resend({ type: 'signup', email })
+    setBusy(false)
+    if (error) {
+      setBanner({ kind: 'danger', text: error.message })
+      return
+    }
+    setBanner({ kind: 'success', text: 'Confirmation email sent. Check your inbox.' })
   }
 
   const handleGoogle = async () => {
@@ -224,6 +246,54 @@ export function Signup() {
 
         <div className="auth-footer">
           Already have an account? <Link to="/login" className="auth-link">Sign in</Link>
+        </div>
+      </section>
+    )
+  }
+
+  if (stage === 'confirm_email') {
+    return (
+      <section className="auth-screen">
+        <div className="auth-progress">
+          <span className="auth-progress-dot auth-progress-dot--active" />
+          <span className="auth-progress-dot" />
+          <span className="auth-progress-dot" />
+        </div>
+        <div className="auth-waiting">
+          <div className="auth-waiting-icon" aria-hidden>✉</div>
+          <div className="auth-waiting-copy">
+            <h2>Check your inbox</h2>
+            <p>
+              We sent a confirmation link to <strong>{email}</strong>. Tap it from
+              your phone and you'll come right back here to finish signing up.
+            </p>
+          </div>
+          {banner && (
+            <div className={`auth-banner auth-banner--${banner.kind}`} role="alert">
+              <span className="auth-banner-icon" aria-hidden>
+                {banner.kind === 'success' ? '✓' : '!'}
+              </span>
+              <div>{banner.text}</div>
+            </div>
+          )}
+          <button
+            type="button"
+            className="auth-btn auth-btn--primary"
+            onClick={handleResendConfirm}
+            disabled={busy}
+          >
+            {busy ? 'Sending…' : 'Resend confirmation email'}
+          </button>
+          <button
+            type="button"
+            className="auth-signout-link"
+            onClick={() => {
+              setStage('auth')
+              setBanner(null)
+            }}
+          >
+            Use a different email
+          </button>
         </div>
       </section>
     )

@@ -514,6 +514,11 @@ textarea.auth-input {
   border-color: rgba(245, 158, 11, 0.4);
   color: var(--warning);
 }
+.auth-banner--success {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.4);
+  color: rgb(74, 222, 128);
+}
 .auth-banner-icon {
   width: 18px;
   height: 18px;
