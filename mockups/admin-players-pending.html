@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>§3.17 Admin Players — Pending tab · S019</title>
+<style>
+  /* LIGHT */
+  .light {
+    --ink: #0a1628; --ink-soft: #293a55;
+    --paper: #f6f1e4; --paper-dim: #ece4d0; --paper-dimmer: #e3d8bc;
+    --line: rgba(10, 22, 40, 0.08); --line-strong: rgba(10, 22, 40, 0.18);
+    --accent: #c8102e; --gold: #d4a84a; --muted: #6b7684;
+    --success: #16a34a; --success-tint: rgba(22, 163, 74, 0.1);
+    --warn: #b7791f; --warn-tint: rgba(183, 121, 31, 0.12);
+    --danger: #dc2626; --danger-tint: rgba(220, 38, 38, 0.1);
+    --nav-bg: rgba(246, 241, 228, 0.95);
+    --card-shadow: 0 10px 40px -15px rgba(10, 22, 40, 0.35), 0 1px 0 rgba(10, 22, 40, 0.05);
+    --sheet-bg: #fff;
+  }
+  .dark {
+    --ink: #f2ead6; --ink-soft: #c3b99f;
+    --paper: #0e1826; --paper-dim: #182437; --paper-dimmer: #223251;
+    --line: rgba(242, 234, 214, 0.08); --line-strong: rgba(242, 234, 214, 0.2);
+    --accent: #e63349; --gold: #e5ba5b; --muted: #85929f;
+    --success: #2e9d63; --success-tint: rgba(46, 157, 99, 0.14);
+    --warn: #dca049; --warn-tint: rgba(220, 160, 73, 0.15);
+    --danger: #e63349; --danger-tint: rgba(230, 51, 73, 0.15);
+    --nav-bg: rgba(14, 24, 38, 0.9);
+    --card-shadow: 0 10px 40px -15px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.03);
+    --sheet-bg: #182437;
+  }
+  :root {
+    --pos-gk: #d4a84a; --pos-def: #1e3a8a; --pos-cdm: #065f46;
+    --pos-w: #ea580c; --pos-st: #c8102e;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif; }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #faf6ea 0%, #ead9b8 60%, #b39a72 100%);
+    color: #0a1628;
+    padding: 3rem 1.5rem 4rem;
+  }
+
+  .page-header { max-width: 1400px; margin: 0 auto 2rem; }
+  .page-header .tag {
+    display: inline-block; font-size: 11px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: #c8102e; font-weight: 700;
+  }
+  .page-header h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700; font-size: clamp(1.75rem, 2.5vw + 1rem, 2.4rem);
+    line-height: 1.1; letter-spacing: -0.015em; margin: 0.25rem 0 0.6rem;
+  }
+  .page-header h1 em { font-style: italic; color: #c8102e; font-weight: 500; }
+  .page-header p { color: #293a55; font-size: 14px; line-height: 1.55; max-width: 900px; margin: 0; }
+
+  .phones {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(390px, 1fr));
+    gap: 2.5rem; max-width: 1100px; margin: 0 auto 3rem;
+    justify-items: center;
+  }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; }
+  .phone-label {
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    font-weight: 700; color: #293a55; margin-bottom: 12px;
+  }
+  .phone-label.dark-label { color: #0a1628; opacity: 0.8; }
+
+  /* Phone frame */
+  .phone {
+    width: 390px; height: 844px; border-radius: 48px; background: #000;
+    padding: 10px;
+    box-shadow: 0 40px 80px -20px rgba(10,22,40,0.35),
+                0 0 0 2px rgba(0,0,0,0.2), inset 0 0 0 2px rgba(255,255,255,0.1);
+    position: relative;
+    --safe-top: 59px; --safe-right: 0px; --safe-bottom: 34px; --safe-left: 0px;
+  }
+  .phone::after {
+    content: ""; position: absolute;
+    top: 21px; left: 50%; transform: translateX(-50%);
+    width: 124px; height: 37px; background: #000;
+    border-radius: 20px; z-index: 100; pointer-events: none;
+  }
+  .phone-inner {
+    width: 100%; height: 100%;
+    border-radius: 40px;
+    overflow-y: auto; overflow-x: hidden;
+    background: var(--paper); color: var(--ink);
+    position: relative; display: flex; flex-direction: column;
+    padding-bottom: 110px;
+  }
+  .phone-inner > * { flex-shrink: 0; }
+  .statusbar {
+    height: var(--safe-top);
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 calc(28px + var(--safe-right)) 0 calc(28px + var(--safe-left));
+    font-size: 13px; font-weight: 600; color: var(--ink);
+    flex-shrink: 0; position: relative; z-index: 2;
+  }
+  .statusbar .icons { font-size: 12px; letter-spacing: 0.5px; opacity: 0.85; }
+
+  .admin-top {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 18px 4px;
+  }
+  .admin-top .title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink);
+  }
+  .admin-top .title .em {
+    display: inline-block; padding: 2px 8px; border-radius: 6px;
+    background: var(--accent); color: #fff;
+    font-size: 10px; font-weight: 800; letter-spacing: 0.12em;
+    text-transform: uppercase; margin-right: 8px; vertical-align: 3px;
+  }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: grid; place-items: center;
+    color: var(--ink); background: var(--paper-dim);
+    font-size: 16px; border: 1px solid var(--line);
+  }
+
+  .admin-subtabs {
+    display: flex; gap: 4px; padding: 6px 16px 10px;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .admin-subtabs::-webkit-scrollbar { display: none; }
+  .subtab {
+    padding: 8px 14px; border-radius: 10px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.04em;
+    color: var(--muted); background: transparent;
+    border: 1px solid transparent; white-space: nowrap; flex-shrink: 0;
+  }
+  .subtab.active {
+    color: var(--ink); background: var(--paper-dim); border-color: var(--line);
+  }
+
+  /* Segment control */
+  .segments {
+    display: flex; gap: 2px; margin: 4px 18px 14px; padding: 3px;
+    background: var(--paper-dim); border-radius: 12px; border: 1px solid var(--line);
+  }
+  .seg {
+    flex: 1; text-align: center; padding: 7px 4px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+    color: var(--muted); border-radius: 9px; background: transparent;
+  }
+  .seg.active {
+    background: var(--paper); color: var(--ink);
+    box-shadow: 0 1px 3px rgba(10,22,40,0.08);
+  }
+  .seg .count {
+    display: inline-block; margin-left: 5px; padding: 1px 6px;
+    border-radius: 999px; font-size: 9px;
+    background: var(--paper-dim); color: var(--muted); font-weight: 700;
+  }
+  .seg.active .count { background: var(--accent); color: #fff; }
+
+  /* Queue hint */
+  .queue-hint {
+    padding: 6px 22px 10px;
+    font-size: 11px; color: var(--muted);
+    letter-spacing: 0.02em;
+    font-weight: 600;
+  }
+
+  /* Pending row */
+  .pending-list { margin: 0 12px; display: flex; flex-direction: column; gap: 10px; }
+  .pending-row {
+    display: grid; grid-template-columns: 44px 1fr;
+    gap: 10px; padding: 12px 12px 10px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--warn);
+    border-radius: 14px;
+  }
+  .dark .pending-row { background: var(--paper-dim); }
+  .avatar {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--ink-soft); color: var(--paper);
+    display: grid; place-items: center;
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700; font-size: 15px;
+  }
+  .meta { min-width: 0; }
+  .name-row {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    margin-bottom: 3px;
+  }
+  .name {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.1;
+  }
+  .chip {
+    padding: 2px 7px; border-radius: 5px;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .chip-pending { background: var(--warn-tint); color: var(--warn); }
+  .chip-claim { background: var(--success-tint); color: var(--success); }
+  .chip-new { background: rgba(30,58,138,0.12); color: #1e3a8a; }
+  .dark .chip-new { background: rgba(127,160,232,0.14); color: #7fa0e8; }
+  .email {
+    font-size: 11px; color: var(--muted);
+    margin: 1px 0 6px; letter-spacing: 0.01em; word-break: break-all;
+  }
+  .claim-line {
+    font-size: 11px; color: var(--ink-soft); line-height: 1.45;
+    padding: 6px 8px; background: var(--paper-dim);
+    border-radius: 8px; margin-bottom: 8px;
+  }
+  .claim-line strong { color: var(--ink); }
+  .info-line {
+    font-size: 11px; color: var(--ink-soft); line-height: 1.45;
+    margin-bottom: 8px;
+  }
+  .info-line .dot { color: var(--muted); margin: 0 5px; }
+  .actions { display: flex; gap: 8px; }
+  .btn {
+    padding: 10px 14px; border-radius: 10px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.04em;
+    border: none; cursor: pointer; font-family: inherit;
+  }
+  .btn-approve { background: var(--success); color: #fff; flex: 1; }
+  .btn-reject {
+    background: transparent; color: var(--danger);
+    border: 1px solid var(--danger);
+  }
+
+  /* Tab bar */
+  .tabbar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding-top: 10px;
+    padding-left: calc(12px + var(--safe-left));
+    padding-right: calc(12px + var(--safe-right));
+    padding-bottom: calc(22px + var(--safe-bottom));
+    background: var(--nav-bg); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line);
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;
+  }
+  .tab {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 6px 2px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .tab .ico { font-size: 18px; }
+  .tab.active { color: var(--accent); }
+
+  /* Bottom sheet overlay */
+  .overlay {
+    position: absolute; inset: 0;
+    background: rgba(10, 22, 40, 0.55);
+    backdrop-filter: blur(2px);
+    display: flex; align-items: flex-end;
+    border-radius: 40px;
+    overflow: hidden;
+    z-index: 50;
+  }
+  .sheet {
+    width: 100%;
+    background: var(--sheet-bg);
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    padding: 16px 22px calc(22px + var(--safe-bottom));
+    box-shadow: 0 -20px 40px -10px rgba(10, 22, 40, 0.25);
+    color: var(--ink);
+  }
+  .sheet-handle {
+    width: 44px; height: 4px; border-radius: 999px;
+    background: var(--line-strong); margin: 0 auto 14px;
+    opacity: 0.4;
+  }
+  .sheet h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 18px; font-weight: 700; margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .sheet p {
+    font-size: 13px; color: var(--muted); line-height: 1.5;
+    margin: 0 0 16px;
+  }
+  .sheet p strong { color: var(--ink); }
+  .sheet-input {
+    width: 100%;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px; color: var(--ink);
+    font-family: inherit; outline: none; margin-bottom: 6px;
+    resize: none;
+  }
+  .sheet-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.1);
+  }
+  .sheet-hint {
+    font-size: 11px; color: var(--muted); margin: 0 0 14px;
+  }
+  .sheet-actions {
+    display: flex; gap: 8px;
+  }
+  .sheet-btn {
+    flex: 1; padding: 12px; border-radius: 12px;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.03em;
+    border: none; cursor: pointer; font-family: inherit;
+  }
+  .sheet-btn-cancel {
+    background: var(--paper-dim); color: var(--ink);
+    border: 1px solid var(--line-strong);
+  }
+  .sheet-btn-confirm-approve { background: var(--success); color: #fff; }
+  .sheet-btn-confirm-reject { background: var(--danger); color: #fff; }
+
+  /* Empty-state */
+  .empty-state {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 60px 24px;
+    gap: 14px;
+    color: var(--muted);
+  }
+  .empty-state .icon {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--paper-dim); display: grid; place-items: center;
+    font-size: 32px;
+  }
+  .empty-state h4 {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 18px; color: var(--ink); margin: 0;
+  }
+  .empty-state p { font-size: 13px; margin: 0; max-width: 240px; line-height: 1.5; }
+
+  /* State tiles */
+  .tiles {
+    max-width: 1200px; margin: 0 auto 2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 1.25rem;
+  }
+  .tile {
+    background: rgba(255,255,255,0.94);
+    border-radius: 20px; border: 1px solid rgba(10,22,40,0.08);
+    padding: 18px 20px 22px;
+    box-shadow: 0 8px 28px -16px rgba(10,22,40,0.35);
+  }
+  .tile .tag {
+    font-size: 10px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: #c8102e; font-weight: 700;
+  }
+  .tile h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 1.05rem; font-weight: 700;
+    margin: 4px 0 8px; letter-spacing: -0.01em;
+  }
+  .tile p {
+    font-size: 12.5px; line-height: 1.55; color: #293a55; margin: 0 0 12px;
+  }
+  .tile .visual {
+    background: #f6f1e4; border-radius: 14px; padding: 14px;
+    margin-top: 8px; color: #0a1628;
+    border: 1px solid rgba(10,22,40,0.08);
+    position: relative; overflow: hidden;
+  }
+  .tile .visual.dark-visual {
+    background: #0e1826; color: #f2ead6;
+    border-color: rgba(242,234,214,0.1);
+  }
+
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <span class="tag">§3.17 · Admin Players · Pending tab · S019</span>
+  <h1>Admin Players — <em>Pending approvals</em></h1>
+  <p>
+    Focused S019 mockup for the Pending-tab flow. Left phone: <strong>queue view</strong> with 3 pending
+    signups — Khaled (<em>new</em>), Mohammed (<em>claim hint</em> = Mohammed Muwahid ghost), Omar
+    (<em>claim hint</em> = Omar Khalil ghost). Inline <strong>Approve</strong> (green) + <strong>Reject</strong>
+    (red-outline) per row. Right phone: dark mode with the <strong>Approve-claim confirmation</strong>
+    bottom sheet overlaid. State tiles below show the three other sheet variants (Approve-new,
+    Reject with reason, Empty queue).
+  </p>
+</div>
+
+<div class="phones">
+
+  <!-- ============ LIGHT · QUEUE VIEW ============ -->
+  <div class="phone-wrap">
+    <span class="phone-label">Light · Pending queue (3 items)</span>
+    <div class="phone">
+      <div class="phone-inner light">
+        <div class="statusbar">
+          <span>9:41</span>
+          <span class="icons">•••• 5G 92%</span>
+        </div>
+
+        <div class="admin-top">
+          <div class="title"><span class="em">Admin</span>Players</div>
+          <div class="icon-btn">⚙</div>
+        </div>
+
+        <div class="admin-subtabs">
+          <div class="subtab active">Players</div>
+          <div class="subtab">Matches</div>
+          <div class="subtab">Seasons</div>
+          <div class="subtab">Schedule</div>
+        </div>
+
+        <div class="segments">
+          <div class="seg">Active <span class="count">17</span></div>
+          <div class="seg active">Pending <span class="count">3</span></div>
+          <div class="seg">Rejected <span class="count">2</span></div>
+        </div>
+
+        <div class="queue-hint">Oldest first · Tap approve or reject per row</div>
+
+        <div class="pending-list">
+
+          <div class="pending-row">
+            <div class="avatar">KI</div>
+            <div class="meta">
+              <div class="name-row">
+                <span class="name">Khaled Ismail</span>
+                <span class="chip chip-pending">pending</span>
+                <span class="chip chip-new">new</span>
+              </div>
+              <div class="email">k.ismail@example.com</div>
+              <div class="info-line">
+                Requested <strong>18/APR/2026</strong>
+                <span class="dot">·</span>
+                "Friend of Mohammed — wants to play Thursdays"
+              </div>
+              <div class="actions">
+                <button class="btn btn-approve">Approve</button>
+                <button class="btn btn-reject">Reject</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="pending-row">
+            <div class="avatar">MM</div>
+            <div class="meta">
+              <div class="name-row">
+                <span class="name">Mohammed Muwahid</span>
+                <span class="chip chip-pending">pending</span>
+                <span class="chip chip-claim">claim</span>
+              </div>
+              <div class="email">m.muwahid@gmail.com</div>
+              <div class="claim-line">
+                Wants to claim existing ghost profile: <strong>Mohammed Muwahid</strong> (super-admin, DEF/CDM)
+              </div>
+              <div class="actions">
+                <button class="btn btn-approve">Approve</button>
+                <button class="btn btn-reject">Reject</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="pending-row">
+            <div class="avatar">OK</div>
+            <div class="meta">
+              <div class="name-row">
+                <span class="name">Omar Khalil</span>
+                <span class="chip chip-pending">pending</span>
+                <span class="chip chip-claim">claim</span>
+              </div>
+              <div class="email">o.khalil@example.com</div>
+              <div class="claim-line">
+                Wants to claim existing ghost profile: <strong>Omar Khalil</strong> (admin, ST/W)
+              </div>
+              <div class="actions">
+                <button class="btn btn-approve">Approve</button>
+                <button class="btn btn-reject">Reject</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="tabbar">
+          <div class="tab"><span class="ico">🏠</span>Home</div>
+          <div class="tab"><span class="ico">📋</span>Poll</div>
+          <div class="tab"><span class="ico">📊</span>Table</div>
+          <div class="tab"><span class="ico">👤</span>Profile</div>
+          <div class="tab active"><span class="ico">🛠</span>Admin</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DARK · APPROVE-CLAIM SHEET ============ -->
+  <div class="phone-wrap">
+    <span class="phone-label dark-label">Dark · Approve-claim confirmation sheet</span>
+    <div class="phone">
+      <div class="phone-inner dark">
+        <div class="statusbar">
+          <span>9:41</span>
+          <span class="icons">•••• 5G 88%</span>
+        </div>
+
+        <div class="admin-top">
+          <div class="title"><span class="em">Admin</span>Players</div>
+          <div class="icon-btn">⚙</div>
+        </div>
+
+        <div class="admin-subtabs">
+          <div class="subtab active">Players</div>
+          <div class="subtab">Matches</div>
+          <div class="subtab">Seasons</div>
+          <div class="subtab">Schedule</div>
+        </div>
+
+        <div class="segments">
+          <div class="seg">Active <span class="count">17</span></div>
+          <div class="seg active">Pending <span class="count">3</span></div>
+          <div class="seg">Rejected <span class="count">2</span></div>
+        </div>
+
+        <div class="queue-hint">Oldest first · Tap approve or reject per row</div>
+
+        <div class="pending-list">
+          <div class="pending-row">
+            <div class="avatar">MM</div>
+            <div class="meta">
+              <div class="name-row">
+                <span class="name">Mohammed Muwahid</span>
+                <span class="chip chip-pending">pending</span>
+                <span class="chip chip-claim">claim</span>
+              </div>
+              <div class="email">m.muwahid@gmail.com</div>
+              <div class="claim-line">
+                Wants to claim: <strong>Mohammed Muwahid</strong> (super-admin, DEF/CDM)
+              </div>
+              <div class="actions">
+                <button class="btn btn-approve">Approve</button>
+                <button class="btn btn-reject">Reject</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- OVERLAY -->
+        <div class="overlay">
+          <div class="sheet">
+            <div class="sheet-handle"></div>
+            <h3>Approve claim?</h3>
+            <p>
+              Bind <strong>m.muwahid@gmail.com</strong> to the existing ghost profile
+              <strong>Mohammed Muwahid</strong> (super-admin · DEF/CDM). This cannot be undone.
+            </p>
+            <div class="sheet-actions">
+              <button class="sheet-btn sheet-btn-cancel">Cancel</button>
+              <button class="sheet-btn sheet-btn-confirm-approve">Confirm approve</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============ STATE TILES ============ -->
+<div class="tiles">
+
+  <div class="tile">
+    <span class="tag">Sheet · Approve NEW profile</span>
+    <h3>No ghost — fresh profile created</h3>
+    <p>
+      When <code>claim_profile_hint</code> is NULL, confirmation copy shifts to
+      "create a new profile." The RPC is the same
+      (<code>approve_signup(pending_id, NULL)</code>), the confirmation body just spells
+      out the outcome.
+    </p>
+    <div class="visual">
+      <div style="padding: 4px 2px 0;">
+        <h3 style="margin:0 0 6px;">Approve new player?</h3>
+        <p style="margin:0 0 14px; color:#6b7684; font-size:12.5px;">
+          Create a new profile for <strong>Khaled Ismail</strong>
+          (<code style="font-size:11px;">k.ismail@example.com</code>).
+          They'll appear in the Active tab and unlock poll access.
+        </p>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-reject" style="flex:1;">Cancel</button>
+          <button class="btn btn-approve">Confirm approve</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tile">
+    <span class="tag">Sheet · Reject with reason</span>
+    <h3>Reason required; no silent rejection</h3>
+    <p>
+      Admin must type a reason (≥ 10 chars, client-enforced) before Confirm unlocks.
+      Reason writes to <code>profiles.reject_reason</code> via
+      <code>reject_signup(pending_id, reason)</code>. Player is not notified —
+      they see an error banner on next sign-in.
+    </p>
+    <div class="visual">
+      <div style="padding: 4px 2px 0;">
+        <h3 style="margin:0 0 6px;">Reject signup</h3>
+        <p style="margin:0 0 10px; color:#6b7684; font-size:12.5px;">
+          Rejecting <strong>Khaled Ismail</strong>. Reason is logged to the audit trail and shown on their next sign-in attempt.
+        </p>
+        <textarea class="sheet-input" rows="3" placeholder="Reason (min. 10 characters)…">Not a regular member of the Thursday group — admin-only invite list.</textarea>
+        <p class="sheet-hint" style="margin:0 0 12px;">63 / 10 chars</p>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-reject" style="flex:1;">Cancel</button>
+          <button class="btn" style="background:#dc2626; color:#fff;">Confirm reject</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tile">
+    <span class="tag">State · Empty queue</span>
+    <h3>No pending signups</h3>
+    <p>
+      When the queue is empty the segment count shows 0 and the queue-area
+      renders the empty-state tile. Admins don't need to hunt for the right
+      screen when there's nothing waiting.
+    </p>
+    <div class="visual" style="padding: 0;">
+      <div class="empty-state">
+        <div class="icon">✓</div>
+        <h4>All caught up</h4>
+        <p>No pending signups right now. You'll get a push when someone new requests to join.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

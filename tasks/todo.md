@@ -1,8 +1,40 @@
 # FFC Todo
 
-## NEXT SESSION — S019 (Step 3 — auth flow + Welcome screen + self-signup + admin approval)
+## NEXT SESSION — S020 (commit S019 work + finish D2–D6 acceptance + Google OAuth config)
 
-> **Note:** S018 (22/APR/2026) was a housekeeping session — CLAUDE.md optimization + `docs/ui-conventions.md` extracted. Step 3 agenda below is unchanged and now moves forward as S019. See `sessions/S018/session-log.md`.
+> **Note:** S019 (22/APR/2026, Home) implemented Step 3 auth flow end-to-end, passed D1, but stopped at D2 on a Supabase email-validator blocker. **All S019 work is uncommitted on disk.** See `sessions/S019/session-log.md` for full detail including the critical GRANTs bug discovered + fixed via `0012_grants.sql`.
+
+**Cold-start checklist:**
+- `git pull` at session start (should be clean — nothing pushed while you were away).
+- `git status` — expect ~15 files uncommitted from S019: code (11 modified / 2 new / 1 deleted) + mockups (3 new / 1 deleted) + shared logos (2 new) + `ffc/public/ffc-logo.png` + `supabase/migrations/0012_grants.sql`.
+- Memory auto-loads all prior rules + S019's critical new lesson: **RLS ≠ GRANT** — every SELECT/INSERT/UPDATE/DELETE requires an explicit table-level GRANT to `authenticated` because Supabase "automatic table exposure" is OFF on this project; `0012_grants.sql` sets DEFAULT PRIVILEGES so new tables pick it up automatically.
+- **Supabase CLI** already linked; use `npx supabase db query --linked "SQL"` for remote queries, `npx supabase db push` for new migrations.
+- **Home-PC workspace** = OneDrive working tree + `C:/Users/User/FFC-git/` external `.git/`. Identity: `m.muwahid@gmail.com`.
+
+**Status at S019 close:**
+- Phase A (mockups) · Phase B (code) · Phase C (super_admin bootstrap) all DONE.
+- Phase D (acceptance): **D1 PASS** (super_admin signs in → /poll with 5-tab admin nav); **D2 BLOCKED** (Supabase rejected `test.s019@example.com` as invalid email — need a real-world test address); D3–D6 pending after D2 unblocks.
+- Super_admin `m.muwahid@gmail.com` is bound (`auth_user_id = 67d8219c-6086-4f23-a2fa-deeb3fcc28bf`, profile id `cce905a8-8f42-48c4-bf9e-65a3cb301757`, role `super_admin`).
+- Migration `0012_grants.sql` applied live.
+
+### S020 agenda
+
+1. **Commit + push S019 work in ONE commit** — `feat(auth): Step 3 — auth flow + GRANT fix + bottom-nav icons + transparent logo`. Include session-log + INDEX + CLAUDE.md + todo + lessons (this file). Vercel auto-deploys. Smoke-test the production URL (curl `/` for 200, load `/login` in browser, verify transparent crest renders).
+2. **Retry D2** with a valid throwaway email. Options: your own `+tag` alias (e.g. `m.muwahid+s019test@gmail.com`) — Gmail accepts + tags and forwards to main inbox; OR any secondary real domain you control. Avoid `example.com` / made-up domains — Supabase Auth rejects them.
+3. **D3** — as super_admin, open `/admin/players` Pending tab, approve the D2 signup, verify the bottom sheet copy for "new profile" (no claim hint) renders correctly, confirm approve.
+4. **D4** — on the D2 browser, refresh → should land on `/poll` with 4-tab player nav (no Admin).
+5. **D5** — SQL verification: `SELECT role, auth_user_id FROM profiles WHERE email = '<test-email>';` returns role=player, auth_user_id set. `SELECT resolution, resolved_profile_id FROM pending_signups WHERE email = ...` returns approved.
+6. **D6** — reject path: do a second throwaway signup, reject with a reason (≥10 chars), verify `SELECT role, reject_reason FROM profiles WHERE email = ...` returns role=rejected + reason. Sign in as the rejected user → AppContext detects rejected → auto signOut + banner on `/login?err=rejected`.
+7. **Google OAuth config (OPTIONAL if you want to ship "Continue with Google"):** open Supabase dashboard → Authentication → Providers → Google → enable, paste OAuth Client ID + Secret from a Google Cloud Console OAuth 2.0 app. Redirect URI: Supabase gives you one, paste it into Google Cloud. Test: tap "Continue with Google" on `/login` → Google consent screen → back to app → signed in. If you skip this today, "Continue with Google" silently fails until configured.
+8. **Logo optimization (optional polish):** the transparent PNG is 1.44 MB — fine for dev but heavy for PWA install. Consider 512/192/180/32 PNG variants + SVG master; wire into `ffc/public/manifest.webmanifest` icons array.
+9. **Close S020** — session log · INDEX row · CLAUDE.md status bump ("Phase 1 Step 3 COMPLETE") · todo.md S021 plan (Step 4? or UI polish?) · lessons.md if warranted.
+
+### Known gotchas carried from S019
+- **Supabase dashboard "Add User" auto-confirmed** the super_admin — `email_confirmed_at` is set. For D2 throwaways going through `/signup`, email confirmation MAY be required depending on project settings (check `supabase_auth_admin.identities` or the dashboard Settings → Auth → Email → confirmations). If it is, the test user will get `Banner B (Unconfirmed email)` on sign-in. Workaround: dashboard-add + skip confirmation, or disable email confirmation project-wide for Phase 1.
+- **`.claude/launch.json` Mockup Preview dir** = `mockups` (fixed this session; was pointing at obsolete superpowers scratch dir).
+- **OneDrive stale-stat bug** — if http.server serves an old file despite edits, re-write (forces materialisation). Alternative: touch the file.
+
+## Previous NEXT SESSION — S019 plan [SUPERSEDED — see S020 above]
 
 **Cold-start checklist:**
 - Read `CLAUDE.md` (S017 summary — status now `Steps 1 & 2 of V2.8 COMPLETE`), `sessions/INDEX.md` (S017 row), session tmp at `~/.claude/session-data/2026-04-21-ffc-s017-session.tmp`.

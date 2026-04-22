@@ -20,11 +20,28 @@ export function RoleLayout() {
       </main>
       <nav className="app-bottom-nav" aria-label="Primary">
         <div className="app-bottom-nav-inner">
-          <NavLink to="/poll" end>Home</NavLink>
-          <NavLink to="/leaderboard">Leaderboard</NavLink>
-          <NavLink to="/profile" end>Profile</NavLink>
-          <NavLink to="/settings">Settings</NavLink>
-          {isAdmin && <NavLink to="/admin">Admin</NavLink>}
+          <NavLink to="/poll" end>
+            <span className="nav-ico" aria-hidden>🏠</span>
+            <span className="nav-label">Home</span>
+          </NavLink>
+          <NavLink to="/leaderboard">
+            <span className="nav-ico" aria-hidden>📊</span>
+            <span className="nav-label">Table</span>
+          </NavLink>
+          <NavLink to="/profile" end>
+            <span className="nav-ico" aria-hidden>👤</span>
+            <span className="nav-label">Profile</span>
+          </NavLink>
+          <NavLink to="/settings">
+            <span className="nav-ico" aria-hidden>⚙️</span>
+            <span className="nav-label">Settings</span>
+          </NavLink>
+          {isAdmin && (
+            <NavLink to="/admin">
+              <span className="nav-ico" aria-hidden>🛠</span>
+              <span className="nav-label">Admin</span>
+            </NavLink>
+          )}
         </div>
       </nav>
     </div>

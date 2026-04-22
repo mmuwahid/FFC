@@ -5,9 +5,9 @@ import { PublicLayout } from './layouts/PublicLayout'
 import { RoleLayout } from './layouts/RoleLayout'
 import { RefLayout } from './layouts/RefLayout'
 
-import { Welcome } from './pages/Welcome'
 import { Login } from './pages/Login'
 import { Signup } from './pages/Signup'
+import { PendingApproval } from './pages/PendingApproval'
 import { Poll } from './pages/Poll'
 import { Leaderboard } from './pages/Leaderboard'
 import { Profile } from './pages/Profile'
@@ -20,11 +20,16 @@ import { AdminPlayers } from './pages/admin/AdminPlayers'
 import { AdminMatches } from './pages/admin/AdminMatches'
 import { FormationPlanner } from './pages/admin/FormationPlanner'
 
+/* Root route dispatcher — decides where a session lands based on auth state.
+ *   No session         → /login (Login is the app entry)
+ *   Session + role     → /poll
+ *   Session + no role  → <PendingApproval /> (awaiting admin, or rejected fallthrough) */
 function HomeRoute() {
-  const { session, loading } = useApp()
-  if (loading) return <div className="app-loading">Loading&hellip;</div>
-  if (session) return <Navigate to="/poll" replace />
-  return <Welcome />
+  const { session, role, loading, profileLoading } = useApp()
+  if (loading || profileLoading) return <div className="app-loading">Loading&hellip;</div>
+  if (!session) return <Navigate to="/login" replace />
+  if (!role) return <PendingApproval />
+  return <Navigate to="/poll" replace />
 }
 
 export const router = createBrowserRouter([

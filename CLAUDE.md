@@ -1,6 +1,6 @@
 # FFC
 
-**Status:** Phase 1 implementation — Steps 1 & 2 of V2.8 complete. PWA shell live, DB seeded. Next gate: **Step 3 — auth flow** (email/password + Google OAuth, real Welcome, self-signup pending → admin approval via `approve_signup` RPC). Authoritative plan: `planning/FFC-masterplan-V2.8.md`.
+**Status:** Phase 1 implementation — Steps 1, 2 & 3 of V2.8 complete (pending commit + D2–D6 acceptance retry). Auth flow coded and partially tested: `m.muwahid@gmail.com` super-admin signs in → lands on `/poll` with 5-tab admin nav (D1 PASS). Remaining acceptance (D2 throwaway signup → D6 reject path) parked on Supabase email-validator blocker. `supabase/migrations/0012_grants.sql` applied live — **every future table-creating migration MUST rely on 0012's DEFAULT PRIVILEGES or emit its own GRANTs**; RLS alone does not grant access (Supabase "auto table exposure" is OFF on this project). Authoritative plan: `planning/FFC-masterplan-V2.8.md`.
 
 FFC is a mobile-first PWA for managing a weekly 7v7 friends football league: Monday poll → Thursday game cycle, with match history, leaderboard, seasons, awards, and WhatsApp share integration.
 

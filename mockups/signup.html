@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>§3.3 Signup — FFC Phase 1 mockup · v1 (S019)</title>
+<style>
+  /* LIGHT (default) */
+  .light {
+    --ink: #0a1628;
+    --ink-soft: #293a55;
+    --paper: #f6f1e4;
+    --paper-dim: #ece4d0;
+    --paper-dimmer: #e3d8bc;
+    --line: rgba(10, 22, 40, 0.08);
+    --accent: #c8102e;
+    --accent-dim: #a40c24;
+    --gold: #d4a84a;
+    --muted: #6b7684;
+    --danger: #c8102e;
+    --warn: #b7791f;
+    --warn-tint: rgba(183, 121, 31, 0.1);
+    --warn-line: rgba(183, 121, 31, 0.35);
+    --card-shadow: 0 10px 40px -15px rgba(10, 22, 40, 0.35), 0 1px 0 rgba(10, 22, 40, 0.05);
+    --input-bg: #fff;
+    --input-border: rgba(10, 22, 40, 0.14);
+    --input-border-focus: rgba(200, 16, 46, 0.5);
+    --ghost-bg: #fff;
+    --ghost-border: rgba(10, 22, 40, 0.08);
+    --ghost-hover: rgba(200, 16, 46, 0.04);
+  }
+  /* DARK */
+  .dark {
+    --ink: #f2ead6;
+    --ink-soft: #c3b99f;
+    --paper: #0e1826;
+    --paper-dim: #182437;
+    --paper-dimmer: #223251;
+    --line: rgba(242, 234, 214, 0.08);
+    --accent: #e63349;
+    --accent-dim: #bf2639;
+    --gold: #e5ba5b;
+    --muted: #85929f;
+    --danger: #e63349;
+    --warn: #dca049;
+    --warn-tint: rgba(220, 160, 73, 0.14);
+    --warn-line: rgba(220, 160, 73, 0.4);
+    --card-shadow: 0 10px 40px -15px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.03);
+    --input-bg: #1a2538;
+    --input-border: rgba(242, 234, 214, 0.14);
+    --input-border-focus: rgba(230, 51, 73, 0.5);
+    --ghost-bg: #182437;
+    --ghost-border: rgba(242, 234, 214, 0.08);
+    --ghost-hover: rgba(230, 51, 73, 0.08);
+  }
+
+  /* Position pill colours */
+  :root {
+    --pos-gk:  #d4a84a;
+    --pos-def: #1e3a8a;
+    --pos-cdm: #065f46;
+    --pos-w:   #ea580c;
+    --pos-st:  #c8102e;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif; }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #faf6ea 0%, #ead9b8 60%, #b39a72 100%);
+    color: #0a1628;
+    padding: 3rem 1.5rem 4rem;
+  }
+
+  .page-header { max-width: 1500px; margin: 0 auto 2rem; }
+  .page-header .tag {
+    display: inline-block; font-size: 11px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: #c8102e; font-weight: 700;
+  }
+  .page-header h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700; font-size: clamp(1.75rem, 2.5vw + 1rem, 2.4rem);
+    line-height: 1.1; letter-spacing: -0.01em; margin: 0.35rem 0 0.4rem;
+  }
+  .page-header h1 em { font-style: italic; color: #c8102e; }
+  .page-header p { color: #293a55; max-width: 72ch; font-size: 15px; margin: 0; }
+
+  .stage {
+    max-width: 1500px; margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 390px);
+    gap: 2rem;
+    align-items: start;
+    justify-content: center;
+  }
+  @media (max-width: 1320px) {
+    .stage { grid-template-columns: repeat(2, 390px); }
+  }
+  @media (max-width: 880px) {
+    .stage { grid-template-columns: 1fr; place-items: center; }
+  }
+  .stage-block { display: flex; flex-direction: column; gap: 0.75rem; }
+  .stage-label {
+    font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+    font-weight: 700; text-align: center; color: #293a55;
+  }
+  .stage-desc {
+    font-size: 12px; color: #6b7684; text-align: center;
+    margin: 0 0 0.5rem; line-height: 1.4;
+  }
+
+  /* Phone frame */
+  .phone {
+    width: 390px; height: 844px;
+    background: var(--paper); color: var(--ink);
+    border-radius: 48px;
+    box-shadow: var(--card-shadow), 0 0 0 9px #0b0f18, 0 0 0 10px rgba(255, 255, 255, 0.05);
+    position: relative; overflow: hidden; font-size: 15px;
+    --safe-top: 59px; --safe-right: 0px; --safe-bottom: 34px; --safe-left: 0px;
+  }
+  .phone::after {
+    content: ""; position: absolute;
+    top: 11px; left: 50%; transform: translateX(-50%);
+    width: 124px; height: 37px;
+    background: #000; border-radius: 20px;
+    z-index: 100; pointer-events: none;
+  }
+  .status-bar {
+    height: var(--safe-top);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 calc(22px + var(--safe-right)) 0 calc(22px + var(--safe-left));
+    font-size: 14px; font-weight: 600; color: var(--ink);
+    flex-shrink: 0; position: relative; z-index: 2;
+  }
+  .status-bar .dots { display: flex; gap: 3px; }
+  .status-bar .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--ink); }
+
+  .phone-inner { height: 100%; display: flex; flex-direction: column; }
+  .phone-inner > * { flex-shrink: 0; }
+
+  /* Top nav */
+  .top-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 16px 4px;
+    height: 44px;
+  }
+  .back-btn {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    background: transparent; border: 0;
+    color: var(--ink); font-size: 22px;
+    cursor: pointer;
+  }
+  .progress-dots {
+    display: flex; gap: 6px;
+  }
+  .progress-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--muted); opacity: 0.3;
+  }
+  .progress-dot.active { opacity: 1; background: var(--accent); }
+
+  /* Body */
+  .body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0 24px calc(24px + var(--safe-bottom));
+    overflow: hidden;
+    min-height: 0;
+  }
+  .hero {
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; gap: 10px;
+    margin: 8px 0 18px;
+  }
+  .crest-mini {
+    width: 64px; height: 64px;
+    object-fit: contain;
+    filter: drop-shadow(0 8px 16px rgba(10, 22, 40, 0.2));
+  }
+  .crest-hero {
+    width: 160px; height: 160px;
+    object-fit: contain; display: block;
+    filter: drop-shadow(0 18px 36px rgba(10, 22, 40, 0.35));
+  }
+  .hero-brand {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    margin: 32px 0 40px;
+  }
+  .title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 24px; font-weight: 700;
+    letter-spacing: -0.01em; margin: 0;
+  }
+  .subtitle {
+    color: var(--muted); font-size: 14px; margin: 0;
+    max-width: 280px; line-height: 1.45;
+  }
+
+  /* Form */
+  .form { display: flex; flex-direction: column; gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field-label {
+    font-size: 12px; font-weight: 600;
+    color: var(--ink-soft); letter-spacing: 0.03em;
+    margin-left: 4px;
+  }
+  .input {
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 12px;
+    padding: 13px 14px; font-size: 15px;
+    color: var(--ink); font-family: inherit; outline: none;
+  }
+  .input:focus {
+    border-color: var(--input-border-focus);
+    box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.1);
+  }
+  .input::placeholder { color: var(--muted); }
+  .hint {
+    font-size: 11px; color: var(--muted);
+    margin: 0 0 0 4px;
+  }
+
+  .btn {
+    padding: 14px 18px; border-radius: 14px;
+    font-weight: 600; font-size: 15px; letter-spacing: 0.01em;
+    text-align: center; border: 1px solid transparent;
+    cursor: pointer; transition: transform 0.05s ease;
+    font-family: inherit;
+  }
+  .btn:active { transform: scale(0.99); }
+  .btn-primary {
+    background: var(--accent); color: #fff;
+    box-shadow: 0 6px 20px -8px rgba(200, 16, 46, 0.55);
+  }
+  .btn-secondary {
+    background: var(--paper-dim); color: var(--ink);
+    border-color: var(--line);
+  }
+  .btn-google {
+    background: var(--paper-dim); color: var(--ink);
+    border-color: var(--line);
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .g-glyph {
+    width: 20px; height: 20px;
+    display: inline-grid; place-items: center;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, #ea4335 0 25%, #fbbc04 25% 50%, #34a853 50% 75%, #4285f4 75% 100%);
+    color: #fff; font-weight: 800; font-size: 12px;
+  }
+  .g-glyph::before { content: "G"; }
+  .divider {
+    display: flex; align-items: center; gap: 12px;
+    color: var(--muted);
+    font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; font-weight: 600;
+    margin: 2px 0;
+  }
+  .divider::before, .divider::after {
+    content: ""; flex: 1; height: 1px; background: var(--line);
+  }
+  .footer-link {
+    margin-top: auto;
+    padding-top: 16px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .footer-link a {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  /* ============ STAGE 2 — Who are you? ============ */
+  .section-label {
+    font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; font-weight: 700;
+    color: var(--ink-soft);
+    margin: 12px 4px 8px;
+  }
+
+  .ghost-list {
+    display: flex; flex-direction: column;
+    gap: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+  .ghost-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px;
+    background: var(--ghost-bg);
+    border: 1px solid var(--ghost-border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.12s ease, transform 0.05s ease;
+  }
+  .ghost-row:hover { background: var(--ghost-hover); }
+  .ghost-row.selected {
+    border-color: var(--accent);
+    background: rgba(200, 16, 46, 0.06);
+    box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.1);
+  }
+  .ghost-row.selected .ghost-check { display: grid; }
+
+  .avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--paper-dim);
+    color: var(--ink-soft);
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 15px;
+    flex-shrink: 0;
+  }
+  .ghost-name {
+    flex: 1;
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .pos-pill {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    color: #fff;
+    text-transform: uppercase;
+  }
+  .pos-gk  { background: var(--pos-gk); }
+  .pos-def { background: var(--pos-def); }
+  .pos-cdm { background: var(--pos-cdm); }
+  .pos-w   { background: var(--pos-w); }
+  .pos-st  { background: var(--pos-st); }
+
+  .ghost-check {
+    display: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    place-items: center;
+    font-size: 13px; font-weight: 800;
+    margin-left: 4px;
+  }
+
+  .new-player-btn {
+    margin-top: 12px;
+    padding: 14px 16px;
+    border: 1px dashed var(--ghost-border);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--ink-soft);
+    font-weight: 600; font-size: 14px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-family: inherit;
+  }
+  .new-player-btn .plus {
+    font-size: 18px; color: var(--accent);
+  }
+
+  /* Stage 2 CTA */
+  .stage2-cta {
+    margin-top: auto;
+    padding-top: 12px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+
+  /* ============ STAGE 3 — Waiting ============ */
+  .waiting {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    gap: 24px;
+    padding: 0 8px;
+  }
+  .hourglass {
+    width: 96px; height: 96px; border-radius: 24px;
+    background: var(--warn-tint);
+    border: 1px solid var(--warn-line);
+    color: var(--warn);
+    display: grid; place-items: center;
+    font-size: 40px;
+  }
+  .waiting h2 {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 26px; font-weight: 700;
+    margin: 0;
+  }
+  .waiting p {
+    color: var(--muted);
+    font-size: 15px; line-height: 1.5;
+    margin: 0; max-width: 260px;
+  }
+  .waiting .meta {
+    color: var(--muted);
+    font-size: 12px;
+    font-family: "Inter", sans-serif;
+    margin: 0;
+  }
+  .signout-link {
+    color: var(--muted);
+    font-size: 13px;
+    background: none; border: 0;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: inherit;
+  }
+
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <span class="tag">§3.3 · Signup 3-stage · S019</span>
+  <h1>Request to join <em>— 3 stages</em></h1>
+  <p>
+    <strong>Stage 1 (Auth):</strong> email/password or Google → creates <code>auth.users</code> row.
+    <strong>Stage 2 (Who are you?):</strong> claim an unclaimed ghost profile OR declare as new.
+    <strong>Stage 3 (Waiting):</strong> pending admin approval. Writes row to <code>pending_signups</code>
+    via <code>pending_signups_insert_own</code> RLS policy. Signed-in-but-role-null users
+    who hit the app's index route bounce straight to this Stage-3 screen via
+    <code>HomeRoute</code>'s third state.
+  </p>
+</header>
+
+<div class="stage">
+
+  <!-- ==================== STAGE 1 — Auth ==================== -->
+  <div class="stage-block">
+    <div class="stage-label">Stage 1 · Auth</div>
+    <div class="stage-desc">Create an account — email/password or Google.</div>
+    <div class="phone light">
+      <div class="phone-inner">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        </div>
+        <div class="top-nav">
+          <button class="back-btn" type="button" aria-label="Back">‹</button>
+          <div class="progress-dots">
+            <span class="progress-dot active"></span>
+            <span class="progress-dot"></span>
+            <span class="progress-dot"></span>
+          </div>
+        </div>
+        <div class="body">
+          <div class="hero-brand">
+            <img class="crest-hero" src="ffc-logo.png" alt="FFC crest" />
+          </div>
+          <div class="form">
+            <div class="field">
+              <label class="field-label" for="s1-email">Email</label>
+              <input class="input" id="s1-email" type="email" placeholder="you@example.com" />
+            </div>
+            <div class="field">
+              <label class="field-label" for="s1-password">Password</label>
+              <input class="input" id="s1-password" type="password" placeholder="••••••••" />
+            </div>
+            <div class="field">
+              <label class="field-label" for="s1-confirm">Confirm password</label>
+              <input class="input" id="s1-confirm" type="password" placeholder="••••••••" />
+            </div>
+            <button class="btn btn-primary" type="button">Continue</button>
+            <div class="divider">or</div>
+            <button class="btn btn-google" type="button">
+              <span class="g-glyph"></span>
+              Continue with Google
+            </button>
+          </div>
+          <div class="footer-link">
+            Already have an account? <a>Sign in</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== STAGE 2 — Who are you? ==================== -->
+  <div class="stage-block">
+    <div class="stage-label">Stage 2 · Who are you?</div>
+    <div class="stage-desc">Claim an existing ghost profile or declare yourself new.</div>
+    <div class="phone light">
+      <div class="phone-inner">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        </div>
+        <div class="top-nav">
+          <span style="width:40px;"></span>
+          <div class="progress-dots">
+            <span class="progress-dot"></span>
+            <span class="progress-dot active"></span>
+            <span class="progress-dot"></span>
+          </div>
+        </div>
+        <div class="body">
+          <div class="hero" style="margin-bottom:4px;">
+            <h1 class="title">Who are you?</h1>
+            <p class="subtitle">Pick your name if you see it — the admin pre-seeded the roster.</p>
+          </div>
+
+          <div class="section-label">I'm already in FFC</div>
+          <div class="ghost-list">
+            <div class="ghost-row selected">
+              <div class="avatar">MM</div>
+              <div class="ghost-name">Mohammed Muwahid</div>
+              <span class="pos-pill pos-st">ST</span>
+              <span class="ghost-check">✓</span>
+            </div>
+            <div class="ghost-row">
+              <div class="avatar">AK</div>
+              <div class="ghost-name">Ahmed Karim</div>
+              <span class="pos-pill pos-cdm">CDM</span>
+            </div>
+            <div class="ghost-row">
+              <div class="avatar">OF</div>
+              <div class="ghost-name">Omar Farid</div>
+              <span class="pos-pill pos-def">DEF</span>
+            </div>
+            <div class="ghost-row">
+              <div class="avatar">SJ</div>
+              <div class="ghost-name">Saif Jaber</div>
+              <span class="pos-pill pos-gk">GK</span>
+            </div>
+            <div class="ghost-row">
+              <div class="avatar">YR</div>
+              <div class="ghost-name">Yusuf Rashed</div>
+              <span class="pos-pill pos-w">W</span>
+            </div>
+          </div>
+
+          <div class="section-label">Or</div>
+          <button class="new-player-btn" type="button">
+            <span class="plus">＋</span>
+            I'm new to FFC
+          </button>
+
+          <div class="stage2-cta">
+            <button class="btn btn-primary" type="button">Submit request</button>
+            <p class="hint" style="text-align:center;">Claiming <strong>Mohammed Muwahid</strong> — admin will confirm.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== STAGE 3 — Waiting ==================== -->
+  <div class="stage-block">
+    <div class="stage-label">Stage 3 · Waiting</div>
+    <div class="stage-desc">Pending admin approval — page refresh picks up role change.</div>
+    <div class="phone dark">
+      <div class="phone-inner">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        </div>
+        <div class="top-nav">
+          <span style="width:40px;"></span>
+          <div class="progress-dots">
+            <span class="progress-dot"></span>
+            <span class="progress-dot"></span>
+            <span class="progress-dot active"></span>
+          </div>
+        </div>
+        <div class="body">
+          <div class="waiting">
+            <div class="hourglass">⧗</div>
+            <div>
+              <h2>Waiting for approval</h2>
+              <p>We've sent your request to an admin. You'll be in as soon as they tap Approve.</p>
+            </div>
+            <p class="meta">Requested 22/APR/2026 · 09:14</p>
+            <button class="signout-link" type="button">Sign out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
