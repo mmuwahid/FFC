@@ -1,33 +1,68 @@
 # FFC Todo
 
-## NEXT SESSION — S021 (Google OAuth Path B retest · PWA logo variants · Step 4 of V2.8)
+## NEXT SESSION — S022 (Step 4 UI slice kickoff — Poll full Depth-B vs Leaderboard)
 
 **Cold-start checklist:**
-- `git pull` at session start (S020 ended clean; 3 commits on main: `8f8668e`, `dca48cf`, `0e62ffd`).
-- `git status` should be clean; working tree in OneDrive + external `.git/` at `C:/Users/User/FFC-git/`.
-- **Phase 1 Step 3 COMPLETE** — auth flow is production-ready. D1–D6 all PASSED in S020. CLAUDE.md status header reflects this.
-- **Live:** https://ffc-gilt.vercel.app — can sign up, get approved, sign in with 4-tab player nav OR 5-tab admin nav, get rejected with banner showing reason, hit any deep-link URL (no more 404s).
+- **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol → "Session-start sync protocol" subsection:
+  1. `echo $USERNAME` → confirm PC. Home = `User`, Work = `UNHOEC03`.
+  2. `cat FFC/.git` → must say `gitdir: C:/Users/<this-pc>/FFC-git`; rewrite if stale.
+  3. `git fetch && git status -sb && git log --oneline -5`.
+  4. If behind origin with working-tree "modifications" matching the ahead commits: `git stash push --include-untracked` → `git pull --ff-only` → `git stash drop`.
+  5. If genuinely uncommitted WIP: ask user.
+- Expected tip: `a39f56f` or later. Expect clean status.
+- **Phase 1 Step 3 COMPLETE** + **4 S021 polish items LIVE** (OAuth Path B verified, real PWA icons, Signup confirm-email handler, audit-log docs).
+- **Live:** https://ffc-gilt.vercel.app — full auth flow + real FFC crest everywhere (favicon, apple-touch-icon, PWA manifest, splash).
 
-**S021 agenda:**
+**S022 agenda:**
 
-1. **Google OAuth Path B end-to-end retest** — config is in place after S020 (Supabase Site URL + Redirect URLs allowlist saved, Google OAuth provider enabled, Client ID + Secret pasted, Test Users allowlisted on Google Cloud Console). Just needs one click-through: open `/login` → Continue with Google → Google consent screen → choose `m.muwahid05@gmail.com` → redirect back to app → lands on Stage 2 or `/poll` depending on whether the user already has a profile. Verify from DB that `auth.users.identities` includes a `'google'` provider entry.
+1. **Step 4 UI slice decision — spawn `planner` agent first.** Two valid paths per masterplan §17:
+   - **Option A — Poll full Depth-B (§3.7):** closes Step 3's acceptance gap (masterplan says Step 3 should end with "approved player commits a poll vote"; S020 only shipped a `/poll` stub). 9-state machine, richer RPC surface.
+   - **Option B — Leaderboard (§3.13):** first per §3 section order. Read-only, lower risk, fast win. RPCs minimal — mostly aggregating `match_players` / `matches` data.
+   - Planner brief: "Given Option A vs Option B, compare (1) mockup readiness (both approved S011/S012), (2) RPC surface + DB dependency, (3) scope fit for a single session ~4-6 hours, (4) risk of regressing S020 auth flow. Propose one option with acceptance criterion that can be verified via Playwright + DB query."
+2. **Mockup review → implement → smoke-test** the chosen slice per FFC workflow. Mockup files: `mockups/3-7-poll-screen.html` (Option A) or `mockups/3-13-leaderboard.html` (Option B).
+3. **Vector FFC crest SVG** if user has one exported — 5-minute manifest addition (`{src: /favicon.svg, sizes: any, type: image/svg+xml, purpose: any}` + `<link rel="icon" type="image/svg+xml" href="/favicon.svg">` in index.html).
+4. **Palette re-alignment** (backburner) — still on "eventually" list from S012. Current red+navy vs brand khaki-gold (#AEA583) + cream (#EDE9E1) + black + white. Low priority; user sign-off to stay current.
 
-2. **PWA logo variants** — currently `ffc/public/ffc-logo.png` is the 1.44 MB transparent-bg 1024×1024 PNG. Generate 32 · 180 · 192 · 512 PNG + SVG master using Python Pillow (same one-shot approach as the Google 120×120 variant). Wire into `ffc/public/manifest.webmanifest` icons array. Also add `<link rel="apple-touch-icon" sizes="180x180" href="/ffc-logo-180.png">` to index.html. Keep the 1024×1024 as the "full" variant for splash usage if needed.
+**Known gotchas still live:**
+- **Session-start sync protocol** (new in S021). Never skip it on a cross-PC resume — the stale `.git` pointer looks like "dozens of modifications" that are actually already-pushed commits.
+- **Google consent screen shows `hylarwwsedjxwavuwjrn.supabase.co`, not "FFC".** Supabase Pro + $25/mo custom domain required to fix — not worth it for a private league.
+- **`ffc/vercel.json` SPA rewrite is load-bearing.** Don't delete it.
+- **Supabase email validator rejects `example.com` and throwaway domains.** Test emails = real Gmail or `m.muwahid+s###<role>@gmail.com` aliases.
+- **Supabase MCP PAT is PadelHub-scoped** (403 on FFC project). Use `npx --yes supabase@latest db query --linked "..."` for SQL inspection.
+- **`supabase gen types typescript --linked 2>/dev/null`** — the stderr redirect is mandatory or the "Initialising login role..." diagnostic contaminates the types file.
+- **Windows `&`-in-path bug** (`11 - AI & Digital`) — `.bin/*.cmd` wrappers truncate. Use `node ./node_modules/<pkg>/bin/<bin>` direct invocation. Vercel Linux CI unaffected.
+- **Google OAuth via Playwright is blocked** by Google's anti-Chromium detection — test Path B with user click-through on real browser, verify DB delta via SQL.
+- **Terminal roles** (`rejected`, future `banned`) must auto-signOut in AppContext, not just render a display flag.
+- **`favicon.svg` stale CDN cache** on Vercel edge — harmless (no code path references it), will age out.
 
-3. **Signup.tsx confirm-email handler** — latent bug: if email confirmations are ever flipped back ON in Supabase, Stage 1 will silently stick again because `supabase.auth.signUp()` returns `{user, session: null}` in that case and `onAuthStateChange` never fires. Add a branch: if `signUp()` returns with no session, show a "Check your inbox to confirm" screen with resend button. Pure latency fix; not blocking since confirmations are currently OFF.
+---
 
-4. **`admin_audit_log` column audit** — S020's D5 SQL verify tried `SELECT action, target_table, created_at FROM admin_audit_log` and got `column "target_table" does not exist`. Identify the actual column names (likely `entity_type` or `resource_type` per the V2.8 spec), update lessons.md with the correct query, and add a short SQL cheat-sheet to `docs/` for future admin-action auditing.
+## Completed in S021 (22/APR/2026, Home PC — full close)
 
-5. **Step 4 of V2.8 implementation** — check `planning/FFC-masterplan-V2.8.md` §17 sequencing. Likely first real UI slice (Poll screen full Depth-B per §3.7, or Leaderboard per §3.13). Pick one, write acceptance criterion, ship.
-
-6. **Palette re-alignment** (backburner) — still on the "eventually" list from S012. Current app uses red+navy; brand PDF has khaki-gold (#AEA583) + cream (#EDE9E1) + black + white. User has explicit sign-off to keep current palette, so only revisit if the app is moving toward "shareable with collaborators" phase.
-
-**Known gotchas carried from S020:**
-- **Google consent screen shows `hylarwwsedjxwavuwjrn.supabase.co`, not "FFC".** Platform limitation in Supabase + Google OAuth Testing mode. Can only be fixed with Supabase Pro plan ($25/mo) custom domain. Not worth it for a private league — users see FFC logo + app name in the consent header, which is enough.
-- **`vercel.json` SPA rewrite is load-bearing.** Don't delete it — every non-root URL will 404 again without it.
-- **Test users on Google Cloud Console are capped at 100.** Well above a 14-player league. If ever we need >100, submit for verification (not trivial; needs privacy policy + terms pages).
-- **Supabase email validator rejects `example.com` and throwaway domains.** Test emails MUST be real Gmail or `+tag` aliases. Convention: `m.muwahid+s###<role>@gmail.com` (e.g. `+s020reject`).
-- **`auth_user_id` nullable constraint still applies to ghost profiles.** The super-admin profile was bound in S019; any future ghost players (pre-seeded via admin tools) will have `auth_user_id = NULL` until they claim via signup Stage 2.
+- [x] Cross-PC cold-start: rewrote `FFC/.git` pointer to home-PC path, stash-pull-dropped to sync HEAD `f10f138 → 5791a77`
+- [x] Baked mandatory session-start sync protocol into CLAUDE.md (commit `0ed3499`)
+- [x] Google OAuth Path B retest: curl probe 302→Google with correct client_id + scopes; playwright verified UI→Google handoff; user click-through on real Chrome; DB confirmed `auth.identities` for Test Player now has `[email, google]`, 3 profiles / 3 unique auth_user_ids / 0 ghosts — no duplicate forked
+- [x] Discovered `ffc/public/favicon.svg` was a purple-bolt Vite/shadcn placeholder, NOT FFC branding
+- [x] Pillow one-shot generated 5 FFC crest PNG variants from `shared/FFC Logo Transparent Background.png`: 32 (2195B), 180 (30461B), 192 (33955B), 512 (173555B), maskable-512 (121050B, 80% safe zone on `#0e1826`)
+- [x] Revised scope: "SVG master via Pillow" not feasible (raster-only) — deferred until user sources vector crest
+- [x] `manifest.webmanifest` icons array rewritten (any/192 + any/512 + maskable/512)
+- [x] `index.html`: favicon → 32px PNG, apple-touch-icon → 180px PNG, splash text-tile → `<img>` (128×128 w/ drop-shadow)
+- [x] `ffc/public/favicon.svg` deleted; `.gitignore` gained `.playwright-cli/`
+- [x] TS check + Vite build clean; PWA plugin precache 10 entries (2270 KiB)
+- [x] Vercel deploy + live smoke-test (all 5 PNGs + manifest + index head verified via curl)
+- [x] Commit `ff82978` (PWA icons) pushed
+- [x] `Signup.tsx` confirm-email handler: widened Stage type, added session-null branch in handleStage1, handleResendConfirm via `auth.resend({type:'signup'})`, new render branch with ⧗ icon + resend + "Use a different email"
+- [x] Stage-derivation effect preserves `confirm_email` across renders
+- [x] `auth-banner--success` (green) CSS variant added
+- [x] `admin_audit_log` schema inspected via `information_schema.columns` (columns: id, admin_profile_id, target_entity, target_id, action, payload_jsonb, created_at); sample rows confirmed 2 entries from S020
+- [x] `docs/admin-audit-sql.md` cheat-sheet created (schema + 4 common queries + known actions)
+- [x] `tasks/lessons.md` S021 row added (target_entity vs target_table + per-table cheat-sheet convention)
+- [x] Commit `a39f56f` (Signup + docs + lessons) pushed
+- [x] Live Signup Stage 1 verified on production via Playwright — no regression
+- [x] Session log `sessions/S021/session-log.md` written
+- [x] `sessions/INDEX.md` S021 row added + Next-session pointer flipped to S022
+- [x] `tasks/todo.md` (this file) updated
+- [x] CLAUDE.md status header bumped to "Phase 1 Step 3 COMPLETE + S021 polish items LIVE"
 
 ---
 
