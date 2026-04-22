@@ -1,6 +1,72 @@
 # FFC Todo
 
-## NEXT SESSION — S020 (commit S019 work + finish D2–D6 acceptance + Google OAuth config)
+## NEXT SESSION — S021 (Google OAuth Path B retest · PWA logo variants · Step 4 of V2.8)
+
+**Cold-start checklist:**
+- `git pull` at session start (S020 ended clean; 3 commits on main: `8f8668e`, `dca48cf`, `0e62ffd`).
+- `git status` should be clean; working tree in OneDrive + external `.git/` at `C:/Users/User/FFC-git/`.
+- **Phase 1 Step 3 COMPLETE** — auth flow is production-ready. D1–D6 all PASSED in S020. CLAUDE.md status header reflects this.
+- **Live:** https://ffc-gilt.vercel.app — can sign up, get approved, sign in with 4-tab player nav OR 5-tab admin nav, get rejected with banner showing reason, hit any deep-link URL (no more 404s).
+
+**S021 agenda:**
+
+1. **Google OAuth Path B end-to-end retest** — config is in place after S020 (Supabase Site URL + Redirect URLs allowlist saved, Google OAuth provider enabled, Client ID + Secret pasted, Test Users allowlisted on Google Cloud Console). Just needs one click-through: open `/login` → Continue with Google → Google consent screen → choose `m.muwahid05@gmail.com` → redirect back to app → lands on Stage 2 or `/poll` depending on whether the user already has a profile. Verify from DB that `auth.users.identities` includes a `'google'` provider entry.
+
+2. **PWA logo variants** — currently `ffc/public/ffc-logo.png` is the 1.44 MB transparent-bg 1024×1024 PNG. Generate 32 · 180 · 192 · 512 PNG + SVG master using Python Pillow (same one-shot approach as the Google 120×120 variant). Wire into `ffc/public/manifest.webmanifest` icons array. Also add `<link rel="apple-touch-icon" sizes="180x180" href="/ffc-logo-180.png">` to index.html. Keep the 1024×1024 as the "full" variant for splash usage if needed.
+
+3. **Signup.tsx confirm-email handler** — latent bug: if email confirmations are ever flipped back ON in Supabase, Stage 1 will silently stick again because `supabase.auth.signUp()` returns `{user, session: null}` in that case and `onAuthStateChange` never fires. Add a branch: if `signUp()` returns with no session, show a "Check your inbox to confirm" screen with resend button. Pure latency fix; not blocking since confirmations are currently OFF.
+
+4. **`admin_audit_log` column audit** — S020's D5 SQL verify tried `SELECT action, target_table, created_at FROM admin_audit_log` and got `column "target_table" does not exist`. Identify the actual column names (likely `entity_type` or `resource_type` per the V2.8 spec), update lessons.md with the correct query, and add a short SQL cheat-sheet to `docs/` for future admin-action auditing.
+
+5. **Step 4 of V2.8 implementation** — check `planning/FFC-masterplan-V2.8.md` §17 sequencing. Likely first real UI slice (Poll screen full Depth-B per §3.7, or Leaderboard per §3.13). Pick one, write acceptance criterion, ship.
+
+6. **Palette re-alignment** (backburner) — still on the "eventually" list from S012. Current app uses red+navy; brand PDF has khaki-gold (#AEA583) + cream (#EDE9E1) + black + white. User has explicit sign-off to keep current palette, so only revisit if the app is moving toward "shareable with collaborators" phase.
+
+**Known gotchas carried from S020:**
+- **Google consent screen shows `hylarwwsedjxwavuwjrn.supabase.co`, not "FFC".** Platform limitation in Supabase + Google OAuth Testing mode. Can only be fixed with Supabase Pro plan ($25/mo) custom domain. Not worth it for a private league — users see FFC logo + app name in the consent header, which is enough.
+- **`vercel.json` SPA rewrite is load-bearing.** Don't delete it — every non-root URL will 404 again without it.
+- **Test users on Google Cloud Console are capped at 100.** Well above a 14-player league. If ever we need >100, submit for verification (not trivial; needs privacy policy + terms pages).
+- **Supabase email validator rejects `example.com` and throwaway domains.** Test emails MUST be real Gmail or `+tag` aliases. Convention: `m.muwahid+s###<role>@gmail.com` (e.g. `+s020reject`).
+- **`auth_user_id` nullable constraint still applies to ghost profiles.** The super-admin profile was bound in S019; any future ghost players (pre-seeded via admin tools) will have `auth_user_id = NULL` until they claim via signup Stage 2.
+
+---
+
+## Completed in S020 (22/APR/2026, Home PC — full close)
+
+- [x] `git add` + commit + push S019 uncommitted work (`8f8668e`, 24 files incl. logos + `0012_grants.sql`)
+- [x] Vercel auto-deploy `dpl_4jfVSFMBKw7P7bKggqsACyyBcSzS` READY; curl-smoke-tested `/`, `/ffc-logo.png`, `/manifest.webmanifest`, `/sw.js`
+- [x] D2 retry: disable email confirmations in Supabase dashboard → delete stuck `m.muwahid05@gmail.com` auth row → retry via UI → **PASS** (Stage 1 → Stage 2 "Who are you?" → Stage 3 "Waiting for approval")
+- [x] Google Cloud Console project "FFC App" created (ID `ffc-app-494112`)
+- [x] Google OAuth consent screen configured (External + Testing, FFC branding, m.muwahid@gmail.com contact)
+- [x] Python Pillow installed via `pip install --user --quiet` → generated `_wip/ffc-logo-google-120.png` (16.7 KB, 120×120 transparent)
+- [x] Logo uploaded to Google Branding page
+- [x] OAuth 2.0 Web Client "FFC Web" created with correct JS origins + redirect URI (Client ID `991515683563-ncjuidcn08psinv7oq8jb9kevp4k6g32.apps.googleusercontent.com`)
+- [x] Test users allowlisted (`m.muwahid@gmail.com` + `m.muwahid05@gmail.com`) despite Google's "Ineligible accounts not added" red-herring modal
+- [x] Supabase Google OAuth provider enabled with Client ID + Secret
+- [x] Supabase URL Configuration: Site URL `https://ffc-gilt.vercel.app` + Redirect URLs `https://ffc-gilt.vercel.app/**` + `http://localhost:5174/**`
+- [x] Google OAuth probe via REST returns `302 → accounts.google.com/o/oauth2/v2/auth` with Client ID embedded — **config is correct**
+- [x] D3: super-admin approved Test Player from `/admin/players` Pending tab → DB verify: `profiles` row `ca3181b2…` with role=player + `auth_user_id` bound, `pending_signups.resolution` = approved, `resolved_at` + `resolved_profile_id` correct
+- [x] D4: Test Player signed in fresh Incognito → landed on `/poll` → 4-tab bottom nav (NO Admin) ✅
+- [x] D5: Full DB chain verified via SQL
+- [x] D6 attempt 1: created reject test signup → super-admin rejected via `/admin/players` with 10+ char reason "Testing reject path — not a real signup (fine)" → DB PASS but UX BROKEN (rejected user stuck on Stage 3, refresh bounced to signup Stage 1)
+- [x] D6 diagnosis: `AppContext.tsx` sets role=rejected but has no side-effect; router's `if (!role)` check doesn't catch truthy `'rejected'` string
+- [x] D6 fix (`dca48cf`): `AppContext` profile select expanded to include `reject_reason`; new branch when role==='rejected' stashes reason in sessionStorage + signOut + hard redirect to `/login?err=rejected`; `Login.tsx` banner useEffect reads sessionStorage and includes reason in body
+- [x] TS compile check (`tsc -b --noEmit`) exit 0
+- [x] Vercel deploy `dpl_AduHCNq7xAxVJqx9qdTGsatQSitG` READY
+- [x] D6 fix verified locally via preview_eval (sessionStorage set + redirect simulated; banner DOM inspected — correct text + class + sessionStorage consumed)
+- [x] D6 fix verified on production by user (screenshot showed banner with exact reject reason)
+- [x] SPA 404 bug discovered: `/login`, `/signup`, `/poll`, `/admin/players`, everything except `/` returned HTTP 404 from Vercel edge (not the React NotFound page — the Vercel-level 404 page with `bom1::…` ID)
+- [x] SPA fix (`0e62ffd`): `ffc/vercel.json` with `{"rewrites":[{"source":"/(.*)","destination":"/"}]}` — Vercel's static-file precedence handles assets automatically
+- [x] Smoke-test post-deploy: all 6 probed paths returned 200 (login, signup, poll, admin/players, xyz-nonexistent, match/abc) + assets still served directly (sw.js, manifest.webmanifest, ffc-logo.png)
+- [x] Session log `sessions/S020/session-log.md` written
+- [x] INDEX.md S020 row added + Next session pointer flipped to S021
+- [x] tasks/todo.md (this file) updated
+- [x] tasks/lessons.md — 3 new mistakes + 6 new validated patterns
+- [x] CLAUDE.md status header bumped to "Phase 1 Step 3 COMPLETE"
+
+---
+
+## NEXT SESSION — S020 (SUPERSEDED — see S021 above)
 
 > **Note:** S019 (22/APR/2026, Home) implemented Step 3 auth flow end-to-end, passed D1, but stopped at D2 on a Supabase email-validator blocker. **All S019 work is uncommitted on disk.** See `sessions/S019/session-log.md` for full detail including the critical GRANTs bug discovered + fixed via `0012_grants.sql`.
 
