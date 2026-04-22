@@ -60,9 +60,23 @@ FFC/
 Working across work PC (`UNHOEC03`) and home PC (`User`).
 - **OneDrive IS the main working tree** (reverted at S018 from the S015 migration-out plan). Path: `C:/Users/UNHOEC03/OneDrive - United Engineering Construction/11 - AI & Digital/Works In Progress/FFC/`. Edit files here directly.
 - **Separate-git-dir architecture** — the `.git/` lives OUTSIDE OneDrive, one per PC, so OneDrive sync never touches git internals. Work PC: `C:/Users/UNHOEC03/FFC-git/`. Home PC: `C:/Users/User/FFC-git/`. The OneDrive `.git` file is a text pointer (`gitdir: <path>`) that must be rewritten on each PC to point at its local git dir — OneDrive syncs the pointer across PCs so it needs updating whenever you switch machines.
-- **Sync via git, not OneDrive file sync.** `git pull` at start of session; `git commit && git push` at end. OneDrive syncs the working tree across PCs as a convenience, but the authoritative state is `origin/main`.
+- **Sync via git, not OneDrive file sync.** OneDrive syncs the working tree across PCs as a convenience, but the authoritative state is `origin/main`.
 - **Git identity for FFC commits:** `git -c user.name="Mohammed Muwahid" -c user.email="m.muwahid@gmail.com"` (repo-local config already set on both PCs).
 - **Windows `gitdir:` pointer must use forward slashes.** Example on work PC: `gitdir: C:/Users/UNHOEC03/FFC-git`.
+
+### Session-start sync protocol (MANDATORY — run before any work)
+Every session must begin with this check to detect and resolve cross-PC lag, because OneDrive may have synced working-tree files from the other PC while this PC's local `.git/` stayed at an older HEAD. Symptoms: `git status` shows dozens of "modifications" or "untracked" files that are actually already-pushed commits from the other PC.
+
+1. **Detect which PC you're on** — `echo $USERNAME` (or check `C:/Users/<name>/`). Work PC = `UNHOEC03`, Home PC = `User`.
+2. **Fix the `.git` pointer** — read `FFC/.git`; it must say `gitdir: C:/Users/<this-pc-username>/FFC-git`. If it points at the other PC, rewrite the single line. Forward slashes only.
+3. **Fetch + inspect** — `git fetch` then `git status -sb` and `git log --oneline -5`.
+4. **Diagnose one of three states:**
+   - **(a) Clean + up-to-date with origin/main** → proceed to work.
+   - **(b) Behind origin/main AND working tree shows "modifications" matching the ahead commits** (classic cross-PC lag — OneDrive synced the files, local git didn't see the commits): run `git stash push --include-untracked -m "<pc>-sync-s###"` → `git pull --ff-only` → `git stash drop` (the stash content is identical to HEAD, safe to discard). Verify clean via `git status -sb`.
+   - **(c) Genuinely uncommitted local work** (modifications that are NOT on origin/main) → this is real WIP from a session that never pushed. Do NOT stash-drop. Ask the user before touching it.
+5. **Announce the PC + HEAD** in the session briefing so it's obvious which side was lagging.
+
+The lagging-side symptom looks identical to (c) — the differentiator is whether the ahead commits on origin/main already contain those changes. A quick check: `git diff HEAD origin/main --stat` lists the same files that appear as "modified" or "untracked" in `git status`. If yes → state (b). If `git status` has files NOT in that diff → mixed state; ask.
 
 ## Current state (S020 close, 22/APR/2026)
 - **Live:** https://ffc-gilt.vercel.app — full auth flow. `/login` (email/password + Google OAuth buttons), `/signup` (3-stage: email → who-are-you → waiting), `/admin/players` (Pending/Active/Rejected tabs with approve/reject RPC wiring), `/poll` stub loads under 4-tab RoleLayout for players or 5-tab for admins. All deep-link URLs resolve (SPA catch-all rewrite).
