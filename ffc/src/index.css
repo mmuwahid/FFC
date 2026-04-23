@@ -2059,6 +2059,27 @@ textarea.auth-input {
 .st-row:hover { background: var(--surface-2); }
 .st-row-chevron { color: var(--text-muted); font-size: 14px; }
 
+/* Admin Players — Active + Rejected tab enrichment (S024) */
+.admin-simple-body { display: flex; flex-direction: column; gap: 4px; flex: 1 1 auto; min-width: 0; }
+.admin-simple-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.admin-simple-positions { display: flex; gap: 4px; }
+.ap-pos {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+  padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border);
+  color: var(--text);
+}
+.ap-pos-primary { background: var(--surface-2); }
+.ap-pos-secondary { background: transparent; color: var(--text-muted); }
+.admin-simple-reason {
+  font-size: 12px; color: var(--text-muted); font-style: italic;
+  padding-top: 2px;
+}
+.chip-inactive {
+  background: rgba(245, 158, 11, 0.14); color: #d97706;
+  font-size: 10px; padding: 2px 7px; border-radius: 4px;
+  font-weight: 700; letter-spacing: 0.04em;
+}
+
 /* ============================================================= */
 /* §3.16 Settings — full screen (.st-*)                           */
 /* ============================================================= */

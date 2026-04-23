@@ -13,7 +13,7 @@ import type { Database } from '../../lib/database.types'
 type PendingRow = Database['public']['Tables']['pending_signups']['Row']
 type ProfileLite = Pick<
   Database['public']['Tables']['profiles']['Row'],
-  'id' | 'display_name' | 'role' | 'primary_position'
+  'id' | 'display_name' | 'role' | 'primary_position' | 'secondary_position' | 'is_active' | 'reject_reason'
 >
 type Tab = 'pending' | 'active' | 'rejected'
 type Sheet =
@@ -44,13 +44,13 @@ export function AdminPlayers() {
         .order('created_at'),
       supabase
         .from('profiles')
-        .select('id, display_name, role, primary_position')
+        .select('id, display_name, role, primary_position, secondary_position, is_active, reject_reason')
         .eq('is_active', true)
         .neq('role', 'rejected')
         .order('display_name'),
       supabase
         .from('profiles')
-        .select('id, display_name, role, primary_position')
+        .select('id, display_name, role, primary_position, secondary_position, is_active, reject_reason')
         .eq('role', 'rejected')
         .order('display_name'),
     ])
@@ -66,7 +66,7 @@ export function AdminPlayers() {
     if (hintIds.length) {
       const { data: hints } = await supabase
         .from('profiles')
-        .select('id, display_name, role, primary_position')
+        .select('id, display_name, role, primary_position, secondary_position, is_active, reject_reason')
         .in('id', hintIds)
       const map: Record<string, ProfileLite> = {}
       for (const h of hints ?? []) map[h.id] = h
@@ -228,17 +228,35 @@ export function AdminPlayers() {
           </ul>
         )
       ) : tab === 'active' ? (
-        <ul className="admin-simple-list">
-          {active.map((p) => (
-            <li key={p.id} className="admin-simple-row">
-              <span className="pending-row-avatar">
-                {p.display_name.split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase()}
-              </span>
-              <span className="admin-simple-name">{p.display_name}</span>
-              {p.role !== 'player' && <span className="chip chip-role">{p.role.replace('_', '-')}</span>}
-            </li>
-          ))}
-        </ul>
+        active.length === 0 ? (
+          <div className="admin-empty">
+            <div className="admin-empty-icon" aria-hidden>∅</div>
+            <h4>No active players</h4>
+          </div>
+        ) : (
+          <ul className="admin-simple-list">
+            {active.map((p) => (
+              <li key={p.id} className="admin-simple-row">
+                <span className="pending-row-avatar">
+                  {p.display_name.split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase()}
+                </span>
+                <div className="admin-simple-body">
+                  <div className="admin-simple-name-row">
+                    <span className="admin-simple-name">{p.display_name}</span>
+                    {p.role !== 'player' && <span className="chip chip-role">{p.role.replace('_', '-')}</span>}
+                    {!p.is_active && <span className="chip chip-inactive">inactive</span>}
+                  </div>
+                  {(p.primary_position || p.secondary_position) && (
+                    <div className="admin-simple-positions">
+                      {p.primary_position && <span className="ap-pos ap-pos-primary">{p.primary_position}</span>}
+                      {p.secondary_position && <span className="ap-pos ap-pos-secondary">{p.secondary_position}</span>}
+                    </div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )
       ) : (
         <ul className="admin-simple-list">
           {rejected.length === 0 ? (
@@ -249,8 +267,15 @@ export function AdminPlayers() {
                 <span className="pending-row-avatar">
                   {p.display_name.split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase()}
                 </span>
-                <span className="admin-simple-name">{p.display_name}</span>
-                <span className="chip chip-new">rejected</span>
+                <div className="admin-simple-body">
+                  <div className="admin-simple-name-row">
+                    <span className="admin-simple-name">{p.display_name}</span>
+                    <span className="chip chip-new">rejected</span>
+                  </div>
+                  {p.reject_reason && (
+                    <div className="admin-simple-reason">"{p.reject_reason}"</div>
+                  )}
+                </div>
               </li>
             ))
           )}
