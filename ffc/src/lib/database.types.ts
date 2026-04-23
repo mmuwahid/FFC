@@ -375,6 +375,7 @@ export type Database = {
           guest_id: string | null
           id: string
           is_captain: boolean
+          is_no_show: boolean
           match_id: string
           profile_id: string | null
           red_cards: number
@@ -390,6 +391,7 @@ export type Database = {
           guest_id?: string | null
           id?: string
           is_captain?: boolean
+          is_no_show?: boolean
           match_id: string
           profile_id?: string | null
           red_cards?: number
@@ -405,6 +407,7 @@ export type Database = {
           guest_id?: string | null
           id?: string
           is_captain?: boolean
+          is_no_show?: boolean
           match_id?: string
           profile_id?: string | null
           red_cards?: number
@@ -464,7 +467,9 @@ export type Database = {
           created_at: string
           created_by: string | null
           format: Database["public"]["Enums"]["match_format"] | null
+          friendly_flagged_at: string | null
           id: string
+          is_friendly: boolean
           kickoff_at: string
           poll_closes_at: string
           poll_opens_at: string
@@ -476,7 +481,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           format?: Database["public"]["Enums"]["match_format"] | null
+          friendly_flagged_at?: string | null
           id?: string
+          is_friendly?: boolean
           kickoff_at: string
           poll_closes_at: string
           poll_opens_at: string
@@ -488,7 +495,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           format?: Database["public"]["Enums"]["match_format"] | null
+          friendly_flagged_at?: string | null
           id?: string
+          is_friendly?: boolean
           kickoff_at?: string
           poll_closes_at?: string
           poll_opens_at?: string
@@ -1318,7 +1327,7 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "matches_season_id_fkey"
+            foreignKeyName: "matchdays_season_id_fkey"
             columns: ["season_id"]
             isOneToOne: false
             referencedRelation: "seasons"
@@ -1372,6 +1381,7 @@ export type Database = {
           late_cancel_points: number | null
           losses: number | null
           motms: number | null
+          no_show_points: number | null
           points: number | null
           profile_id: string | null
           reds: number | null
@@ -1388,7 +1398,7 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "matches_season_id_fkey"
+            foreignKeyName: "matchdays_season_id_fkey"
             columns: ["season_id"]
             isOneToOne: false
             referencedRelation: "seasons"
@@ -1408,6 +1418,10 @@ export type Database = {
         Returns: string
       }
       archive_season: { Args: { p_season_id: string }; Returns: undefined }
+      confirm_friendly_matchday: {
+        Args: { p_matchday_id: string }
+        Returns: undefined
+      }
       create_match_draft: {
         Args: {
           p_black_guests: string[]
@@ -1424,6 +1438,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       demote_admin: { Args: { p_profile_id: string }; Returns: undefined }
+      dismiss_friendly_flag: {
+        Args: { p_matchday_id: string }
+        Returns: undefined
+      }
       edit_match_result: {
         Args: { p_edits: Json; p_match_id: string }
         Returns: {
@@ -1480,6 +1498,10 @@ export type Database = {
       promote_from_waitlist: {
         Args: { p_departing_profile: string; p_matchday_id: string }
         Returns: string
+      }
+      record_no_shows: {
+        Args: { p_match_id: string; p_profile_ids: string[] }
+        Returns: undefined
       }
       reject_match_entry: {
         Args: { p_pending_id: string; p_reason: string }

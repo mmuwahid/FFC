@@ -36,6 +36,7 @@ interface StandingEmbed {
   reds: number | null
   motms: number | null
   late_cancel_points: number | null
+  no_show_points: number | null
   points: number | null
   profile: {
     primary_position: PlayerPosition | null
