@@ -1249,6 +1249,7 @@ export type Database = {
           ends_on: string | null
           id: string
           name: string
+          planned_games: number | null
           roster_policy: Database["public"]["Enums"]["roster_policy"]
           starts_on: string
         }
@@ -1263,6 +1264,7 @@ export type Database = {
           ends_on?: string | null
           id?: string
           name: string
+          planned_games?: number | null
           roster_policy?: Database["public"]["Enums"]["roster_policy"]
           starts_on: string
         }
@@ -1277,6 +1279,7 @@ export type Database = {
           ends_on?: string | null
           id?: string
           name?: string
+          planned_games?: number | null
           roster_policy?: Database["public"]["Enums"]["roster_policy"]
           starts_on?: string
         }
@@ -1473,6 +1476,16 @@ export type Database = {
           p_poll_opens_at: string
           p_season_id: string
           p_venue: string
+        }
+        Returns: string
+      }
+      create_season: {
+        Args: {
+          p_default_format?: Database["public"]["Enums"]["match_format"]
+          p_name: string
+          p_planned_games: number
+          p_roster_policy?: Database["public"]["Enums"]["roster_policy"]
+          p_starts_on: string
         }
         Returns: string
       }
@@ -1687,6 +1700,10 @@ export type Database = {
           p_role?: Database["public"]["Enums"]["user_role"]
           p_secondary_position: Database["public"]["Enums"]["player_position"]
         }
+        Returns: undefined
+      }
+      update_season_planned_games: {
+        Args: { p_planned_games: number; p_season_id: string }
         Returns: undefined
       }
       upsert_formation: {
