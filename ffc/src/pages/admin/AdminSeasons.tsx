@@ -63,7 +63,7 @@ export function AdminSeasons() {
     const { error } = await supabase.rpc('create_season', {
       p_name: newName,
       p_starts_on: newStartsOn,
-      p_planned_games: planned ?? undefined,
+      ...(planned !== null ? { p_planned_games: planned } : {}),
       p_default_format: newFormat,
       p_roster_policy: newPolicy,
     })
@@ -91,7 +91,7 @@ export function AdminSeasons() {
     setSavingEdit(true)
     const { error } = await supabase.rpc('update_season_planned_games', {
       p_season_id: seasonId,
-      p_planned_games: val ?? undefined,
+      ...(val !== null ? { p_planned_games: val } : {}),
     })
     setSavingEdit(false)
     if (error) { setErr(error.message); return }

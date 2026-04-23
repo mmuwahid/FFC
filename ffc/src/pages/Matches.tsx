@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { MatchDetailSheet } from '../components/MatchDetailSheet'
+import '../styles/matches.css'
 
 /* §3.20 Matches — league-wide match history (Phase 1 Depth-B slice, S024).
  * Data: matches + matchdays + motm (member / guest) joined via PostgREST embeds.
  * Scope: season picker (anchored dropdown), chronological list newest first,
  * tap row → opens shared MatchDetailSheet overlay (no URL change, spec-faithful).
  * Friendly matchdays are excluded client-side so the list stays league-only.
+ * S029: flashcard redesign — split-colour scoreboard, GAME N / TOTAL banner,
+ * per-team scorers, winner ribbon + dim, MOTM strip.
  */
 
 interface SeasonRow {
@@ -42,11 +45,32 @@ interface MatchRow {
   scorers: ScorerRow[]
 }
 
+interface GroupedScorer {
+  name: string
+  goals: number
+}
+
 function formatDate(iso: string): string {
   const d = new Date(iso)
   const day = String(d.getDate()).padStart(2, '0')
   const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
   return `${day}/${months[d.getMonth()]}/${d.getFullYear()}`
+}
+
+function groupScorers(scorers: ScorerRow[], team: 'white' | 'black'): GroupedScorer[] {
+  const byName = new Map<string, number>()
+  for (const s of scorers) {
+    if (s.team !== team || s.goals <= 0) continue
+    const name = s.profile?.display_name ?? s.guest?.display_name ?? '—'
+    byName.set(name, (byName.get(name) ?? 0) + s.goals)
+  }
+  return Array.from(byName.entries())
+    .map(([name, goals]) => ({ name, goals }))
+    .sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name))
+}
+
+function bannerLabel(matchdayNumber: number, total: number | null): string {
+  return total ? `GAME ${matchdayNumber} / ${total}` : `GAME ${matchdayNumber}`
 }
 
 export function Matches() {
@@ -191,40 +215,83 @@ export function Matches() {
           </div>
           <div className="mt-list">
             {matches.map(m => {
+              const whiteScorers = groupScorers(m.scorers, 'white')
+              const blackScorers = groupScorers(m.scorers, 'black')
+              const motmName = m.motm_member?.display_name ?? m.motm_guest?.display_name ?? null
               const isDraw = m.result === 'draw'
               const whiteWon = m.result === 'win_white'
               const blackWon = m.result === 'win_black'
-              const motmName = m.motm_member?.display_name ?? m.motm_guest?.display_name ?? null
+              const n = matchdayNumber[m.matchday_id] ?? 0
+              const total = activeSeason?.planned_games ?? null
+
               return (
                 <button
                   key={m.id}
                   type="button"
-                  className="mt-row"
+                  className="mt-card"
                   onClick={() => setOpenMatchId(m.id)}
                 >
-                  <div className="mt-row-date">
-                    <div className="mt-row-date-main">{formatDate(m.matchday?.kickoff_at ?? m.approved_at)}</div>
-                    {matchdayNumber[m.matchday_id] && (
-                      <div className="mt-row-date-sub">Matchday {matchdayNumber[m.matchday_id]}</div>
-                    )}
+                  <div className="mt-card-banner">
+                    <span className="mt-card-banner-title">{bannerLabel(n, total)}</span>
+                    <span className="mt-card-banner-date">{formatDate(m.matchday?.kickoff_at ?? m.approved_at)}</span>
                   </div>
-                  <div className="mt-row-main">
-                    <div className="mt-score">
-                      <span className={`mt-team-chip mt-team-white ${blackWon ? 'mt-team-loser' : ''}`}>WHITE</span>
-                      <span className={`mt-score-num ${blackWon ? 'mt-score-loser' : ''}`}>{m.score_white}</span>
-                      <span className="mt-score-dash">–</span>
-                      <span className={`mt-score-num ${whiteWon ? 'mt-score-loser' : ''}`}>{m.score_black}</span>
-                      <span className={`mt-team-chip mt-team-black ${whiteWon ? 'mt-team-loser' : ''}`}>BLACK</span>
-                      {isDraw && <span className="mt-draw-tag">DRAW</span>}
-                    </div>
-                    {motmName && (
-                      <div className="mt-motm">
-                        <span className="mt-motm-star">⭐</span>
-                        <span>MOTM · {motmName}</span>
+
+                  {isDraw && <div className="mt-draw-banner">DRAW</div>}
+                  {whiteWon && <>
+                    <div className="mt-winner-ribbon left" />
+                    <div className="mt-winner-label left">WINNER</div>
+                  </>}
+                  {blackWon && <>
+                    <div className="mt-winner-ribbon right" />
+                    <div className="mt-winner-label right">WINNER</div>
+                  </>}
+
+                  <div className="splitc">
+                    <div className={`splitc-half splitc-white${blackWon ? ' splitc-loser' : ''}`}>
+                      <div className="splitc-logo splitc-logo-white">
+                        <img src="/ffc-logo.png" alt="FFC" />
                       </div>
-                    )}
+                      <span className="splitc-team-label">WHITE</span>
+                      <span className="splitc-score splitc-score-white">{m.score_white}</span>
+                    </div>
+                    <div className={`splitc-half splitc-black${whiteWon ? ' splitc-loser' : ''}`}>
+                      <div className="splitc-logo splitc-logo-black">
+                        <img src="/ffc-logo.png" alt="FFC" />
+                      </div>
+                      <span className="splitc-team-label right">BLACK</span>
+                      <span className="splitc-score splitc-score-black">{m.score_black}</span>
+                    </div>
+                    <div className="splitc-vs">VS</div>
                   </div>
-                  <span className="mt-row-chev" aria-hidden>›</span>
+
+                  <div className="splitc-footer">
+                    <div className={`splitc-footer-half${whiteScorers.length === 0 ? ' empty' : ''}`}>
+                      {whiteScorers.length === 0 ? (
+                        <span className="mt-scorer-row">no goals</span>
+                      ) : whiteScorers.map(s => (
+                        <span key={`w-${s.name}`} className="mt-scorer-row">
+                          <span className="mt-scorer-ball">⚽</span>
+                          {s.goals > 1 ? `${s.name} ×${s.goals}` : s.name}
+                          {s.goals >= 3 && <span className="mt-hat-badge">HAT</span>}
+                        </span>
+                      ))}
+                    </div>
+                    <div className={`splitc-footer-half right${blackScorers.length === 0 ? ' empty' : ''}`}>
+                      {blackScorers.length === 0 ? (
+                        <span className="mt-scorer-row">no goals</span>
+                      ) : blackScorers.map(s => (
+                        <span key={`b-${s.name}`} className="mt-scorer-row">
+                          <span className="mt-scorer-ball">⚽</span>
+                          {s.goals > 1 ? `${s.name} ×${s.goals}` : s.name}
+                          {s.goals >= 3 && <span className="mt-hat-badge">HAT</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {motmName && (
+                    <div className="mt-motm-strip">⭐ MOTM · {motmName}</div>
+                  )}
                 </button>
               )
             })}

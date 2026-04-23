@@ -1483,7 +1483,7 @@ export type Database = {
         Args: {
           p_default_format?: Database["public"]["Enums"]["match_format"]
           p_name: string
-          p_planned_games: number
+          p_planned_games?: number
           p_roster_policy?: Database["public"]["Enums"]["roster_policy"]
           p_starts_on: string
         }
@@ -1703,7 +1703,7 @@ export type Database = {
         Returns: undefined
       }
       update_season_planned_games: {
-        Args: { p_planned_games: number; p_season_id: string }
+        Args: { p_planned_games?: number; p_season_id: string }
         Returns: undefined
       }
       upsert_formation: {

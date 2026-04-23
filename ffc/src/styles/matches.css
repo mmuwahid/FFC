@@ -1,0 +1,112 @@
+/* Matches flashcard — 2026-04-23 redesign (spec: matches-flashcard-design) */
+
+.mt-card {
+  background: #0f1a30;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  color: #e7ecf5;
+  margin-bottom: 14px;
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mt-card-banner {
+  background: rgba(96,165,250,0.08);
+  border-bottom: 1px solid rgba(96,165,250,0.18);
+  padding: 6px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.mt-card-banner-title { font-weight: 700; letter-spacing: 0.12em; font-size: 11px; color: #60a5fa; }
+.mt-card-banner-date { font-size: 10px; color: #8b97ad; letter-spacing: 0.08em; }
+
+/* Scoreboard row */
+.splitc { display: grid; grid-template-columns: 1fr 1fr; position: relative; min-height: 64px; }
+.splitc-half { padding: 8px 12px; display: flex; align-items: center; gap: 10px; transition: opacity 0.2s, filter 0.2s; }
+.splitc-white { background: linear-gradient(135deg, #f4ede2 0%, #e5ddcd 100%); color: #0b1220; }
+.splitc-black {
+  background: linear-gradient(135deg, #0b1220 0%, #1a2440 100%);
+  color: #f4ede2;
+  border-left: 1px solid rgba(255,255,255,0.12);
+  flex-direction: row-reverse;
+}
+.splitc-logo { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 3px; box-sizing: border-box; }
+.splitc-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.splitc-logo-white { background: #f4ede2; box-shadow: 0 0 0 2px rgba(244,237,226,0.45); }
+.splitc-logo-black { background: #0b1220; box-shadow: 0 0 0 2px rgba(244,237,226,0.5); border: 1px solid #3b4358; }
+.splitc-logo-black img { filter: invert(1) brightness(1.1); }
+.splitc-team-label { font-size: 11px; letter-spacing: 0.14em; font-weight: 700; opacity: 0.75; flex: 1; }
+.splitc-team-label.right { text-align: right; }
+.splitc-score { font-size: 30px; font-weight: 800; letter-spacing: 0.03em; line-height: 1; }
+.splitc-score-white { color: #0b1220; }
+.splitc-score-black { color: #f4ede2; }
+.splitc-vs {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: #0f1a30; color: #60a5fa; width: 26px; height: 26px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 9px; letter-spacing: 0.08em;
+  border: 2px solid rgba(96,165,250,0.35);
+}
+
+/* Winner indicator */
+.splitc-loser { opacity: 0.5; filter: saturate(0.55); }
+.mt-winner-ribbon {
+  position: absolute;
+  top: 24px;
+  height: 3px;
+  background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);
+  z-index: 2;
+  box-shadow: 0 0 8px rgba(34,197,94,0.55);
+}
+.mt-winner-ribbon.left  { left: 0; width: 50%; }
+.mt-winner-ribbon.right { right: 0; width: 50%; }
+.mt-winner-label {
+  position: absolute;
+  top: 28px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: #22c55e;
+  background: #0f1a30;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(34,197,94,0.45);
+  z-index: 3;
+}
+.mt-winner-label.left  { left: 10px; }
+.mt-winner-label.right { right: 10px; }
+.mt-draw-banner {
+  position: absolute;
+  top: 26px; left: 50%; transform: translateX(-50%);
+  font-size: 9px; font-weight: 800; letter-spacing: 0.2em;
+  color: #8b97ad; background: #0f1a30;
+  padding: 2px 8px; border-radius: 4px;
+  border: 1px solid rgba(139,151,173,0.3);
+  z-index: 3;
+}
+
+/* Scorer footer */
+.splitc-footer { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.2); }
+.splitc-footer-half { padding: 8px 12px; display: flex; flex-direction: column; gap: 3px; min-height: 28px; justify-content: center; }
+.splitc-footer-half.right { align-items: flex-end; border-left: 1px solid rgba(255,255,255,0.06); }
+.mt-scorer-row { font-size: 11px; line-height: 1.35; color: #c7d0df; display: inline-flex; align-items: center; gap: 5px; }
+.mt-scorer-ball { opacity: 0.6; font-size: 10px; }
+.splitc-footer-half.empty .mt-scorer-row { opacity: 0.4; font-style: italic; }
+.mt-hat-badge { display: inline-block; margin-left: 3px; padding: 1px 5px; border-radius: 999px; background: rgba(236,72,153,0.2); color: #f472b6; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; }
+
+/* MOTM strip */
+.mt-motm-strip {
+  padding: 5px 12px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #facc15;
+  background: rgba(250,204,21,0.06);
+  border-top: 1px solid rgba(250,204,21,0.12);
+  text-align: center;
+  font-weight: 600;
+}
