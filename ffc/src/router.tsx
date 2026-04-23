@@ -20,7 +20,7 @@ import { NotFound } from './pages/NotFound'
 import { AdminHome } from './pages/admin/AdminHome'
 import { AdminPlayers } from './pages/admin/AdminPlayers'
 import { AdminMatches } from './pages/admin/AdminMatches'
-import { FormationPlanner } from './pages/admin/FormationPlanner'
+import { FormationPlanner } from './pages/FormationPlanner'
 
 /* Root route dispatcher — decides where a session lands based on auth state.
  *   No session         → /login (Login is the app entry)
@@ -56,12 +56,12 @@ export const router = createBrowserRouter([
       { path: 'profile', element: <Profile /> },
       { path: 'profile/:id', element: <Profile /> },
       { path: 'match/:id', element: <MatchDetail /> },
+      { path: 'match/:id/formation', element: <FormationPlanner /> },
       { path: 'settings', element: <Settings /> },
       { path: 'settings/rules', element: <Rules /> },
       { path: 'admin', element: <AdminHome /> },
       { path: 'admin/players', element: <AdminPlayers /> },
       { path: 'admin/matches', element: <AdminMatches /> },
-      { path: 'admin/matches/:id/formation', element: <FormationPlanner /> },
     ],
   },
   { path: '*', element: <NotFound /> },
