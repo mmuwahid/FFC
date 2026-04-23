@@ -10,6 +10,7 @@ import { Signup } from './pages/Signup'
 import { PendingApproval } from './pages/PendingApproval'
 import { Poll } from './pages/Poll'
 import { Leaderboard } from './pages/Leaderboard'
+import { Matches } from './pages/Matches'
 import { Profile } from './pages/Profile'
 import { MatchDetail } from './pages/MatchDetail'
 import { Settings } from './pages/Settings'
@@ -51,6 +52,7 @@ export const router = createBrowserRouter([
     children: [
       { path: 'poll', element: <Poll /> },
       { path: 'leaderboard', element: <Leaderboard /> },
+      { path: 'matches', element: <Matches /> },
       { path: 'profile', element: <Profile /> },
       { path: 'profile/:id', element: <Profile /> },
       { path: 'match/:id', element: <MatchDetail /> },

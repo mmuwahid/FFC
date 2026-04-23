@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../lib/AppContext'
+import { MatchDetailSheet } from '../components/MatchDetailSheet'
 import type { Database } from '../lib/database.types'
 
 /* §3.14 Player Profile — Phase 1 Depth-B slice (S023).
@@ -588,6 +589,7 @@ export function Profile() {
   const [error, setError] = useState<string | null>(null)
 
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [openMatchId, setOpenMatchId] = useState<string | null>(null)
   const [editPrimary, setEditPrimary] = useState<PlayerPosition | null>(null)
   const [editSecondary, setEditSecondary] = useState<PlayerPosition | null>(null)
   const [editTheme, setEditTheme] = useState<ThemePreference>('system')
@@ -945,7 +947,7 @@ export function Profile() {
         <RecentMatchesList
           matches={recentMatches}
           viewProfileId={viewProfileId}
-          onMatchTap={(id) => navigate(`/match/${id}`)}
+          onMatchTap={(id) => setOpenMatchId(id)}
         />
       )}
 
@@ -959,6 +961,15 @@ export function Profile() {
           </>
         )}
       </div>
+
+      {/* === Match-detail sheet (opened from a recent-match row tap) === */}
+      {openMatchId && (
+        <MatchDetailSheet
+          matchId={openMatchId}
+          profileId={viewProfileId ?? undefined}
+          onClose={() => setOpenMatchId(null)}
+        />
+      )}
 
       {/* === Edit sheet === */}
       {sheetOpen && (

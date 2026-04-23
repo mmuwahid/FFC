@@ -28,6 +28,10 @@ export function RoleLayout() {
             <span className="nav-ico" aria-hidden>📊</span>
             <span className="nav-label">Table</span>
           </NavLink>
+          <NavLink to="/matches">
+            <span className="nav-ico" aria-hidden>📅</span>
+            <span className="nav-label">Matches</span>
+          </NavLink>
           <NavLink to="/profile" end>
             <span className="nav-ico" aria-hidden>👤</span>
             <span className="nav-label">Profile</span>

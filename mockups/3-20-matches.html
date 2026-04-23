@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>§3.20 Matches — FFC Phase 1 mockup · v1</title>
+<style>
+  /* ============================================================= */
+  /* Design tokens — carried verbatim from §3.14 / §3.13            */
+  /* ============================================================= */
+  .light {
+    --ink: #0a1628;
+    --ink-soft: #293a55;
+    --paper: #f6f1e4;
+    --paper-dim: #ece4d0;
+    --paper-dimmer: #e3d8bc;
+    --line: rgba(10, 22, 40, 0.08);
+    --line-strong: rgba(10, 22, 40, 0.18);
+    --accent: #c8102e;
+    --accent-dim: #a40c24;
+    --gold: #d4a84a;
+    --gold-bg: rgba(212, 168, 74, 0.16);
+    --muted: #6b7684;
+    --success: #16a34a;
+    --success-tint: rgba(22, 163, 74, 0.12);
+    --warn: #b7791f;
+    --danger: #dc2626;
+    --danger-tint: rgba(220, 38, 38, 0.1);
+    --row-bg: #ece4d0;
+    --team-white: #f6f1e4;
+    --team-black: #0a1628;
+    --team-white-text: #0a1628;
+    --team-black-text: #f6f1e4;
+  }
+  .dark {
+    --ink: #f2ead6;
+    --ink-soft: #c3b99f;
+    --paper: #0e1826;
+    --paper-dim: #182437;
+    --paper-dimmer: #223251;
+    --line: rgba(242, 234, 214, 0.08);
+    --line-strong: rgba(242, 234, 214, 0.2);
+    --accent: #e63349;
+    --accent-dim: #bf2639;
+    --gold: #e5ba5b;
+    --gold-bg: rgba(229, 186, 91, 0.14);
+    --muted: #85929f;
+    --success: #2e9d63;
+    --success-tint: rgba(46, 157, 99, 0.18);
+    --warn: #dca049;
+    --danger: #e63349;
+    --danger-tint: rgba(230, 51, 73, 0.16);
+    --row-bg: #182437;
+    --team-white: #e7ddc1;
+    --team-black: #060d18;
+    --team-white-text: #0a1628;
+    --team-black-text: #f2ead6;
+  }
+
+  :root {
+    --last-w: #16a34a;
+    --last-d: #9ca3af;
+    --last-l: #dc2626;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif; }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #faf6ea 0%, #ead9b8 60%, #b39a72 100%);
+    color: #0a1628;
+    padding: 32px 24px 64px;
+  }
+  h1.page-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 28px;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+  }
+  p.page-sub { color: #3a2f1e; margin: 0 0 24px; font-size: 14px; }
+
+  /* Phone frames — statusbar v2.1 hardcoded tokens (S011 fix) */
+  .phones { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 32px; max-width: 960px; }
+  .phone {
+    --safe-top: 59px;
+    --safe-bottom: 34px;
+    width: 390px;
+    height: 844px;
+    border-radius: 46px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 30px 80px -20px rgba(10, 22, 40, 0.45), 0 0 0 10px #13212e, 0 0 0 11px #3b4b5f;
+    margin: 0 auto;
+  }
+  .phone-inner {
+    position: absolute; inset: 0;
+    background: var(--paper);
+    color: var(--ink);
+    display: flex; flex-direction: column;
+  }
+  .phone-inner > * { flex-shrink: 0; }
+  .statusbar {
+    flex-shrink: 0;
+    height: var(--safe-top);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 26px;
+    font-family: "SF Pro Text", system-ui;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: 0.01em;
+  }
+  .statusbar .time { padding-top: 18px; }
+  .statusbar .right { padding-top: 18px; display: flex; gap: 5px; align-items: center; }
+
+  /* Top bar with FFC wordmark */
+  .topbar {
+    padding: 8px 20px 12px;
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .brand {
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    font-size: 14px;
+  }
+
+  /* Screen title + season picker row */
+  .page-head {
+    padding: 14px 20px 8px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+  }
+  .screen-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  /* Season picker — anchored dropdown pattern (matches §3.13 / §3.14) */
+  .season-picker {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .season-picker .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--success);
+  }
+  .season-picker .caret {
+    font-size: 10px;
+    color: var(--muted);
+    margin-left: 2px;
+  }
+
+  /* Content scroll area */
+  .scroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 8px 14px 20px;
+  }
+
+  /* Match row */
+  .match-list { display: flex; flex-direction: column; gap: 8px; }
+  .match-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: var(--row-bg);
+  }
+  .match-row .date-block {
+    min-width: 72px;
+  }
+  .match-row .date {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: 0.02em;
+  }
+  .match-row .matchday {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  /* Scoreline — WHITE 3 – 1 BLACK, winning team slightly brighter */
+  .score-line {
+    display: flex; align-items: center; gap: 8px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-weight: 700;
+    min-width: 0;
+  }
+  .team-chip {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    padding: 3px 7px;
+    border-radius: 5px;
+    border: 1px solid var(--line-strong);
+  }
+  .team-chip.white {
+    background: var(--team-white);
+    color: var(--team-white-text);
+  }
+  .team-chip.black {
+    background: var(--team-black);
+    color: var(--team-black-text);
+  }
+  .team-chip.loser { opacity: 0.48; }
+  .score-num {
+    font-size: 15px;
+    color: var(--ink);
+    min-width: 14px;
+    text-align: center;
+  }
+  .score-num.loser { color: var(--muted); font-weight: 500; }
+  .score-dash {
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .motm-line {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    display: flex; align-items: center; gap: 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .motm-line .star { color: var(--gold); }
+
+  .match-row .chevron {
+    color: var(--muted);
+    font-size: 18px;
+    font-weight: 300;
+  }
+
+  /* Draw variant */
+  .match-row.draw .team-chip { opacity: 1; }
+  .match-row.draw .score-num { color: var(--ink); }
+  .match-row.draw .draw-tag {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    border-radius: 5px;
+    background: var(--paper-dimmer);
+    color: var(--ink-soft);
+    margin-left: 4px;
+  }
+
+  /* Section header above list */
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 14px 8px 8px;
+  }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--muted);
+  }
+  .empty .glyph { font-size: 36px; margin-bottom: 12px; }
+  .empty .title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .empty .body { font-size: 13px; line-height: 1.5; }
+
+  /* Skeleton rows */
+  .skel-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 14px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: var(--row-bg);
+  }
+  .skel { background: var(--paper-dimmer); border-radius: 6px; height: 12px; }
+  .dark .skel { background: rgba(242, 234, 214, 0.08); }
+  .skel.w60 { width: 60px; }
+  .skel.w110 { width: 110px; }
+  .skel.w80 { width: 80px; }
+  @keyframes pulse { 0%,100% { opacity: 0.6; } 50% { opacity: 0.35; } }
+  .skel { animation: pulse 1.4s ease-in-out infinite; }
+
+  /* Bottom nav — 5 tabs (Home · Table · Matches · Profile · Settings) */
+  .bottom-nav {
+    flex-shrink: 0;
+    height: calc(64px + var(--safe-bottom));
+    padding-bottom: var(--safe-bottom);
+    border-top: 1px solid var(--line);
+    background: var(--paper);
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+  }
+  .bottom-nav a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .bottom-nav a.active { color: var(--accent); }
+  .bottom-nav .ico { font-size: 18px; }
+
+  /* Caption tiles below each phone */
+  .caption {
+    margin-top: 14px;
+    text-align: center;
+    font-size: 13px;
+    color: #3a2f1e;
+    font-weight: 600;
+  }
+
+  .state-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+    max-width: 960px;
+    margin-top: 48px;
+  }
+  .tile {
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 12px 40px -18px rgba(10, 22, 40, 0.35);
+    background: #fff;
+    border: 1px solid rgba(10,22,40,0.08);
+  }
+  .tile .tile-head {
+    padding: 12px 16px;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: #3a2f1e;
+    border-bottom: 1px solid rgba(10,22,40,0.08);
+    background: #f6f1e4;
+  }
+  .tile .tile-body { padding: 14px; min-height: 220px; }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">§3.20 Matches — league-wide history</h1>
+<p class="page-sub">v1 · dark-default phone + light variant · scoreline pattern (winning team bright, losing team dimmed) · season picker (anchored dropdown) · 5-tab nav.</p>
+
+<div class="phones">
+
+  <!-- DARK phone -->
+  <div>
+    <div class="phone">
+      <div class="phone-inner dark">
+        <div class="statusbar">
+          <span class="time">9:41</span>
+          <span class="right">•••• 🛜 100%</span>
+        </div>
+        <div class="topbar">
+          <span class="brand">FFC</span>
+        </div>
+
+        <div class="page-head">
+          <h1 class="screen-title">Matches</h1>
+          <button class="season-picker" type="button">
+            <span class="dot"></span>
+            <span>Season 1</span>
+            <span class="caret">▾</span>
+          </button>
+        </div>
+
+        <div class="scroll">
+          <div class="section-label">Season 1 · 4 matches</div>
+          <div class="match-list">
+
+            <div class="match-row">
+              <div class="date-block">
+                <div class="date">23/APR/2026</div>
+                <div class="matchday">Matchday 4</div>
+              </div>
+              <div>
+                <div class="score-line">
+                  <span class="team-chip white">WHITE</span>
+                  <span class="score-num">4</span>
+                  <span class="score-dash">–</span>
+                  <span class="score-num loser">2</span>
+                  <span class="team-chip black loser">BLACK</span>
+                </div>
+                <div class="motm-line"><span class="star">⭐</span> MOTM · Omar Khalil</div>
+              </div>
+              <span class="chevron">›</span>
+            </div>
+
+            <div class="match-row draw">
+              <div class="date-block">
+                <div class="date">16/APR/2026</div>
+                <div class="matchday">Matchday 3</div>
+              </div>
+              <div>
+                <div class="score-line">
+                  <span class="team-chip white">WHITE</span>
+                  <span class="score-num">2</span>
+                  <span class="score-dash">–</span>
+                  <span class="score-num">2</span>
+                  <span class="team-chip black">BLACK</span>
+                  <span class="draw-tag">DRAW</span>
+                </div>
+                <div class="motm-line"><span class="star">⭐</span> MOTM · Sami Haddad</div>
+              </div>
+              <span class="chevron">›</span>
+            </div>
+
+            <div class="match-row">
+              <div class="date-block">
+                <div class="date">09/APR/2026</div>
+                <div class="matchday">Matchday 2</div>
+              </div>
+              <div>
+                <div class="score-line">
+                  <span class="team-chip white loser">WHITE</span>
+                  <span class="score-num loser">1</span>
+                  <span class="score-dash">–</span>
+                  <span class="score-num">3</span>
+                  <span class="team-chip black">BLACK</span>
+                </div>
+                <div class="motm-line"><span class="star">⭐</span> MOTM · Ahmed Nasir</div>
+              </div>
+              <span class="chevron">›</span>
+            </div>
+
+            <div class="match-row">
+              <div class="date-block">
+                <div class="date">02/APR/2026</div>
+                <div class="matchday">Matchday 1</div>
+              </div>
+              <div>
+                <div class="score-line">
+                  <span class="team-chip white">WHITE</span>
+                  <span class="score-num">3</span>
+                  <span class="score-dash">–</span>
+                  <span class="score-num loser">1</span>
+                  <span class="team-chip black loser">BLACK</span>
+                </div>
+                <div class="motm-line"><span class="star">⭐</span> MOTM · Mohammed Muwahid</div>
+              </div>
+              <span class="chevron">›</span>
+            </div>
+
+          </div>
+        </div>
+
+        <nav class="bottom-nav">
+          <a href="#"><span class="ico">🏠</span><span>Home</span></a>
+          <a href="#"><span class="ico">📊</span><span>Table</span></a>
+          <a href="#" class="active"><span class="ico">📅</span><span>Matches</span></a>
+          <a href="#"><span class="ico">👤</span><span>Profile</span></a>
+          <a href="#"><span class="ico">⚙️</span><span>Settings</span></a>
+        </nav>
+
+      </div>
+    </div>
+    <div class="caption">Dark · default · 4 matches shown</div>
+  </div>
+
+  <!-- LIGHT phone -->
+  <div>
+    <div class="phone">
+      <div class="phone-inner light">
+        <div class="statusbar">
+          <span class="time">9:41</span>
+          <span class="right">•••• 🛜 100%</span>
+        </div>
+        <div class="topbar">
+          <span class="brand">FFC</span>
+        </div>
+
+        <div class="page-head">
+          <h1 class="screen-title">Matches</h1>
+          <button class="season-picker" type="button">
+            <span class="dot"></span>
+            <span>Season 1</span>
+            <span class="caret">▾</span>
+          </button>
+        </div>
+
+        <div class="scroll">
+          <div class="section-label">Season 1 · 4 matches</div>
+          <div class="match-list">
+
+            <div class="match-row">
+              <div class="date-block">
+                <div class="date">23/APR/2026</div>
+                <div class="matchday">Matchday 4</div>
+              </div>
+              <div>
+                <div class="score-line">
+                  <span class="team-chip white">WHITE</span>
+                  <span class="score-num">4</span>
+                  <span class="score-dash">–</span>
+                  <span class="score-num loser">2</span>
+                  <span class="team-chip black loser">BLACK</span>
+                </div>
+                <div class="motm-line"><span class="star">⭐</span> MOTM · Omar Khalil</div>
+              </div>
+              <span class="chevron">›</span>
+            </div>
+
+            <div class="match-row draw">
+              <div class="date-block">
+                <div class="date">16/APR/2026</div>
+                <div class="matchday">Matchday 3</div>
+              </div>
+              <div>
+                <div class="score-line">
+                  <span class="team-chip white">WHITE</span>
+                  <span class="score-num">2</span>
+                  <span class="score-dash">–</span>
+                  <span class="score-num">2</span>
+                  <span class="team-chip black">BLACK</span>
+                  <span class="draw-tag">DRAW</span>
+                </div>
+                <div class="motm-line"><span class="star">⭐</span> MOTM · Sami Haddad</div>
+              </div>
+              <span class="chevron">›</span>
+            </div>
+
+            <div class="match-row">
+              <div class="date-block">
+                <div class="date">09/APR/2026</div>
+                <div class="matchday">Matchday 2</div>
+              </div>
+              <div>
+                <div class="score-line">
+                  <span class="team-chip white loser">WHITE</span>
+                  <span class="score-num loser">1</span>
+                  <span class="score-dash">–</span>
+                  <span class="score-num">3</span>
+                  <span class="team-chip black">BLACK</span>
+                </div>
+                <div class="motm-line"><span class="star">⭐</span> MOTM · Ahmed Nasir</div>
+              </div>
+              <span class="chevron">›</span>
+            </div>
+
+            <div class="match-row">
+              <div class="date-block">
+                <div class="date">02/APR/2026</div>
+                <div class="matchday">Matchday 1</div>
+              </div>
+              <div>
+                <div class="score-line">
+                  <span class="team-chip white">WHITE</span>
+                  <span class="score-num">3</span>
+                  <span class="score-dash">–</span>
+                  <span class="score-num loser">1</span>
+                  <span class="team-chip black loser">BLACK</span>
+                </div>
+                <div class="motm-line"><span class="star">⭐</span> MOTM · Mohammed Muwahid</div>
+              </div>
+              <span class="chevron">›</span>
+            </div>
+
+          </div>
+        </div>
+
+        <nav class="bottom-nav">
+          <a href="#"><span class="ico">🏠</span><span>Home</span></a>
+          <a href="#"><span class="ico">📊</span><span>Table</span></a>
+          <a href="#" class="active"><span class="ico">📅</span><span>Matches</span></a>
+          <a href="#"><span class="ico">👤</span><span>Profile</span></a>
+          <a href="#"><span class="ico">⚙️</span><span>Settings</span></a>
+        </nav>
+
+      </div>
+    </div>
+    <div class="caption">Light · same content for theme parity</div>
+  </div>
+
+</div>
+
+<!-- State tiles -->
+<div class="state-tiles">
+
+  <div class="tile">
+    <div class="tile-head">State · Empty season</div>
+    <div class="tile-body">
+      <div class="dark" style="background: var(--paper); padding: 0; min-height: 180px; border-radius: 12px;">
+        <div class="phone-inner dark" style="position: static; min-height: 200px; border-radius: 12px;">
+          <div class="page-head">
+            <h1 class="screen-title">Matches</h1>
+            <button class="season-picker" type="button">
+              <span class="dot"></span><span>Season 1</span><span class="caret">▾</span>
+            </button>
+          </div>
+          <div class="empty">
+            <div class="glyph">⚽</div>
+            <div class="title">No matches yet</div>
+            <div class="body">Matches played this season will appear here.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tile">
+    <div class="tile-head">State · Loading skeleton</div>
+    <div class="tile-body">
+      <div class="phone-inner dark" style="position: static; min-height: 200px; border-radius: 12px; padding: 8px;">
+        <div class="match-list">
+          <div class="skel-row">
+            <div class="date-block"><div class="skel w60"></div><div class="skel w60" style="margin-top:6px;height:9px"></div></div>
+            <div><div class="skel w110"></div><div class="skel w80" style="margin-top:8px;height:10px"></div></div>
+            <div class="skel" style="width:8px"></div>
+          </div>
+          <div class="skel-row">
+            <div class="date-block"><div class="skel w60"></div><div class="skel w60" style="margin-top:6px;height:9px"></div></div>
+            <div><div class="skel w110"></div><div class="skel w80" style="margin-top:8px;height:10px"></div></div>
+            <div class="skel" style="width:8px"></div>
+          </div>
+          <div class="skel-row">
+            <div class="date-block"><div class="skel w60"></div><div class="skel w60" style="margin-top:6px;height:9px"></div></div>
+            <div><div class="skel w110"></div><div class="skel w80" style="margin-top:8px;height:10px"></div></div>
+            <div class="skel" style="width:8px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tile">
+    <div class="tile-head">State · Season picker open</div>
+    <div class="tile-body" style="padding: 20px 14px">
+      <div class="dark" style="background: var(--paper); padding: 12px; border-radius: 14px;">
+        <div class="phone-inner dark" style="position: static; border-radius: 12px;">
+          <div class="page-head">
+            <h1 class="screen-title">Matches</h1>
+            <button class="season-picker" type="button" style="border-color: var(--accent);">
+              <span class="dot"></span><span>Season 1</span><span class="caret">▴</span>
+            </button>
+          </div>
+          <div style="margin: 4px 18px; border-radius: 12px; background: var(--paper-dim); border: 1px solid var(--line-strong); padding: 6px 0; max-width: 160px; margin-left: auto; margin-right: 20px;">
+            <div style="padding: 9px 14px; font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; color: var(--ink);">
+              <span>Season 1</span><span style="color: var(--accent)">✓</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
