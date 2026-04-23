@@ -218,6 +218,7 @@ export type Database = {
           last_edited_by: string | null
           layout_jsonb: Json
           matchday_id: string
+          notes: string | null
           pattern: string
           shared_at: string | null
           starting_gk_profile_id: string | null
@@ -231,6 +232,7 @@ export type Database = {
           last_edited_by?: string | null
           layout_jsonb: Json
           matchday_id: string
+          notes?: string | null
           pattern: string
           shared_at?: string | null
           starting_gk_profile_id?: string | null
@@ -244,6 +246,7 @@ export type Database = {
           last_edited_by?: string | null
           layout_jsonb?: Json
           matchday_id?: string
+          notes?: string | null
           pattern?: string
           shared_at?: string | null
           starting_gk_profile_id?: string | null
@@ -1710,6 +1713,7 @@ export type Database = {
         Args: {
           p_layout_jsonb: Json
           p_matchday_id: string
+          p_notes?: string
           p_pattern: string
           p_rotation_order?: Json
           p_starting_gk_profile_id?: string

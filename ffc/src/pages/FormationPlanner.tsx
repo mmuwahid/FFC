@@ -1,5 +1,5 @@
 /**
- * §3.19 Formation Planner — Slices A+B+C.
+ * §3.19 Formation Planner — Slices A+B+C+D.
  *
  * Per-team tactical board, shared read-only across the team, editable by
  * the team's captain.
@@ -11,20 +11,19 @@
  *   • GK-mode segmented toggle: 'dedicated' vs 'rotate' (every 10 min).
  *   • In rotate mode: captain picks starting GK from a native <select>
  *     containing the team's profile members (guests excluded because
- *     starting_gk_profile_id FKs profiles). Remaining members fill the
- *     rotation order 2..N in roster order.
- *   • Token on slot 0 carries the GK badge in both modes. In rotate mode,
- *     every profile-member token additionally displays its rotation number,
- *     and the roster list shows a "rot N" chip per row.
- *   • Save now includes p_rotation_order (JSON array of
- *     { profile_id, rotation_number, is_starting_gk }) and
- *     p_starting_gk_profile_id.
- *   • Load hydrates gkMode + startingGkProfileId from the existing
- *     formation row; rotate mode iff formation_rotation_order is non-null.
+ *     starting_gk_profile_id FKs profiles).
  *
- * Deferred to later slices:
- *   • Realtime subscription on formations for non-captain live view
- *   • share_formation + "last synced" chip + captain's notes persistence
+ * Slice D (realtime + share + notes):
+ *   • Captain's notes — nullable textarea, persisted on upsert_formation.
+ *   • "Share to team" button — captain-only; calls share_formation(id)
+ *     which stamps shared_at. Non-captains see the last shared snapshot.
+ *   • Realtime subscription on formations filtered by (matchday_id, team):
+ *     any external update triggers loadAll so non-captain viewers stay
+ *     in sync without a page reload.
+ *   • Last-synced chip — renders shared_at or "Not yet shared".
+ *
+ * Deferred to Slice E:
+ *   • Entry links from Poll State 8 / AdminMatches / MatchDetail.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -74,6 +73,7 @@ interface FormationRow {
   layout_jsonb: unknown
   formation_rotation_order: unknown
   starting_gk_profile_id: string | null
+  notes: string | null
   shared_at: string | null
   last_edited_at: string
 }
@@ -141,6 +141,10 @@ export function FormationPlanner() {
   // profile_id chosen to open in goal (rotate mode only).
   const [gkMode, setGkMode] = useState<GkMode>('dedicated')
   const [startingGkProfileId, setStartingGkProfileId] = useState<string | null>(null)
+
+  // Slice D — captain's notes + share state.
+  const [notes, setNotes] = useState<string>('')
+  const [sharing, setSharing] = useState(false)
 
   const loadAll = useCallback(async () => {
     if (!matchId) return
@@ -218,13 +222,14 @@ export function FormationPlanner() {
     if (mine) {
       const { data: fRow } = await supabase
         .from('formations')
-        .select('id, pattern, layout_jsonb, formation_rotation_order, starting_gk_profile_id, shared_at, last_edited_at')
+        .select('id, pattern, layout_jsonb, formation_rotation_order, starting_gk_profile_id, notes, shared_at, last_edited_at')
         .eq('matchday_id', mdRow.id)
         .eq('team', mine.team)
         .maybeSingle()
       if (fRow) {
         setExistingFormation(fRow as FormationRow)
         setPattern(fRow.pattern)
+        setNotes((fRow as FormationRow).notes ?? '')
         // Hydrate rotation state. rotate iff formation_rotation_order is a
         // non-empty array; starting GK pulled from the explicit column.
         if (Array.isArray(fRow.formation_rotation_order) && fRow.formation_rotation_order.length > 0) {
@@ -249,6 +254,7 @@ export function FormationPlanner() {
         setPattern(presetsForFormat(effective)[0]?.pattern ?? '')
         setGkMode('dedicated')
         setStartingGkProfileId(null)
+        setNotes('')
       }
     }
 
@@ -256,6 +262,38 @@ export function FormationPlanner() {
   }, [matchId, profileId])
 
   useEffect(() => { void loadAll() }, [loadAll])
+
+  // Slice D — realtime subscription on formations row for my team.
+  // Fires whenever ANY client upserts or shares my team's formation, so
+  // non-captain viewers see updates without a manual refresh. The captain
+  // also benefits: if they edit on one device, another device stays in
+  // sync. We gate on `matchday` + `myRosterEntry` being hydrated so the
+  // filter can be applied precisely.
+  useEffect(() => {
+    if (!matchday?.id || !myRosterEntry?.team) return
+    const channel = supabase
+      .channel(`formation:${matchday.id}:${myRosterEntry.team}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'formations',
+          filter: `matchday_id=eq.${matchday.id}`,
+        },
+        (payload) => {
+          // Filter by team client-side (postgres_changes only supports one
+          // filter column). Ignore changes to the OTHER team's formation.
+          const row = (payload.new ?? payload.old) as { team?: string } | null
+          if (row?.team && row.team !== myRosterEntry.team) return
+          void loadAll()
+        },
+      )
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [matchday?.id, myRosterEntry?.team, loadAll])
 
   const presets = useMemo(() => presetsForFormat(format), [format])
   // NOTE: pre-Slice-B we held a `selectedPreset` memo, but after drag-drop
@@ -423,6 +461,7 @@ export function FormationPlanner() {
     // so omit those fields entirely in dedicated mode rather than passing
     // null. RotationRow[] widens to Json[] via an explicit cast since the
     // generated Json type uses an index signature we can't auto-satisfy.
+    const trimmedNotes = notes.trim()
     const args = {
       p_matchday_id: matchday.id,
       p_team: myRosterEntry.team,
@@ -430,13 +469,29 @@ export function FormationPlanner() {
       p_layout_jsonb: layout as unknown as Json,
       ...(rotationJsonb ? { p_rotation_order: rotationJsonb as unknown as Json } : {}),
       ...(gkProfileId ? { p_starting_gk_profile_id: gkProfileId } : {}),
+      ...(trimmedNotes.length > 0 ? { p_notes: trimmedNotes } : {}),
     }
     const { error: rpcErr } = await supabase.rpc('upsert_formation', args)
     setSaving(false)
     if (rpcErr) { setError(rpcErr.message); return }
     setSavedAt(new Date().toISOString())
     await loadAll()
-  }, [matchday, myRosterEntry, liveSlots, pattern, slotAssignments, gkMode, startingGkProfileId, rotationRows, loadAll])
+  }, [matchday, myRosterEntry, liveSlots, pattern, slotAssignments, gkMode, startingGkProfileId, rotationRows, notes, loadAll])
+
+  // Slice D — share_formation: stamp shared_at so the rest of the team
+  // sees the current snapshot. The RPC is SECURITY DEFINER and gates on
+  // captain role internally, so we can safely call it from the client.
+  const onShare = useCallback(async () => {
+    if (!existingFormation) return
+    setSharing(true)
+    setError(null)
+    const { error: rpcErr } = await supabase.rpc('share_formation', {
+      p_formation_id: existingFormation.id,
+    })
+    setSharing(false)
+    if (rpcErr) { setError(rpcErr.message); return }
+    await loadAll()
+  }, [existingFormation, loadAll])
 
   // ─── Render ────────────────────────────────────────────────────
 
@@ -659,35 +714,64 @@ export function FormationPlanner() {
         </ul>
       </div>
 
+      <div className="fp-notes">
+        <label className="fp-notes-lbl" htmlFor="fp-notes-ta">
+          <span className="fp-notes-title">Captain's notes</span>
+          <span className="fp-notes-hint">{isCaptain ? 'Tactical reminders for the team' : 'From your captain'}</span>
+        </label>
+        <textarea
+          id="fp-notes-ta"
+          className="fp-notes-ta"
+          placeholder={isCaptain ? 'e.g. "Press high first 10, drop after their 2nd corner."' : '—'}
+          value={notes}
+          readOnly={!isCaptain}
+          disabled={!isCaptain || saving}
+          onChange={(e) => isCaptain && setNotes(e.target.value)}
+          rows={3}
+          maxLength={500}
+        />
+      </div>
+
       <div className="fp-footer">
-        {existingFormation?.shared_at && (
-          <div className="fp-footer-meta">Shared {new Date(existingFormation.shared_at).toLocaleString()}</div>
-        )}
-        {!existingFormation?.shared_at && existingFormation && (
-          <div className="fp-footer-meta">Draft · last edited {new Date(existingFormation.last_edited_at).toLocaleString()}</div>
-        )}
-        {savedAt && !existingFormation && (
+        {existingFormation?.shared_at ? (
+          <div className="fp-footer-meta">Shared · last synced {new Date(existingFormation.shared_at).toLocaleString()}</div>
+        ) : existingFormation ? (
+          <div className="fp-footer-meta fp-footer-meta--draft">Draft · not yet shared with team</div>
+        ) : savedAt ? (
           <div className="fp-footer-meta">Saved {new Date(savedAt).toLocaleString()}</div>
-        )}
+        ) : null}
         {isCaptain && isCustom && lastNamedPattern && (
           <button
             type="button"
             className="auth-btn auth-btn--sheet-cancel fp-reset-btn"
             onClick={resetToLastNamed}
-            disabled={saving}
+            disabled={saving || sharing}
           >
             ↻ Reset to {lastNamedPattern}
           </button>
         )}
         {isCaptain ? (
-          <button
-            type="button"
-            className="auth-btn auth-btn--approve fp-save-btn"
-            onClick={() => void onSave()}
-            disabled={saving || liveSlots.length === 0}
-          >
-            {saving ? 'Saving…' : existingFormation ? 'Save changes' : 'Save formation'}
-          </button>
+          <>
+            <button
+              type="button"
+              className="auth-btn auth-btn--approve fp-save-btn"
+              onClick={() => void onSave()}
+              disabled={saving || sharing || liveSlots.length === 0}
+            >
+              {saving ? 'Saving…' : existingFormation ? 'Save changes' : 'Save formation'}
+            </button>
+            {existingFormation && (
+              <button
+                type="button"
+                className="auth-btn auth-btn--approve fp-share-btn"
+                onClick={() => void onShare()}
+                disabled={saving || sharing}
+                title="Stamp the current snapshot so teammates see it"
+              >
+                {sharing ? 'Sharing…' : existingFormation.shared_at ? '↻ Re-share to team' : '📣 Share to team'}
+              </button>
+            )}
+          </>
         ) : (
           <button type="button" className="auth-btn auth-btn--sheet-cancel fp-save-btn" disabled>
             Captain-only

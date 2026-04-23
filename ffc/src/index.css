@@ -2646,6 +2646,21 @@ textarea.auth-input {
   line-height: 1.6;
 }
 
+/* §3.19 Slice E — Formation link in MatchDetailSheet */
+.md-actions { padding: 0 20px 18px; display: flex; justify-content: center; }
+.md-action-btn {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(96,165,250,0.12);
+  border: 1px solid rgba(96,165,250,0.35);
+  border-radius: 8px;
+  color: #93c5fd;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+.md-action-btn:hover { background: rgba(96,165,250,0.2); }
+
 /* ════════════════════════════════════════════════════════════════════════════
  * §3.17 Admin Players + §3.18 Admin Matches — S025 slice
  * ════════════════════════════════════════════════════════════════════════════ */
@@ -3455,5 +3470,31 @@ textarea.auth-input {
   padding-top: 8px; border-top: 1px solid var(--border);
 }
 .fp-footer-meta { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.fp-footer-meta--draft { color: #facc15; }
 .fp-save-btn { width: 100%; padding: 12px; font-size: 14px; }
+.fp-share-btn { width: 100%; padding: 10px; font-size: 13px; background: rgba(96,165,250,0.12); border: 1px solid rgba(96,165,250,0.35); color: #93c5fd; }
+.fp-share-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .fp-reset-btn { width: 100%; padding: 10px; font-size: 13px; }
+
+/* Slice D — captain's notes */
+.fp-notes { padding: 12px 16px 4px; display: flex; flex-direction: column; gap: 6px; }
+.fp-notes-lbl { display: flex; justify-content: space-between; align-items: baseline; }
+.fp-notes-title { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+.fp-notes-hint { font-size: 10px; color: var(--text-muted); opacity: 0.7; }
+.fp-notes-ta {
+  width: 100%;
+  min-height: 66px;
+  resize: vertical;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text);
+  background: rgba(15,26,48,0.6);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+.fp-notes-ta:focus { outline: none; border-color: rgba(96,165,250,0.55); }
+.fp-notes-ta:read-only { background: rgba(15,26,48,0.4); cursor: default; }
+.fp-notes-ta:disabled { opacity: 0.85; }
