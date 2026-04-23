@@ -1,32 +1,31 @@
 # FFC Todo
 
-## NEXT SESSION — S030
+## NEXT SESSION — S031
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: `46e08b1` on `main` (S029 close — flashcard + AdminSeasons). **PUSH NEEDED** — blocked by settings rule in S029; user must `git push origin main` before deploy.
-- Migrations on live DB: **23** (0001 → 0023_season_rpc_optional_planned_games).
+- Expected tip: `b20befe` on `main` (S030 close — Formation Slices D+E). **PUSH NEEDED** — 2 commits pending (`32dd8d9` Slice D, `b20befe` Slice E) — blocked by Claude settings in S030; user must `git push origin main` before deploy.
+- Migrations on live DB: **24** (0001 → 0024_formations_slice_d). Note: `0023_season_rpc_optional_planned_games` requires S029's push to be deployed, but was already applied to DB in S029 — if rolling back, consider DB + code drift.
 
-**S030 agenda:**
+**S031 agenda:**
 
-1. **Push to deploy** — `git push origin main` (blocked by Claude settings rule in S029). Once pushed, Vercel auto-deploys.
+1. **Push to deploy** — `git push origin main`. Once pushed, Vercel auto-deploys S029 (5 commits) and S030 (2 commits).
 
-2. **Set `planned_games` on Season 1** — navigate to `/admin/seasons`, click Edit on Season 1, set to `30` (or however many games are planned). Until set, Matches banners show `GAME N` with no denominator.
+2. **Set `planned_games` on Season 1** — `/admin/seasons` → Edit → set to match actual plan (e.g. 30). Until set, Matches banners show `GAME N` with no denominator.
 
-3. **Live acceptance pass on https://ffc-gilt.vercel.app** — catch-up for 3 sessions:
-   - **S029 scope** (just shipped): `/matches` flashcard layout · banner GAME N / TOTAL · scorer columns · WINNER ribbon · DRAW pill · tap → MatchDetailSheet · `/admin/seasons` create + edit flow.
-   - **S026 scope** (still untested): Poll 9 states · Leaderboard realtime/PTR/skeleton · ✎ Edit player stats toggle · Phase 5.5 card · friendly auto-flag.
-   - **S028 scope** (still untested): Poll guest-id refactor · Phase 5.5 Force complete + Abandon draft · §3.19 Formation Planner A+B+C at `/match/:id/formation`.
+3. **Live acceptance pass on https://ffc-gilt.vercel.app** — catch-up for 4 sessions:
+   - **S030 scope** (just shipped): Formation Slice D (notes textarea, share button, realtime, last-synced chip) + Slice E entry links (Poll State 8, AdminMatches card, MatchDetailSheet).
+   - **S029 scope**: `/matches` flashcard · `/admin/seasons` create + edit flow.
+   - **S028 scope**: Phase 5.5 Force complete + Abandon · §3.19 Formation A+B+C at `/match/:id/formation`.
+   - **S026 scope**: Poll 9 states · Leaderboard realtime/PTR · edit_match_players · Phase 5.5 card · friendly auto-flag.
 
-4. **§3.19 Slice D** — realtime subscription on `formations` table for non-captain live view + `share_formation` RPC + "last synced HH:mm" chip + captain's notes persistence.
+4. **Optional polish** — separate `update_formation_notes` RPC for lightweight notes save without touching layout.
 
-5. **§3.19 Slice E** — entry links: Poll State 8 "Plan formation" CTA · AdminMatches matchday card "Formation" action · MatchDetail sheet link.
+5. **Captain reroll modal** (S010 subagent-B spec, `_wip/item-b-draft-reroll-spec.md`) — still blocked on `dropout_after_lock` notification flow.
 
-6. **Captain reroll modal** (S010 subagent-B spec, `_wip/item-b-draft-reroll-spec.md`) — still blocked on `dropout_after_lock` notification flow.
+6. **§3.1-v2 Captain helper screen** — multi-session; once shipped, Phase 5.5 card + Poll State 6.5 get real data.
 
-7. **§3.1-v2 Captain helper screen** — multi-session; once shipped, Phase 5.5 card + Poll State 6.5 get real data.
-
-8. **Backburner (unchanged):**
+7. **Backburner (unchanged):**
    - Vector FFC crest SVG (blocked on user export from Illustrator/Figma).
    - Palette re-align (red+navy → khaki-gold + cream).
 
@@ -58,6 +57,19 @@
 - **NEW (S028): `admin_draft_force_complete` + `admin_draft_abandon` RPCs.** Phase 5.5 override buttons now wired. Force-complete auto-distributes unpicked match_players alternating teams from `current_picker_team` (ordered by `created_at` for reproducibility); raises `FFC_ALREADY_AT_CAP` if invoked at roster cap. Abandon leaves draft_picks intact for audit.
 - **NEW (S028): §3.19 Formation route lives at `/match/:id/formation`** (NOT `/admin/matches/:id/formation` — that route no longer exists). Captain-editable, team-readable; non-team-members see an access-gate card.
 - **NEW (S028): `starting_gk_profile_id` FKs profiles** — guests cannot be starting GK. UI excludes guests from the GK pool; rotation_number sequence skips them entirely.
+
+---
+
+## Completed in S030 (23/APR/2026, Home PC)
+
+- [x] Inspected existing formations table/RPCs/publication state
+- [x] Migration 0024 — `formations.notes` column + `upsert_formation` extended with `p_notes` + `formations` added to realtime publication
+- [x] FormationPlanner Slice D — notes state/textarea + realtime subscription + Share to team button + last-synced chip + CSS
+- [x] Poll.tsx Slice E — matchId state + State 8 Plan/View formation CTA
+- [x] AdminMatches Slice E — MatchdayCard Formation button (when md.match exists)
+- [x] MatchDetailSheet Slice E — footer View formation button
+- [x] `tsc -b` strict build clean
+- [x] 2 commits staged: `32dd8d9` (Slice D) + `b20befe` (Slice E) — awaiting push
 
 ---
 
