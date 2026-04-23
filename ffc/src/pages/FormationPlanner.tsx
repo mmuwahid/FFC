@@ -1,27 +1,28 @@
 /**
- * §3.19 Formation Planner — Slices A+B.
+ * §3.19 Formation Planner — Slices A+B+C.
  *
  * Per-team tactical board, shared read-only across the team, editable by
  * the team's captain.
  *
- * Slice A (foundation):
- *   • Loads matchday + match_players + profiles/guests + effective_format
- *   • Resolves my role (participant on team WHITE/BLACK, captain Y/N, or outsider)
- *   • Team-coloured header strip
- *   • Pattern chip picker (format-filtered)
- *   • Pitch SVG with tokens positioned from the selected preset
- *   • Save wired to upsert_formation(matchday, team, pattern, layout_jsonb)
+ * Slice A (foundation): scaffold + pattern presets + preset rendering + save.
+ * Slice B (drag-drop): liveSlots state + pointer drag + custom pattern mode.
  *
- * Slice B (drag-drop + custom mode):
- *   • Per-slot positions held in live state, initialized from selected preset.
- *   • Captain can drag any token with pointer (mouse + touch); first drag
- *     switches the pattern to 'custom'. Named patterns snap back to their
- *     preset coords on re-select.
- *   • Custom chip is activatable; 'Reset to preset' restores last named.
- *   • Save uses the live positions (so custom layouts persist verbatim).
+ * Slice C (rotating GK):
+ *   • GK-mode segmented toggle: 'dedicated' vs 'rotate' (every 10 min).
+ *   • In rotate mode: captain picks starting GK from a native <select>
+ *     containing the team's profile members (guests excluded because
+ *     starting_gk_profile_id FKs profiles). Remaining members fill the
+ *     rotation order 2..N in roster order.
+ *   • Token on slot 0 carries the GK badge in both modes. In rotate mode,
+ *     every profile-member token additionally displays its rotation number,
+ *     and the roster list shows a "rot N" chip per row.
+ *   • Save now includes p_rotation_order (JSON array of
+ *     { profile_id, rotation_number, is_starting_gk }) and
+ *     p_starting_gk_profile_id.
+ *   • Load hydrates gkMode + startingGkProfileId from the existing
+ *     formation row; rotate mode iff formation_rotation_order is non-null.
  *
  * Deferred to later slices:
- *   • Rotating-GK toggle + starting-GK picker (UI stubbed, no persistence)
  *   • Realtime subscription on formations for non-captain live view
  *   • share_formation + "last synced" chip + captain's notes persistence
  */
@@ -72,8 +73,18 @@ interface FormationRow {
   id: string
   pattern: string
   layout_jsonb: unknown
+  formation_rotation_order: unknown
+  starting_gk_profile_id: string | null
   shared_at: string | null
   last_edited_at: string
+}
+
+type GkMode = 'dedicated' | 'rotate'
+
+interface RotationRow {
+  profile_id: string
+  rotation_number: number
+  is_starting_gk: boolean
 }
 
 function initialsOf(name: string): string {
@@ -125,6 +136,12 @@ export function FormationPlanner() {
   const [lastNamedPattern, setLastNamedPattern] = useState<string>('')
   const pitchRef = useRef<HTMLDivElement | null>(null)
   const dragStateRef = useRef<{ slotIdx: number; pointerId: number } | null>(null)
+
+  // Slice C — GK rotation state. `gkMode` drives visibility of the GK
+  // picker + the rotation-number badges. `startingGkProfileId` is the
+  // profile_id chosen to open in goal (rotate mode only).
+  const [gkMode, setGkMode] = useState<GkMode>('dedicated')
+  const [startingGkProfileId, setStartingGkProfileId] = useState<string | null>(null)
 
   const loadAll = useCallback(async () => {
     if (!matchId) return
@@ -202,13 +219,21 @@ export function FormationPlanner() {
     if (mine) {
       const { data: fRow } = await supabase
         .from('formations')
-        .select('id, pattern, layout_jsonb, shared_at, last_edited_at')
+        .select('id, pattern, layout_jsonb, formation_rotation_order, starting_gk_profile_id, shared_at, last_edited_at')
         .eq('matchday_id', mdRow.id)
         .eq('team', mine.team)
         .maybeSingle()
       if (fRow) {
         setExistingFormation(fRow as FormationRow)
         setPattern(fRow.pattern)
+        // Hydrate rotation state. rotate iff formation_rotation_order is a
+        // non-empty array; starting GK pulled from the explicit column.
+        if (Array.isArray(fRow.formation_rotation_order) && fRow.formation_rotation_order.length > 0) {
+          setGkMode('rotate')
+        } else {
+          setGkMode('dedicated')
+        }
+        setStartingGkProfileId(fRow.starting_gk_profile_id ?? null)
         // If the persisted pattern is custom, hydrate liveSlots from the
         // saved layout — the useEffect that syncs from preset short-circuits
         // on custom, so we have to populate it directly here.
@@ -223,6 +248,8 @@ export function FormationPlanner() {
       } else {
         setExistingFormation(null)
         setPattern(presetsForFormat(effective)[0]?.pattern ?? '')
+        setGkMode('dedicated')
+        setStartingGkProfileId(null)
       }
     }
 
@@ -276,6 +303,53 @@ export function FormationPlanner() {
   // Hoisted captain flag — referenced by drag callbacks below AND the
   // later render body (which used to declare its own `isCaptain`).
   const isCaptain = !!myRosterEntry?.is_captain
+
+  // ─── Rotation order (Slice C) ──────────────────────────────────
+  // Profile-only members of my team, in roster order. Guests are excluded
+  // from the GK pool because starting_gk_profile_id FKs profiles. They
+  // still play outfield, they just never rotate into goal.
+  const profileMembers = useMemo(
+    () => myRoster.filter((r) => r.kind === 'member'),
+    [myRoster],
+  )
+
+  // Pick a sane default starter: slot 0's player if they are a profile
+  // member, else the first profile member. Runs once when gkMode flips to
+  // 'rotate' and no starter is set (e.g. a fresh rotate toggle).
+  useEffect(() => {
+    if (gkMode !== 'rotate') return
+    if (startingGkProfileId) return
+    const slotZeroEntry = slotAssignments[0]
+    if (slotZeroEntry?.kind === 'member') {
+      setStartingGkProfileId(slotZeroEntry.player_id)
+      return
+    }
+    const fallback = profileMembers[0]
+    if (fallback) setStartingGkProfileId(fallback.player_id)
+  }, [gkMode, startingGkProfileId, slotAssignments, profileMembers])
+
+  // Derive rotation rows from mode + starter. rotation_number=1 is the
+  // starter, others follow in roster order. Guests are left out entirely.
+  const rotationRows = useMemo<RotationRow[]>(() => {
+    if (gkMode !== 'rotate' || !startingGkProfileId) return []
+    const out: RotationRow[] = [
+      { profile_id: startingGkProfileId, rotation_number: 1, is_starting_gk: true },
+    ]
+    let n = 2
+    for (const m of profileMembers) {
+      if (m.player_id === startingGkProfileId) continue
+      out.push({ profile_id: m.player_id, rotation_number: n, is_starting_gk: false })
+      n += 1
+    }
+    return out
+  }, [gkMode, startingGkProfileId, profileMembers])
+
+  // Quick lookup map (profile_id → rotation_number) for token + roster labels.
+  const rotByProfileId = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const row of rotationRows) map.set(row.profile_id, row.rotation_number)
+    return map
+  }, [rotationRows])
 
   // ─── Drag: captain repositions a token ─────────────────────────
   // Coords math: the pitch container is the drop target. Its bounding rect
@@ -336,20 +410,30 @@ export function FormationPlanner() {
         player_id: entry?.player_id ?? null,
       }
     })
+    // Rotation payload (Slice C). In dedicated mode we send null so the
+    // server clears any stale rotation data. `starting_gk_profile_id` is
+    // always set when we can identify a profile-member in the GK slot,
+    // because even a dedicated GK benefits from the FK (makes pair-balance
+    // queries cleaner downstream) and the column is nullable anyway.
+    const slotZero = slotAssignments[0]
+    const defaultDedicatedGk = slotZero?.kind === 'member' ? slotZero.player_id : null
+    const gkProfileId = gkMode === 'rotate' ? startingGkProfileId : defaultDedicatedGk
+    const rotationJsonb = gkMode === 'rotate' && rotationRows.length > 0 ? rotationRows : null
+
     const args = {
       p_matchday_id: matchday.id,
       p_team: myRosterEntry.team,
       p_pattern: pattern,
       p_layout_jsonb: layout,
-      p_rotation_order: null as unknown as null,
-      p_starting_gk_profile_id: null as unknown as null,
+      p_rotation_order: rotationJsonb as unknown as null,
+      p_starting_gk_profile_id: gkProfileId as unknown as null,
     }
     const { error: rpcErr } = await supabase.rpc('upsert_formation', args)
     setSaving(false)
     if (rpcErr) { setError(rpcErr.message); return }
     setSavedAt(new Date().toISOString())
     await loadAll()
-  }, [matchday, myRosterEntry, liveSlots, pattern, slotAssignments, loadAll])
+  }, [matchday, myRosterEntry, liveSlots, pattern, slotAssignments, gkMode, startingGkProfileId, rotationRows, loadAll])
 
   // ─── Render ────────────────────────────────────────────────────
 
@@ -436,6 +520,61 @@ export function FormationPlanner() {
         </button>
       </div>
 
+      {/* GK mode toggle + starting-GK select (Slice C) */}
+      <div className="fp-gk-mode" role="group" aria-label="Goalkeeper mode">
+        <button
+          type="button"
+          className={`fp-gk-seg${gkMode === 'dedicated' ? ' fp-gk-seg--active' : ''}`}
+          disabled={!isCaptain || saving}
+          onClick={() => isCaptain && setGkMode('dedicated')}
+          aria-pressed={gkMode === 'dedicated'}
+        >
+          <span className="fp-gk-seg-lbl">◯ Dedicated GK</span>
+          <span className="fp-gk-seg-hint">One keeper all game</span>
+        </button>
+        <button
+          type="button"
+          className={`fp-gk-seg${gkMode === 'rotate' ? ' fp-gk-seg--active' : ''}`}
+          disabled={!isCaptain || saving}
+          onClick={() => isCaptain && setGkMode('rotate')}
+          aria-pressed={gkMode === 'rotate'}
+        >
+          <span className="fp-gk-seg-lbl">⬤ Rotate every 10 min</span>
+          <span className="fp-gk-seg-hint">No primary keeper</span>
+        </button>
+      </div>
+
+      {gkMode === 'rotate' && (
+        <div className="fp-gk-card">
+          <div className="fp-gk-card-head">
+            <span className="fp-gk-card-lbl">Who starts in goal?</span>
+            <span className="fp-gk-card-tag">Rotation · 10 min</span>
+          </div>
+          <select
+            className="fp-gk-select"
+            aria-label="Starting goalkeeper"
+            value={startingGkProfileId ?? ''}
+            disabled={!isCaptain || saving || profileMembers.length === 0}
+            onChange={(e) => isCaptain && setStartingGkProfileId(e.target.value || null)}
+          >
+            <option value="" disabled>Select starting GK…</option>
+            {profileMembers.map((m) => {
+              const n = rotByProfileId.get(m.player_id)
+              const posSuffix = m.primary_position ? ` (${m.primary_position})` : ''
+              const rotLabel = n ? ` — rotation ${n}` : ''
+              return (
+                <option key={m.player_id} value={m.player_id}>
+                  {m.display_name}{posSuffix}{rotLabel}
+                </option>
+              )
+            })}
+          </select>
+          {profileMembers.length === 0 && (
+            <div className="fp-gk-empty">No profile members on this team can be assigned as GK.</div>
+          )}
+        </div>
+      )}
+
       <div className="fp-pitch-wrap" ref={pitchRef}>
         <svg className="fp-pitch-svg" viewBox="0 0 100 150" preserveAspectRatio="none" aria-hidden>
           <rect className="fp-stripe" x="0" y="0" width="100" height="15" />
@@ -459,6 +598,10 @@ export function FormationPlanner() {
             const entry = slotAssignments[i]
             const isGk = i === 0
             const draggable = isCaptain
+            // In rotate mode, the token for a profile member shows its
+            // rotation number. The GK slot always renders the "GK" badge.
+            const rotN = entry?.kind === 'member' ? rotByProfileId.get(entry.player_id) : undefined
+            const showRotBadge = gkMode === 'rotate' && rotN !== undefined && !isGk
             return (
               <div
                 key={i}
@@ -472,6 +615,8 @@ export function FormationPlanner() {
               >
                 <span className="fp-tok-init">{entry?.initials ?? '?'}</span>
                 <span className="fp-tok-label">{slot.pos}</span>
+                {isGk && <span className="fp-tok-gk-badge" aria-label="Starting goalkeeper">GK</span>}
+                {showRotBadge && <span className="fp-tok-rot-badge" aria-label={`Rotation ${rotN}`}>{rotN}</span>}
               </div>
             )
           })}
@@ -484,17 +629,30 @@ export function FormationPlanner() {
           <span className="fp-roster-cnt">{myRoster.length} / {teamSize}</span>
         </div>
         <ul className="fp-roster-list">
-          {myRoster.map((r) => (
-            <li key={r.id} className="fp-roster-item">
-              <span className="fp-roster-avatar">{r.initials}</span>
-              <span className="fp-roster-name">
-                {r.display_name}
-                {r.kind === 'guest' && <span className="fp-roster-plus"> (+1)</span>}
-                {r.is_captain && <span className="fp-roster-cap"> · C</span>}
-              </span>
-              {r.primary_position && <span className={`fp-pos-pill fp-pos-pill--${r.primary_position.toLowerCase()}`}>{r.primary_position}</span>}
-            </li>
-          ))}
+          {myRoster.map((r) => {
+            const rotN = r.kind === 'member' ? rotByProfileId.get(r.player_id) : undefined
+            const isStartingGk = gkMode === 'rotate' && r.player_id === startingGkProfileId && r.kind === 'member'
+            return (
+              <li key={r.id} className="fp-roster-item">
+                <span className="fp-roster-avatar">{r.initials}</span>
+                <span className="fp-roster-name">
+                  {r.display_name}
+                  {r.kind === 'guest' && <span className="fp-roster-plus"> (+1)</span>}
+                  {r.is_captain && <span className="fp-roster-cap"> · C</span>}
+                </span>
+                {r.primary_position && <span className={`fp-pos-pill fp-pos-pill--${r.primary_position.toLowerCase()}`}>{r.primary_position}</span>}
+                {gkMode === 'rotate' && (
+                  isStartingGk ? (
+                    <span className="fp-rot-chip fp-rot-chip--gk">GK</span>
+                  ) : rotN !== undefined ? (
+                    <span className="fp-rot-chip">{rotN}</span>
+                  ) : (
+                    <span className="fp-rot-chip fp-rot-chip--none">—</span>
+                  )
+                )}
+              </li>
+            )
+          })}
         </ul>
       </div>
 
