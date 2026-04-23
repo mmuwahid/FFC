@@ -147,12 +147,27 @@ function assignRanks(sorted: StandingEmbed[], sort: SortKey): (number | null)[] 
   return ranks
 }
 
-function PositionPills({ primary, secondary }: { primary: PlayerPosition | null; secondary: PlayerPosition | null }) {
-  if (!primary && !secondary) return null
+function PositionPills({
+  primary,
+  secondary,
+  motms,
+}: {
+  primary: PlayerPosition | null
+  secondary: PlayerPosition | null
+  motms?: number
+}) {
+  const hasAny = primary || secondary || (motms && motms > 0)
+  if (!hasAny) return null
   return (
     <div className="lb-pills">
       {primary && <span className={`lb-pos lb-pos--fill lb-pos--${primary.toLowerCase()}`}>{primary}</span>}
       {secondary && <span className={`lb-pos lb-pos--out lb-pos--${secondary.toLowerCase()}`}>{secondary}</span>}
+      {motms && motms > 0 && (
+        <span className="lb-motm-chip" aria-label={`${motms} Man of the Match ${motms === 1 ? 'award' : 'awards'}`}>
+          <span aria-hidden>⭐</span>
+          {motms}
+        </span>
+      )}
     </div>
   )
 }
@@ -305,6 +320,12 @@ export function Leaderboard() {
         arr.push(out)
         m.set(row.profile_id, arr)
       }
+      // Temporary diagnostic for the S022 polish pass — remove next slice.
+      console.info('[FFC] leaderboard data:', {
+        standings: s.data?.length ?? 0,
+        last5_rows: l.data?.length ?? 0,
+        last5_profiles: m.size,
+      })
       setLast5ByProfile(m)
     })
 
@@ -595,6 +616,7 @@ export function Leaderboard() {
                 <span className="lb-l">L</span>
               </span>
               <span className="lb-h-mp">MP</span>
+              <span className="lb-h-cards" aria-hidden>Cards</span>
               <span className="lb-h-pts">Pts</span>
             </div>
 
@@ -634,6 +656,7 @@ export function Leaderboard() {
                     <PositionPills
                       primary={row.profile?.primary_position ?? null}
                       secondary={row.profile?.secondary_position ?? null}
+                      motms={row.motms ?? 0}
                     />
                   </div>
                   <span className="lb-wdl">
@@ -642,6 +665,20 @@ export function Leaderboard() {
                     <span className="lb-l">{losses}</span>
                   </span>
                   <span className="lb-mp">{mp}</span>
+                  <span className="lb-cards" aria-label={`${row.yellows ?? 0} yellow, ${row.reds ?? 0} red`}>
+                    {(row.yellows ?? 0) > 0 && (
+                      <span className="lb-card lb-card--yellow">
+                        <span className="lb-card-box lb-card-box--yellow" aria-hidden />
+                        {row.yellows}
+                      </span>
+                    )}
+                    {(row.reds ?? 0) > 0 && (
+                      <span className="lb-card lb-card--red">
+                        <span className="lb-card-box lb-card-box--red" aria-hidden />
+                        {row.reds}
+                      </span>
+                    )}
+                  </span>
                   <span className="lb-pts">{row.points ?? 0}</span>
                   {(() => {
                     const strip = last5ByProfile.get(row.profile_id!) ?? []
