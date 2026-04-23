@@ -1041,8 +1041,14 @@ textarea.auth-input {
   gap: 8px;
 }
 
-.lb-season-chip {
+.lb-season-wrap {
+  position: relative;
   flex: 1;
+  min-width: 0;
+}
+
+.lb-season-chip {
+  width: 100%;
   min-width: 0;
   display: inline-flex;
   align-items: center;
@@ -1136,6 +1142,21 @@ textarea.auth-input {
   flex-direction: column;
   gap: 2px;
 }
+/* Anchored-from-left variant for the season pill (fills its width). */
+.lb-dropdown--wide {
+  left: 0;
+  right: auto;
+  min-width: 100%;
+}
+.lb-dropdown-item-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.lb-season-dot--ongoing  { background: var(--success); }
+.lb-season-dot--ended    { background: var(--warning); }
+.lb-season-dot--archived { background: var(--text-muted); }
 .lb-dropdown-item {
   display: flex;
   align-items: center;
@@ -1431,64 +1452,7 @@ textarea.auth-input {
 }
 .lb-np-row .lb-name { font-size: 12px; }
 
-/* ── Season picker bottom sheet ─────────────────────────────────────── */
-
-.lb-picker-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  z-index: 30;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-.lb-picker-sheet {
-  width: 100%;
-  max-width: 560px;
-  background: var(--surface);
-  border-top-left-radius: 20px;
-  border-top-right-radius: 20px;
-  padding: 12px 16px calc(var(--safe-bottom) + 20px);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-height: 70vh;
-  overflow-y: auto;
-}
-.lb-sheet-grab {
-  width: 40px;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--border);
-  margin: 0 auto 6px;
-}
-.lb-sheet-title {
-  font-size: 18px;
-  margin: 0;
-}
-.lb-sheet-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.lb-sheet-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--surface-2);
-  border: 1px solid transparent;
-  font-family: inherit;
-  color: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  text-align: left;
-}
-.lb-sheet-row--selected {
-  border-color: var(--accent);
-}
-.lb-sheet-name { color: var(--text); }
+/* Season badge (reused inside the anchored season dropdown item right-side). */
 .lb-sheet-badge {
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -1496,7 +1460,8 @@ textarea.auth-input {
   font-weight: 700;
   padding: 3px 7px;
   border-radius: 6px;
+  flex-shrink: 0;
 }
 .lb-sheet-badge--ongoing  { background: color-mix(in srgb, var(--success) 22%, transparent); color: var(--success); }
-.lb-sheet-badge--ended    { background: var(--surface);  color: var(--text-muted); }
-.lb-sheet-badge--archived { background: var(--surface);  color: var(--text-muted); }
+.lb-sheet-badge--ended    { background: var(--surface-2); color: var(--text-muted); }
+.lb-sheet-badge--archived { background: var(--surface-2); color: var(--text-muted); }

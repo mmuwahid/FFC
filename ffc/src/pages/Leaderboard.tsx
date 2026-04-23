@@ -179,21 +179,22 @@ export function Leaderboard() {
   const [sortOpen, setSortOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const seasonWrapRef = useRef<HTMLDivElement>(null)
   const filterWrapRef = useRef<HTMLDivElement>(null)
   const sortWrapRef = useRef<HTMLDivElement>(null)
 
-  /* Close filter/sort popovers on outside click. Both use the same listener
-   * because the cost of one global mousedown is trivial. */
+  /* Close any open popover on outside click. One global listener; cost is trivial. */
   useEffect(() => {
-    if (!filterOpen && !sortOpen) return
+    if (!pickerOpen && !filterOpen && !sortOpen) return
     const handler = (e: MouseEvent) => {
       const t = e.target as Node
+      if (pickerOpen && seasonWrapRef.current && !seasonWrapRef.current.contains(t)) setPickerOpen(false)
       if (filterOpen && filterWrapRef.current && !filterWrapRef.current.contains(t)) setFilterOpen(false)
       if (sortOpen && sortWrapRef.current && !sortWrapRef.current.contains(t)) setSortOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [filterOpen, sortOpen])
+  }, [pickerOpen, filterOpen, sortOpen])
 
   /* Seasons — load once on mount. Picker defaults to active season (ended_at NULL)
    * else most recent archived. */
@@ -384,21 +385,56 @@ export function Leaderboard() {
         </div>
 
         <div className="lb-controls-row">
-          <button
-            type="button"
-            className={`lb-season-chip${selectedSeason?.archived_at ? ' lb-season-chip--archived' : ''}`}
-            onClick={() => setPickerOpen(true)}
-            disabled={!seasons}
-          >
-            <span className="lb-season-dot" aria-hidden />
-            <span className="lb-season-chip-text">
-              {selectedSeason?.name ?? 'Loading…'}
-              {selectedSeason && (
-                <> · {selectedSeason.archived_at ? 'archived' : selectedSeason.ended_at ? 'ended' : 'ongoing'}</>
-              )}
-            </span>
-            <span className="lb-caret" aria-hidden>▾</span>
-          </button>
+          <div className="lb-season-wrap" ref={seasonWrapRef}>
+            <button
+              type="button"
+              className={`lb-season-chip${selectedSeason?.archived_at ? ' lb-season-chip--archived' : ''}`}
+              onClick={() => {
+                setPickerOpen((v) => !v)
+                setFilterOpen(false)
+                setSortOpen(false)
+              }}
+              disabled={!seasons}
+              aria-expanded={pickerOpen}
+              aria-haspopup="menu"
+            >
+              <span className="lb-season-dot" aria-hidden />
+              <span className="lb-season-chip-text">
+                {selectedSeason?.name ?? 'Loading…'}
+                {selectedSeason && (
+                  <> · {selectedSeason.archived_at ? 'archived' : selectedSeason.ended_at ? 'ended' : 'ongoing'}</>
+                )}
+              </span>
+              <span className="lb-caret" aria-hidden>▾</span>
+            </button>
+            {pickerOpen && seasons && (
+              <div className="lb-dropdown lb-dropdown--wide" role="menu">
+                {seasons.map((s) => {
+                  const badge = s.archived_at ? 'archived' : s.ended_at ? 'ended' : 'ongoing'
+                  const selected = s.id === selectedSeasonId
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={selected}
+                      className={`lb-dropdown-item${selected ? ' lb-dropdown-item--selected' : ''}`}
+                      onClick={() => {
+                        setSelectedSeasonId(s.id)
+                        setPickerOpen(false)
+                      }}
+                    >
+                      <span className="lb-dropdown-item-main">
+                        <span className={`lb-season-dot lb-season-dot--${badge}`} aria-hidden />
+                        {s.name}
+                      </span>
+                      <span className={`lb-sheet-badge lb-sheet-badge--${badge}`}>{badge}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
 
           <div className="lb-icon-wrap" ref={filterWrapRef}>
             <button
@@ -623,34 +659,6 @@ export function Leaderboard() {
         )}
       </div>
 
-      {pickerOpen && seasons && (
-        <div className="lb-picker-backdrop" onClick={() => setPickerOpen(false)}>
-          <div className="lb-picker-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Pick a season">
-            <div className="lb-sheet-grab" aria-hidden />
-            <h3 className="lb-sheet-title">Seasons</h3>
-            <div className="lb-sheet-list">
-              {seasons.map((s) => {
-                const badge = s.archived_at ? 'archived' : s.ended_at ? 'ended' : 'ongoing'
-                const selected = s.id === selectedSeasonId
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    className={`lb-sheet-row${selected ? ' lb-sheet-row--selected' : ''}`}
-                    onClick={() => {
-                      setSelectedSeasonId(s.id)
-                      setPickerOpen(false)
-                    }}
-                  >
-                    <span className="lb-sheet-name">{s.name}</span>
-                    <span className={`lb-sheet-badge lb-sheet-badge--${badge}`}>{badge}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   )
 }
