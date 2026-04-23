@@ -7,6 +7,7 @@ export function AdminHome() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
         <Link to="/admin/players">Players (§3.17)</Link>
         <Link to="/admin/matches">Matches (§3.18)</Link>
+        <Link to="/admin/seasons">Seasons</Link>
       </div>
     </StubPage>
   )
