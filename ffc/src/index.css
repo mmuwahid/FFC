@@ -3328,6 +3328,8 @@ textarea.auth-input {
   color: rgba(255,255,255,0.6);
   border-style: dashed;
 }
+.fp-tok--draggable { cursor: grab; user-select: none; }
+.fp-tok--draggable:active { cursor: grabbing; transform: translate(-50%, -50%) scale(1.06); }
 .fp-tok-init { line-height: 1; }
 .fp-tok-label {
   position: absolute;
@@ -3382,3 +3384,4 @@ textarea.auth-input {
 }
 .fp-footer-meta { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .fp-save-btn { width: 100%; padding: 12px; font-size: 14px; }
+.fp-reset-btn { width: 100%; padding: 10px; font-size: 13px; }

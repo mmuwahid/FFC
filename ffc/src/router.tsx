@@ -20,7 +20,7 @@ import { NotFound } from './pages/NotFound'
 import { AdminHome } from './pages/admin/AdminHome'
 import { AdminPlayers } from './pages/admin/AdminPlayers'
 import { AdminMatches } from './pages/admin/AdminMatches'
-import { FormationPlanner } from './pages/FormationPlanner'
+import { FormationPlanner } from './pages/FormationPlanner' // §3.19
 
 /* Root route dispatcher — decides where a session lands based on auth state.
  *   No session         → /login (Login is the app entry)
