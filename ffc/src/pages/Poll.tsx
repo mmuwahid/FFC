@@ -115,6 +115,7 @@ export function Poll() {
   const { profileId } = useApp()
 
   const [md, setMd] = useState<Matchday | null | 'none'>(null)   // 'none' = no matchday scheduled
+  const [matchId, setMatchId] = useState<string | null>(null)     // §3.19 Slice E — for formation link
   const [commitments, setCommitments] = useState<Commitment[] | null>(null)
   const [rosterCap, setRosterCap] = useState<number>(14)
   const [myVote, setMyVote] = useState<{ id: string; choice: 'yes' | 'no' | 'maybe'; committed_at: string; cancelled_at: string | null } | null>(null)
@@ -245,6 +246,13 @@ export function Poll() {
 
     // Team assignments (State 8) from match_players
     if (m.roster_locked_at) {
+      // §3.19 Slice E — fetch matches.id so the Formation CTA can route.
+      const { data: matchRow } = await supabase
+        .from('matches')
+        .select('id')
+        .eq('matchday_id', m.id)
+        .maybeSingle()
+      setMatchId(matchRow?.id ?? null)
       const { data: mps } = await supabase
         .from('match_players')
         .select('profile_id, guest_id, team, is_captain')
@@ -380,7 +388,9 @@ export function Poll() {
     ? confirmed.find((c) => c.profile_id === profileId)?.rank ?? waitlist.find((c) => c.profile_id === profileId)?.rank ?? null
     : null
   const myConfirmed = myRank !== null && myRank <= rosterCap
-  const myTeam = myConfirmed ? confirmed.find((c) => c.profile_id === profileId)?.team ?? null : null
+  const myCommitment = myConfirmed ? confirmed.find((c) => c.profile_id === profileId) ?? null : null
+  const myTeam = myCommitment?.team ?? null
+  const iAmCaptain = !!myCommitment?.is_captain
   const draftInProgress = draft?.status === 'in_progress'
   const teamsRevealed = !draftInProgress && confirmed.some((c) => c.team)
 
@@ -590,6 +600,16 @@ export function Poll() {
           >
             Bring a +1
             {!guestUnlocked && <span className="po-cta-hint"> (unlocks 24h before)</span>}
+          </button>
+        )}
+        {/* §3.19 Slice E — Formation CTA, State 8 only (teams revealed) */}
+        {teamsRevealed && myTeam && matchId && (
+          <button
+            type="button"
+            className="auth-btn auth-btn--approve"
+            onClick={() => navigate(`/match/${matchId}/formation`)}
+          >
+            {iAmCaptain ? '🧩 Plan formation' : '🧩 View team formation'}
           </button>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import type { Database, Json } from '../../lib/database.types'
 
@@ -150,6 +151,7 @@ function validateScoreMatchesGoals(
 // ─── Component ─────────────────────────────────────────────────
 
 export function AdminMatches() {
+  const navigate = useNavigate()
   const [seg, setSeg] = useState<Segment>('this_week')
   const [matchdays, setMatchdays] = useState<MatchdayWithMatch[]>([])
   const [loading, setLoading] = useState(true)
@@ -311,6 +313,7 @@ export function AdminMatches() {
               onEditResult={() => md.match && setSheet({ kind: 'result_edit', md, match: md.match })}
               onDraftForceComplete={() => setSheet({ kind: 'draft_force_complete', md })}
               onDraftAbandon={() => setSheet({ kind: 'draft_abandon', md })}
+              onFormation={() => md.match && navigate(`/match/${md.match.id}/formation`)}
             />
           ))}
         </ul>
@@ -462,7 +465,7 @@ export function AdminMatches() {
 // ─── Matchday card ─────────────────────────────────────────────
 
 function MatchdayCard({
-  md, onEdit, onLock, onEnterResult, onEditResult, onDraftForceComplete, onDraftAbandon,
+  md, onEdit, onLock, onEnterResult, onEditResult, onDraftForceComplete, onDraftAbandon, onFormation,
 }: {
   md: MatchdayWithMatch
   onEdit: () => void
@@ -471,6 +474,7 @@ function MatchdayCard({
   onEditResult: () => void
   onDraftForceComplete: () => void
   onDraftAbandon: () => void
+  onFormation: () => void
 }) {
   const phase = phaseLabel(md)
   const hasResult = !!md.match
@@ -538,6 +542,12 @@ function MatchdayCard({
         {hasResult && (
           <button type="button" className="auth-btn auth-btn--approve admin-md-btn" onClick={onEditResult}>
             {approved ? 'Edit result' : 'Review / approve'}
+          </button>
+        )}
+        {/* §3.19 Slice E — Formation link. Available once a match row exists. */}
+        {md.match && (
+          <button type="button" className="auth-btn auth-btn--sheet-cancel admin-md-btn" onClick={onFormation}>
+            🧩 Formation
           </button>
         )}
       </div>

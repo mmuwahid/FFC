@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 /* §3.15 Match-detail sheet — read-only overlay (Phase 1 Depth-B slice, S024).
@@ -79,6 +80,7 @@ function formatTime(iso: string): string {
 }
 
 export function MatchDetailSheet({ matchId, profileId, onClose }: Props) {
+  const navigate = useNavigate()
   const [main, setMain] = useState<MatchMain | null>(null)
   const [roster, setRoster] = useState<RosterRow[]>([])
   const [matchdayNumber, setMatchdayNumber] = useState<number | null>(null)
@@ -249,6 +251,17 @@ export function MatchDetailSheet({ matchId, profileId, onClose }: Props) {
                 </div>
               </div>
             )}
+
+            {/* §3.19 Slice E — Formation link. Navigates to /match/:id/formation. */}
+            <div className="md-actions">
+              <button
+                type="button"
+                className="md-action-btn"
+                onClick={() => { onClose(); navigate(`/match/${main.id}/formation`) }}
+              >
+                🧩 View formation
+              </button>
+            </div>
           </>
         )}
       </div>
