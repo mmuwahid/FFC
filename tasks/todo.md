@@ -1,38 +1,56 @@
 # FFC Todo
 
-## NEXT SESSION — S024
+## NEXT SESSION — S025
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: `7745a05` (S023 close, 11 commits since S022).
+- Expected tip: S024 close commit (post-`c8cb463`). 5 code commits shipped in S024.
 
-**S024 agenda:**
+**S025 agenda:**
 
-1. **Acceptance testing** — user to verify all S023 work on production:
-   - `/leaderboard` → row tap → `/profile?profile_id=&season_id=` — correct profile + season pre-selected
-   - Self-view: edit pencil → sheet (positions save, theme switches `<html>` class, sort saves)
-   - Other-view: no pencil, no edit link; Admin-view: footer "Edit in Admin → Players" link
-   - Season picker: switch seasons → stats card updates; rank hint in header
-   - Last-5 strip: scoped to selected season; hidden when 0 results
-   - Achievements card: 6 tiles; career-starter CTA for 0-match profiles
-   - Recent matches: newest-first, correct W/D/L badges, goals/MOTM/cards line
-   - `/settings` → "League Rules" row → `/settings/rules` → 4 cards (Scoring, Late cancel, No-show, Friendly games); back works
-   - **Cross-session sync check** — Rules screen was built in two parallel sessions; verify the `lr-*` CSS and content are fully in sync (no duplicate CSS blocks, no stale inline styles in `Rules.tsx`, router has only one `/settings/rules` route)
+1. **Dedicated acceptance pass on S024 output** — user explicitly requested a testing-focused session. Screens to verify on https://ffc-gilt.vercel.app:
+   - **§3.16 Settings** (full replacement of previous stub):
+     - Row 1 Theme: tap each of Light / Dark / System; `<html>` class swaps and saves to `profiles.theme_preference`
+     - Row 2 Push notifications: master pill toggles; 6 child pills save individually; master OFF greys children but preserves values (tap master ON restores prior selection); first toggle-ON while permission=default fires browser `requestPermission()`; legacy `position_changed` key stripped on write
+     - State tiles: permission-default prompt (Enable / Not now — dismissible for session); permission-denied fallback (persistent, master forced OFF)
+     - Row 3 Leaderboard sort: tap each chip (Points / W / Goals / MOTM); saves
+     - Row 4 Positions: primary + secondary dropdowns; secondary auto-clears when equals new primary
+     - Row 5 Display name: input accepts 2-30 chars; Save button disabled while equal or invalid; try to save a name matching another profile (case-insensitive) → field shakes + inline "That name's taken" error
+     - Row 6 Account: email read-only; Sign out button signs out + redirects to /login; Delete account surfaces "coming soon" toast
+     - Bottom "League Rules" row still routes to `/settings/rules`
+   - **§3.20 Matches**: `/matches` tab visible in bottom nav (5th / 6th for admin); season picker dropdown opens + closes; list renders 1 row right now (`16/APR/2026 · Matchday 1 · WHITE 3–1 BLACK · ⭐ Mohammed Muwahid · ›`); tap row opens sheet
+   - **§3.15 Match Detail sheet**: scoreline `WHITE 3 – 1 BLACK`; WHITE + BLACK rosters with `(C)` captain markers + position pills + inline stats (⚽2⭐🟨 for Mohammed, 🟨🟥 for Test Player); MOTM banner `⭐ MOTM · Mohammed Muwahid · WHITE`; **W/D/L chip PRESENT** when opened via Profile Recent Matches (green W for Mohammed, red L for Test Player), **W/D/L chip ABSENT** when opened via Matches list; dismiss via scrim tap, grabber tap, or Esc key; safe-area clearance on iPhone home indicator
+   - **Rules screen** expanded: 6 cards render (Scoring horizontal · Dropping out 5-row · Kick-off · Cards · Awards · Friendly games); card headers centered; penalty column headers right-aligned with values below
+   - **AdminPlayers Active tab**: rows show position pills (primary filled + secondary outlined); amber `inactive` chip if `is_active=false`
+   - **AdminPlayers Rejected tab**: rejection reason shown inline below name (italic muted); rejected chip on right
 
-2. **§3.15 Match Detail** — next per masterplan §17 order; stub currently at `/match/:id`. Spec at `docs/superpowers/specs/2026-04-17-ffc-phase1-design.md` §3.15. Recent matches rows already tap to `/match/<id>`.
+2. **§3.17 full admin edit/ban flow** — assuming acceptance passes:
+   - **Migration 0016** — 3 RPCs (all `SECURITY DEFINER`, all calling `log_admin_action` into `admin_audit_log`):
+     - `update_player_profile(p_profile_id, p_display_name, p_primary_position, p_secondary_position, p_is_active, p_role)` — whitelist fields; CHECK positions differ; super_admin-only can elevate role to admin
+     - `ban_player(p_profile_id, p_reason, p_ends_at)` — inserts `player_bans` row; sets `profiles.is_active=false`
+     - `unban_player(p_profile_id)` — sets `player_bans.revoked_at = now()` for active ban; sets `profiles.is_active=true`
+   - **Active tab edit sheet** — tap row opens sheet with: display name input + Save; primary/secondary position dropdowns; is_active pill; "Ban player" action (reason textarea + end-date picker); super_admin-only: elevate to admin chip
+   - **Rejected tab reinstate** — "Reinstate" button calls `update_player_profile` flipping role rejected→player, clearing `reject_reason`
 
-3. **Deferred from S023 (friendly game system — app layer not wired):**
-   - Auto-flag write on guest add (§3.5 +1 slot flow): when guest count crosses threshold, write `friendly_flagged_at = now()` to matchday. Data model ready (migration 0013).
-   - No-show toggle on admin result entry (AdminMatches §3.18 per-row toggle). Data model ready.
-   - `v_season_standings` already excludes `is_friendly` matchdays (migration 0013 live).
+3. **§3.18 full AdminMatches CRUD** (if scope allows; otherwise queue for S026) — 7 phases per spec §3.18:
+   - Phase 1: Create matchday (format chip 7v7/5v5 · venue · kickoff_at · poll window)
+   - Phase 2: Open / close poll window manually
+   - Phase 3: Roster lock
+   - Phase 4: Result entry (score_white/score_black + per-player goals + yellows/reds + no-show toggles + late-cancel penalty)
+   - Phase 5: MOTM pick (member or guest)
+   - Phase 6: Approve result (writes `approved_at`, surfaces on `/matches`)
+   - Phase 7: Edit approved result (uses `edit_match_result` RPC — already in spec §2.6)
 
-4. **Backburner (unchanged):**
-   - Poll Depth-B (§3.7) — multi-session; needs §3.18 admin-create-matchday tooling first
-   - Leaderboard realtime + pull-to-refresh + skeleton (Depth-B gate)
-   - Vector FFC crest SVG (when user exports from Illustrator/Figma)
-   - Palette re-align (red+navy → khaki-gold + cream)
+4. **Deferred (unchanged):**
+   - §3.5 +1 guest slot — auto-flag write on guest add when threshold crossed (data model ready). Blocked on Poll screen guest-add flow.
+   - §3.7 Poll Depth-B — multi-session; needs §3.18 admin-create-matchday tooling first.
+   - Leaderboard realtime + pull-to-refresh + skeleton (Depth-B gate).
 
-**Known gotchas (unchanged):**
+5. **Backburner (unchanged):**
+   - Vector FFC crest SVG (blocked on user export from Illustrator/Figma).
+   - Palette re-align (red+navy → khaki-gold + cream).
+
+**Known gotchas (unchanged + additions from S024):**
 - **Session-start sync protocol** mandatory on cross-PC resume.
 - **`ffc/vercel.json` SPA rewrite is load-bearing.**
 - **Supabase email validator** rejects `example.com`. Use `m.muwahid+s###<role>@gmail.com`.
@@ -42,6 +60,27 @@
 - **Terminal roles** auto-signOut in AppContext.
 - **CLAUDE.md truncates UUIDs** — query `profiles` first when seeding SQL.
 - **PWA service worker caches previous bundle** — hard refresh (Ctrl+Shift+R) after deploy if UI looks stale.
+- **NEW (S024): Mockup preview server rooted at `mockups/`** — URL is `http://localhost:5173/3-XX-xxx.html` (NOT `/mockups/3-XX-xxx.html`).
+- **NEW (S024): Schema drift discovery pattern** — always query `information_schema.columns` BEFORE writing PostgREST embeds. This session caught: `matchdays.venue` (not `venue_label`), no `matchday_number` column (compute client-side), no `late_cancel_*` columns on `match_players`.
+- **NEW (S024): Position enum is UPPERCASE** (`GK`/`DEF`/`CDM`/`W`/`ST`) — TS will catch lowercase.
+- **NEW (S024): Leaderboard sort enum is `motm` not `motms`** — singular. TS will catch this too.
+
+---
+
+## Completed in S024 (23/APR/2026, Work PC)
+
+- [x] S023 acceptance A1–A9 all PASSED end-to-end on prod
+- [x] Rules expansion: Scoring restructured + "Dropping out" 5-tier table + NEW Kick-off/Cards/Awards cards + alignment polish (`0c027df`, `840b572`)
+- [x] Mockup `mockups/3-20-matches.html` for §3.20 Matches
+- [x] §3.20 Matches.tsx + `/matches` route + Matches nav tab
+- [x] §3.15 MatchDetailSheet.tsx portal-rendered overlay (with optional W/D/L chip via `profileId` prop)
+- [x] Profile.tsx Recent Matches refactored to use shared sheet
+- [x] `e1e9d19` feat(matches): §3.20 Matches list + §3.15 Match Detail sheet
+- [x] Migration 0015: `profiles.push_prefs jsonb NOT NULL DEFAULT` applied to live DB
+- [x] TypeScript types regen (`push_prefs` present)
+- [x] §3.16 Settings full — 6 rows + state tiles + `.st-*` CSS expanded (`590fcc0`)
+- [x] AdminPlayers Active + Rejected enrichment (position pills + inactive chip + reject_reason) (`c8cb463`)
+- [x] Session log · INDEX.md · todo.md · CLAUDE.md close-out
 
 ---
 
