@@ -35,9 +35,20 @@ type ProfileLite = {
 }
 type MatchPlayerRow = Database['public']['Tables']['match_players']['Row']
 
+interface DraftInfo {
+  id: string
+  status: 'in_progress' | 'completed' | 'abandoned'
+  current_picker_team: Database['public']['Enums']['team_color'] | null
+  reason: Database['public']['Enums']['draft_reason'] | null
+  started_at: string
+  pick_count: number
+  captain_name: string | null
+}
+
 interface MatchdayWithMatch extends MatchdayRow {
   match?: MatchRow | null
   effective_format: MatchFormat
+  draft?: DraftInfo | null
 }
 
 type Segment = 'this_week' | 'upcoming' | 'past'
@@ -81,6 +92,7 @@ function bucketize(md: MatchdayWithMatch): Segment {
 function phaseLabel(md: MatchdayWithMatch): { text: string; tone: 'muted' | 'warn' | 'accent' | 'success' } {
   if (md.match?.approved_at) return { text: 'Final', tone: 'success' }
   if (md.match) return { text: 'Result pending approval', tone: 'warn' }
+  if (md.draft?.status === 'in_progress') return { text: 'Phase 5.5 · Draft in progress', tone: 'warn' }
   if (md.roster_locked_at) return { text: 'Roster locked · enter result', tone: 'accent' }
   const now = Date.now()
   const ko = new Date(md.kickoff_at).getTime()
@@ -88,6 +100,15 @@ function phaseLabel(md: MatchdayWithMatch): { text: string; tone: 'muted' | 'war
   if (new Date(md.poll_closes_at).getTime() < now) return { text: 'Poll closed · lock roster', tone: 'warn' }
   if (new Date(md.poll_opens_at).getTime() < now) return { text: 'Poll open', tone: 'accent' }
   return { text: 'Scheduled', tone: 'muted' }
+}
+
+function formatDraftElapsed(startedAt: string): string {
+  const ms = Date.now() - new Date(startedAt).getTime()
+  const mins = Math.max(0, Math.floor(ms / 60000))
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  const rem = mins % 60
+  return `${hrs}h ${rem}m ago`
 }
 
 // ─── Component ─────────────────────────────────────────────────
@@ -105,16 +126,45 @@ export function AdminMatches() {
   const loadAll = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const [mdRes, matchesRes, seasonsRes] = await Promise.all([
+    const [mdRes, matchesRes, seasonsRes, draftsRes] = await Promise.all([
       supabase.from('matchdays').select('*').order('kickoff_at', { ascending: false }).limit(60),
       supabase.from('matches').select('id, matchday_id, score_white, score_black, result, motm_user_id, motm_guest_id, approved_at, notes'),
       supabase.from('seasons').select('id, default_format, ended_at').is('ended_at', null).order('starts_on', { ascending: false }).limit(1),
+      supabase.from('draft_sessions').select('id, matchday_id, status, current_picker_team, reason, started_at, triggered_by_profile_id').in('status', ['in_progress']),
     ])
     if (mdRes.error) setError(mdRes.error.message)
     if (matchesRes.error) setError(matchesRes.error.message)
 
     const matchByMd = new Map<string, MatchRow>()
     for (const m of (matchesRes.data ?? []) as MatchRow[]) matchByMd.set(m.matchday_id, m)
+
+    // Draft info per matchday (in-progress only)
+    const draftByMd = new Map<string, DraftInfo>()
+    const draftIds = (draftsRes.data ?? []).map((d) => d.id)
+    const pickCountByDraft = new Map<string, number>()
+    if (draftIds.length > 0) {
+      const picksRes = await supabase.from('draft_picks').select('draft_session_id').in('draft_session_id', draftIds)
+      for (const p of picksRes.data ?? []) {
+        pickCountByDraft.set(p.draft_session_id, (pickCountByDraft.get(p.draft_session_id) ?? 0) + 1)
+      }
+    }
+    const triggererIds = (draftsRes.data ?? []).map((d) => d.triggered_by_profile_id).filter((x): x is string => !!x)
+    const triggererMap = new Map<string, string>()
+    if (triggererIds.length > 0) {
+      const profRes = await supabase.from('profiles').select('id, display_name').in('id', triggererIds)
+      for (const p of profRes.data ?? []) triggererMap.set(p.id, p.display_name)
+    }
+    for (const d of draftsRes.data ?? []) {
+      draftByMd.set(d.matchday_id, {
+        id: d.id,
+        status: d.status as 'in_progress',
+        current_picker_team: d.current_picker_team,
+        reason: d.reason,
+        started_at: d.started_at,
+        pick_count: pickCountByDraft.get(d.id) ?? 0,
+        captain_name: d.triggered_by_profile_id ? (triggererMap.get(d.triggered_by_profile_id) ?? null) : null,
+      })
+    }
 
     const season = seasonsRes.data?.[0]
     if (season) {
@@ -126,6 +176,7 @@ export function AdminMatches() {
       ...md,
       match: matchByMd.get(md.id) ?? null,
       effective_format: md.format ?? (season?.default_format as MatchFormat) ?? '7v7',
+      draft: draftByMd.get(md.id) ?? null,
     }))
     setMatchdays(enriched)
     setLoading(false)
@@ -374,6 +425,10 @@ function MatchdayCard({
         {locked && <span className="admin-md-lock"> · 🔒 locked {dateLabel(md.roster_locked_at!)}</span>}
       </div>
 
+      {md.draft?.status === 'in_progress' && (
+        <DraftInProgressCard draft={md.draft} effectiveFormat={md.effective_format} />
+      )}
+
       <div className="admin-md-actions">
         {!hasResult && !approved && (
           <>
@@ -404,6 +459,62 @@ function resultLabel(r: MatchResult): string {
   if (r === 'win_white') return 'W wins'
   if (r === 'win_black') return 'B wins'
   return 'Draw'
+}
+
+// ─── Phase 5.5 · Draft in progress (S026) ─────────────────────────
+function DraftInProgressCard({ draft, effectiveFormat }: { draft: DraftInfo; effectiveFormat: MatchFormat }) {
+  const cap = effectiveFormat === '5v5' ? 10 : 14
+  const stuckThresholdHours = 6
+  const elapsedHours = (Date.now() - new Date(draft.started_at).getTime()) / (1000 * 60 * 60)
+  const stuck = elapsedHours > stuckThresholdHours
+  const pickerLabel =
+    draft.current_picker_team === 'white' ? '⚪ WHITE picking'
+    : draft.current_picker_team === 'black' ? '⚫ BLACK picking'
+    : '— awaiting first pick —'
+
+  return (
+    <div className="admin-draft-card">
+      <div className="admin-draft-head">
+        <span className="admin-draft-dot" aria-hidden />
+        <span className="admin-draft-title">Draft in progress</span>
+        <span className="admin-draft-elapsed">{formatDraftElapsed(draft.started_at)}</span>
+      </div>
+      <div className="admin-draft-meta">
+        Pick {draft.pick_count} of {cap} · {pickerLabel}
+        {draft.captain_name && <> · started by {draft.captain_name}</>}
+      </div>
+      {draft.reason === 'reroll_after_dropout' && (
+        <div className="admin-draft-reroll">
+          ⚠ Reroll in progress after dropout
+        </div>
+      )}
+      {stuck && (
+        <div className="admin-draft-override">
+          <div className="admin-draft-override-hint">
+            Draft has been open {Math.floor(elapsedHours)}h — override if stuck:
+          </div>
+          <div className="admin-draft-override-actions">
+            <button
+              type="button"
+              className="auth-btn auth-btn--sheet-cancel admin-md-btn"
+              disabled
+              title="Phase 2 — admin_draft_force_complete RPC not yet wired"
+            >
+              Force complete
+            </button>
+            <button
+              type="button"
+              className="auth-btn auth-btn--reject admin-md-btn"
+              disabled
+              title="Phase 2 — admin_draft_abandon RPC not yet wired"
+            >
+              Abandon draft
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ─── Sheets ────────────────────────────────────────────────────
@@ -757,10 +868,18 @@ function ResultEntrySheet({
   )
 }
 
-// ─── Result edit (already-approved match: score/MOTM/notes only) ───
-// Per-player stat edits post-approval are a Phase 2 scope item and require
-// a dedicated edit_match_players RPC. Phase 1 admin surface only lets the
-// admin correct score, result, MOTM, and notes via edit_match_result.
+// ─── Result edit (already-approved match) ───
+// Score/MOTM/notes via edit_match_result. Per-player stat corrections via
+// edit_match_players (S026 · Phase 2 seed — admin-only, audited whitelist of
+// goals/yellow_cards/red_cards/is_no_show/is_captain/team).
+
+type PlayerPatch = {
+  goals?: number
+  yellow_cards?: number
+  red_cards?: number
+  is_no_show?: boolean
+  is_captain?: boolean
+}
 
 function ResultEditSheet({
   md, match, busy, setBusy, onDone, onError, onCancel,
@@ -771,6 +890,9 @@ function ResultEditSheet({
   const [notes, setNotes] = useState(match.notes ?? '')
   const [players, setPlayers] = useState<(MatchPlayerRow & { display_name: string })[]>([])
   const [loading, setLoading] = useState(true)
+  const [editStats, setEditStats] = useState(false)
+  // mp.id → local patch (only diffs vs persisted row)
+  const [patches, setPatches] = useState<Record<string, PlayerPatch>>({})
 
   useEffect(() => {
     let cancelled = false
@@ -802,9 +924,13 @@ function ResultEditSheet({
     return () => { cancelled = true }
   }, [match.id])
 
+  const patchRow = (mpId: string, patch: Partial<PlayerPatch>) => {
+    setPatches((prev) => ({ ...prev, [mpId]: { ...(prev[mpId] ?? {}), ...patch } }))
+  }
+
   const submit = async () => {
     if (!match.approved_at) {
-      onError('Not-yet-approved matches must be approved via admin_submit_match_result; per-player edits pre-approval aren\'t exposed yet.')
+      onError('Not-yet-approved matches must be approved via admin_submit_match_result.')
       return
     }
     setBusy(true)
@@ -815,25 +941,62 @@ function ResultEditSheet({
       motm_user_id: motm || '',
       notes: notes.trim() || '',
     }
-    const { error } = await supabase.rpc('edit_match_result', { p_match_id: match.id, p_edits: edits as unknown as Json })
+    const editRes = await supabase.rpc('edit_match_result', { p_match_id: match.id, p_edits: edits as unknown as Json })
+    if (editRes.error) { setBusy(false); onError(editRes.error.message); return }
+
+    // If any per-player patches, call edit_match_players
+    const entries = Object.entries(patches)
+    if (entries.length > 0) {
+      const payload: Record<string, unknown>[] = entries.map(([mpId, patch]) => {
+        const row = players.find((p) => p.id === mpId)
+        if (!row) return { profile_id: null }
+        return {
+          profile_id: row.profile_id,
+          guest_id: row.guest_id,
+          ...(patch.goals !== undefined ? { goals: patch.goals } : {}),
+          ...(patch.yellow_cards !== undefined ? { yellow_cards: patch.yellow_cards } : {}),
+          ...(patch.red_cards !== undefined ? { red_cards: patch.red_cards } : {}),
+          ...(patch.is_no_show !== undefined ? { is_no_show: patch.is_no_show } : {}),
+          ...(patch.is_captain !== undefined ? { is_captain: patch.is_captain } : {}),
+        }
+      })
+      const mpRes = await supabase.rpc('edit_match_players', { p_match_id: match.id, p_players: payload as unknown as Json })
+      if (mpRes.error) { setBusy(false); onError(mpRes.error.message); return }
+    }
+
     setBusy(false)
-    if (error) { onError(error.message); return }
     await onDone()
   }
 
   if (loading) return <div className="app-loading" style={{ padding: 32 }}>Loading…</div>
 
-  // Only players with events: scored, carded, no-show, captain, or MOTM.
+  const effective = (p: MatchPlayerRow & { display_name: string }): MatchPlayerRow & { display_name: string } => {
+    const pa = patches[p.id]
+    if (!pa) return p
+    return {
+      ...p,
+      goals:         pa.goals         ?? p.goals,
+      yellow_cards:  pa.yellow_cards  ?? p.yellow_cards,
+      red_cards:     pa.red_cards     ?? p.red_cards,
+      is_no_show:    pa.is_no_show    ?? p.is_no_show,
+      is_captain:    pa.is_captain    ?? p.is_captain,
+    }
+  }
+
+  // In edit mode: show ALL rostered players. In view mode: events-only.
   const hasEvent = (p: MatchPlayerRow): boolean =>
     (p.goals ?? 0) > 0 || (p.yellow_cards ?? 0) > 0 || (p.red_cards ?? 0) > 0 ||
     !!p.is_no_show || !!p.is_captain || p.profile_id === match.motm_user_id || p.guest_id === match.motm_guest_id
-  const whiteEvents = players.filter((p) => p.team === 'white' && hasEvent(p))
-  const blackEvents = players.filter((p) => p.team === 'black' && hasEvent(p))
+  const whiteRows = players.filter((p) => p.team === 'white').map(effective)
+  const blackRows = players.filter((p) => p.team === 'black').map(effective)
+  const whiteVisible = editStats ? whiteRows : whiteRows.filter(hasEvent)
+  const blackVisible = editStats ? blackRows : blackRows.filter(hasEvent)
+
+  const dirtyCount = Object.keys(patches).length
 
   return (
     <>
       <h3>Edit result — {dowLabel(md.kickoff_at)} · {dateLabel(md.kickoff_at)}</h3>
-      <p className="sheet-sub">Score / MOTM / notes only. Per-player stat corrections are a Phase 2 item.</p>
 
       <div className="admin-score-row">
         <label className="admin-score-field"><span>⚪ WHITE</span>
@@ -845,9 +1008,34 @@ function ResultEditSheet({
         </label>
       </div>
 
+      <div className="admin-mp-header">
+        <button
+          type="button"
+          className={`admin-chip ${editStats ? 'admin-chip--on' : 'admin-chip--off'}`}
+          onClick={() => setEditStats((v) => !v)}
+        >
+          {editStats ? '✎ Editing stats' : '✎ Edit player stats'}
+        </button>
+        {dirtyCount > 0 && <span className="admin-mp-dirty">{dirtyCount} pending change{dirtyCount === 1 ? '' : 's'}</span>}
+      </div>
+
       <div className="admin-team-grid">
-        <RosterColumn title="⚪ WHITE" rows={whiteEvents} motmProfileId={match.motm_user_id} motmGuestId={match.motm_guest_id} />
-        <RosterColumn title="BLACK ⚫" rows={blackEvents} motmProfileId={match.motm_user_id} motmGuestId={match.motm_guest_id} />
+        <RosterColumn
+          title="⚪ WHITE"
+          rows={whiteVisible}
+          motmProfileId={match.motm_user_id}
+          motmGuestId={match.motm_guest_id}
+          editing={editStats}
+          onPatch={patchRow}
+        />
+        <RosterColumn
+          title="BLACK ⚫"
+          rows={blackVisible}
+          motmProfileId={match.motm_user_id}
+          motmGuestId={match.motm_guest_id}
+          editing={editStats}
+          onPatch={patchRow}
+        />
       </div>
 
       <label className="admin-field">
@@ -876,36 +1064,99 @@ function ResultEditSheet({
 }
 
 function RosterColumn({
-  title, rows, motmProfileId, motmGuestId,
+  title, rows, motmProfileId, motmGuestId, editing, onPatch,
 }: {
   title: string
   rows: (MatchPlayerRow & { display_name: string })[]
   motmProfileId: string | null
   motmGuestId: string | null
+  editing: boolean
+  onPatch: (mpId: string, patch: Partial<PlayerPatch>) => void
 }) {
   return (
     <div className="admin-team-col">
       <h5 className="admin-team-col-title">{title}</h5>
       {rows.length === 0 ? (
-        <p className="admin-team-col-empty">No events</p>
+        <p className="admin-team-col-empty">{editing ? 'No players' : 'No events'}</p>
       ) : (
         <ul className="admin-team-col-list">
           {rows.map((p) => {
             const isMotm = (p.profile_id && p.profile_id === motmProfileId) ||
                            (p.guest_id && p.guest_id === motmGuestId)
+            if (!editing) {
+              return (
+                <li key={p.id} className="admin-team-col-row">
+                  <span className="admin-team-col-name">
+                    {p.is_captain && <span className="admin-team-c">(C)</span>}
+                    {p.display_name}
+                    {isMotm && <span className="admin-team-motm">⭐</span>}
+                  </span>
+                  <span className="admin-team-col-stats">
+                    {(p.goals ?? 0) > 0 && <span>⚽ {p.goals}</span>}
+                    {(p.yellow_cards ?? 0) > 0 && <span className="c-yel">🟨{(p.yellow_cards ?? 0) > 1 ? ` ${p.yellow_cards}` : ''}</span>}
+                    {(p.red_cards ?? 0) > 0 && <span className="c-red">🟥</span>}
+                    {p.is_no_show && <span className="admin-chip admin-chip--on admin-chip--sm">NS</span>}
+                  </span>
+                </li>
+              )
+            }
             return (
-              <li key={p.id} className="admin-team-col-row">
+              <li key={p.id} className="admin-team-col-row admin-team-col-row--edit">
                 <span className="admin-team-col-name">
                   {p.is_captain && <span className="admin-team-c">(C)</span>}
                   {p.display_name}
                   {isMotm && <span className="admin-team-motm">⭐</span>}
                 </span>
-                <span className="admin-team-col-stats">
-                  {(p.goals ?? 0) > 0 && <span>⚽ {p.goals}</span>}
-                  {(p.yellow_cards ?? 0) > 0 && <span className="c-yel">🟨{(p.yellow_cards ?? 0) > 1 ? ` ${p.yellow_cards}` : ''}</span>}
-                  {(p.red_cards ?? 0) > 0 && <span className="c-red">🟥</span>}
-                  {p.is_no_show && <span className="admin-chip admin-chip--on admin-chip--sm">NS</span>}
-                </span>
+                <div className="admin-mp-edit">
+                  <label className="admin-mp-edit-field">
+                    <span>⚽</span>
+                    <input
+                      type="number"
+                      min={0}
+                      className="admin-mp-edit-num"
+                      value={p.goals ?? 0}
+                      onChange={(e) => onPatch(p.id, { goals: Math.max(0, Number(e.target.value) || 0) })}
+                    />
+                  </label>
+                  <label className="admin-mp-edit-field">
+                    <span className="c-yel">🟨</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={2}
+                      className="admin-mp-edit-num"
+                      value={p.yellow_cards ?? 0}
+                      onChange={(e) => onPatch(p.id, { yellow_cards: Math.max(0, Math.min(2, Number(e.target.value) || 0)) })}
+                    />
+                  </label>
+                  <label className="admin-mp-edit-field">
+                    <span className="c-red">🟥</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={1}
+                      className="admin-mp-edit-num"
+                      value={p.red_cards ?? 0}
+                      onChange={(e) => onPatch(p.id, { red_cards: Math.max(0, Math.min(1, Number(e.target.value) || 0)) })}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className={`admin-chip admin-chip--sm ${p.is_captain ? 'admin-chip--on' : 'admin-chip--off'}`}
+                    onClick={() => onPatch(p.id, { is_captain: !p.is_captain })}
+                    title="Toggle captain"
+                  >
+                    (C)
+                  </button>
+                  <button
+                    type="button"
+                    className={`admin-chip admin-chip--sm ${p.is_no_show ? 'admin-chip--on' : 'admin-chip--off'}`}
+                    onClick={() => onPatch(p.id, { is_no_show: !p.is_no_show })}
+                    title="Toggle no-show"
+                  >
+                    NS
+                  </button>
+                </div>
               </li>
             )
           })}

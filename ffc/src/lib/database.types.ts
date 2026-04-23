@@ -1438,6 +1438,10 @@ export type Database = {
         Args: { p_ends_at: string; p_profile_id: string; p_reason: string }
         Returns: string
       }
+      cast_poll_vote: {
+        Args: { p_choice: string; p_matchday_id: string }
+        Returns: Json
+      }
       confirm_friendly_matchday: {
         Args: { p_matchday_id: string }
         Returns: undefined
@@ -1473,6 +1477,10 @@ export type Database = {
         Args: { p_matchday_id: string }
         Returns: undefined
       }
+      edit_match_players: {
+        Args: { p_match_id: string; p_players: Json }
+        Returns: Json
+      }
       edit_match_result: {
         Args: { p_edits: Json; p_match_id: string }
         Returns: {
@@ -1506,6 +1514,19 @@ export type Database = {
       fire_scheduled_reminder: {
         Args: { p_reminder_id: string }
         Returns: undefined
+      }
+      invite_guest: {
+        Args: {
+          p_accuracy: Database["public"]["Enums"]["guest_trait"]
+          p_description: string
+          p_display_name: string
+          p_matchday_id: string
+          p_primary_position: Database["public"]["Enums"]["player_position"]
+          p_rating: Database["public"]["Enums"]["guest_rating"]
+          p_secondary_position: Database["public"]["Enums"]["player_position"]
+          p_stamina: Database["public"]["Enums"]["guest_trait"]
+        }
+        Returns: Json
       }
       is_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }

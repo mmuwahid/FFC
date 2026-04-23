@@ -1,16 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../lib/AppContext'
 import type { Database } from '../lib/database.types'
 
-/* §3.13 Leaderboard — Phase 1 Depth-B slice (S022).
+/* §3.13 Leaderboard — Phase 1 Depth-B slice (S022) + Depth-B gate (S026).
  * Data: v_season_standings + profiles (FK embed) + seasons for the picker.
  * Scope: ranked list, Not-yet-played group, season picker, position filter,
  * sort dropdown with profiles.leaderboard_sort persistence, medal icons for
- * top 3 in current season only. Last-5 strip / pull-to-refresh / realtime
- * are Phase 1 polish deferred past this slice (spec's Phase-2-adjacent items).
- */
+ * top 3 in current season only, last-5 strip, realtime subscription on
+ * matches UPDATE, pull-to-refresh, skeleton rows. */
+
+const SKELETON_ROWS = 6
+const PTR_THRESHOLD = 70
 
 type PlayerPosition = Database['public']['Enums']['player_position']
 type SortKey = Database['public']['Enums']['leaderboard_sort']
@@ -195,10 +197,15 @@ export function Leaderboard() {
   const [filterOpen, setFilterOpen] = useState(false)
   const [sortOpen, setSortOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [ptrY, setPtrY] = useState(0) // translation for the pull-to-refresh indicator
+  const [ptrArmed, setPtrArmed] = useState(false)
 
   const seasonWrapRef = useRef<HTMLDivElement>(null)
   const filterWrapRef = useRef<HTMLDivElement>(null)
   const sortWrapRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const ptrStartY = useRef<number | null>(null)
 
   /* Close any open popover on outside click. One global listener; cost is trivial. */
   useEffect(() => {
@@ -260,55 +267,65 @@ export function Leaderboard() {
     }
   }, [profileId])
 
-  /* Standings + profiles for the selected season. Standings uses PostgREST's
-   * embedded-select to pull position + avatar in one round-trip. Profiles
-   * loads separately because the Not-yet-played group needs rows NOT in
-   * standings. */
-  useEffect(() => {
-    if (!selectedSeasonId) return
-    let cancelled = false
-    setStandings(null)
-    setProfiles(null)
-    setLast5ByProfile(new Map())
-    setError(null)
+  /* Standings loader. Exposed as a callback so realtime + pull-to-refresh
+   * can re-trigger without duplicating the query logic. `mode` drives which
+   * UI flag advertises the fetch: 'initial' clears cached data + shows the
+   * skeleton; 'refresh' keeps old data visible + shows the PTR spinner. */
+  const loadSeason = useCallback(
+    async (seasonId: string, mode: 'initial' | 'refresh' = 'initial') => {
+      if (mode === 'initial') {
+        setStandings(null)
+        setProfiles(null)
+        setLast5ByProfile(new Map())
+      } else {
+        setRefreshing(true)
+      }
+      setError(null)
 
-    const standingsP = supabase
-      .from('v_season_standings')
-      .select(
-        'profile_id, display_name, wins, draws, losses, goals, yellows, reds, motms, late_cancel_points, no_show_points, points, profile:profiles!inner(primary_position, secondary_position, avatar_url, role, is_active)',
-      )
-      .eq('season_id', selectedSeasonId)
+      const startedAt = performance.now()
 
-    const profilesP = supabase
-      .from('profiles')
-      .select('id, display_name, primary_position, secondary_position, avatar_url, role, is_active')
-      .in('role', ['player', 'admin', 'super_admin'])
-      .eq('is_active', true)
+      const standingsP = supabase
+        .from('v_season_standings')
+        .select(
+          'profile_id, display_name, wins, draws, losses, goals, yellows, reds, motms, late_cancel_points, no_show_points, points, profile:profiles!inner(primary_position, secondary_position, avatar_url, role, is_active)',
+        )
+        .eq('season_id', seasonId)
 
-    /* v_player_last5 already limits to 5 most recent per (season, profile) via
-     * window function. Kickoff-desc means the first row is most recent — we
-     * want that slot last so the strip reads oldest→newest left-to-right per
-     * §3.2 convention. */
-    const last5P = supabase
-      .from('v_player_last5')
-      .select('profile_id, outcome, kickoff_at')
-      .eq('season_id', selectedSeasonId)
-      .order('kickoff_at', { ascending: true })
+      const profilesP = supabase
+        .from('profiles')
+        .select('id, display_name, primary_position, secondary_position, avatar_url, role, is_active')
+        .in('role', ['player', 'admin', 'super_admin'])
+        .eq('is_active', true)
 
-    Promise.all([standingsP, profilesP, last5P]).then(([s, p, l]) => {
-      if (cancelled) return
+      const last5P = supabase
+        .from('v_player_last5')
+        .select('profile_id, outcome, kickoff_at')
+        .eq('season_id', seasonId)
+        .order('kickoff_at', { ascending: true })
+
+      const [s, p, l] = await Promise.all([standingsP, profilesP, last5P])
+
       if (s.error) {
         setError(s.error.message)
+        setRefreshing(false)
         return
       }
       if (p.error) {
         setError(p.error.message)
+        setRefreshing(false)
         return
       }
       if (l.error) {
-        // Non-fatal — main page still renders without the strip.
         console.warn('[FFC] v_player_last5 fetch failed', l.error.message)
       }
+
+      // Skeleton minimum hold so we don't flash on fast networks.
+      if (mode === 'initial') {
+        const elapsed = performance.now() - startedAt
+        const hold = Math.max(0, 150 - elapsed)
+        if (hold > 0) await new Promise((r) => setTimeout(r, hold))
+      }
+
       setStandings((s.data ?? []) as unknown as StandingEmbed[])
       setProfiles((p.data ?? []) as ProfileLite[])
 
@@ -322,12 +339,43 @@ export function Leaderboard() {
         m.set(row.profile_id, arr)
       }
       setLast5ByProfile(m)
-    })
+      setRefreshing(false)
+    },
+    [],
+  )
 
+  /* Initial + season-switch load. */
+  useEffect(() => {
+    if (!selectedSeasonId) return
+    void loadSeason(selectedSeasonId, 'initial')
+  }, [selectedSeasonId, loadSeason])
+
+  /* Realtime subscription — any change to a match / match_players row in this
+   * season refreshes the standings in place. Supabase broadcast latency for a
+   * free-tier project is typically <2s. One channel per season-switch. */
+  useEffect(() => {
+    if (!selectedSeasonId) return
+    const channel = supabase
+      .channel(`lb-season-${selectedSeasonId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'matches' },
+        () => {
+          void loadSeason(selectedSeasonId, 'refresh')
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'match_players' },
+        () => {
+          void loadSeason(selectedSeasonId, 'refresh')
+        },
+      )
+      .subscribe()
     return () => {
-      cancelled = true
+      void supabase.removeChannel(channel)
     }
-  }, [selectedSeasonId])
+  }, [selectedSeasonId, loadSeason])
 
   const selectedSeason = seasons?.find((s) => s.id === selectedSeasonId) ?? null
   const isCurrentSeason = selectedSeason?.archived_at === null && selectedSeason?.ended_at === null
@@ -400,6 +448,35 @@ export function Leaderboard() {
   const handleRowTap = (pid: string) => {
     if (!selectedSeasonId) return
     navigate(`/profile?profile_id=${pid}&season_id=${selectedSeasonId}`)
+  }
+
+  /* Pull-to-refresh — only arms when scroll is already at top to avoid
+   * competing with normal scrolling. */
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (bodyRef.current && bodyRef.current.scrollTop > 0) return
+    ptrStartY.current = e.touches[0].clientY
+  }
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (ptrStartY.current === null) return
+    const dy = e.touches[0].clientY - ptrStartY.current
+    if (dy < 0) {
+      setPtrY(0)
+      setPtrArmed(false)
+      return
+    }
+    // Resistance curve — easing so past-threshold feels weighty
+    const eased = dy * 0.5
+    setPtrY(Math.min(100, eased))
+    setPtrArmed(eased >= PTR_THRESHOLD)
+  }
+  const onTouchEnd = () => {
+    const armed = ptrArmed
+    ptrStartY.current = null
+    setPtrY(0)
+    setPtrArmed(false)
+    if (armed && selectedSeasonId) {
+      void loadSeason(selectedSeasonId, 'refresh')
+    }
   }
 
   if (error) {
@@ -566,8 +643,38 @@ export function Leaderboard() {
         )}
       </header>
 
-      <div className="lb-body">
-        {loading && <div className="lb-skeleton">Loading…</div>}
+      <div
+        className="lb-body"
+        ref={bodyRef}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {(ptrY > 0 || refreshing) && (
+          <div
+            className={`lb-ptr${ptrArmed ? ' lb-ptr--armed' : ''}${refreshing ? ' lb-ptr--spinning' : ''}`}
+            style={{ height: refreshing ? 42 : ptrY }}
+            aria-hidden
+          >
+            <span className="lb-ptr-inner">
+              {refreshing ? '↻ Refreshing…' : ptrArmed ? '↑ Release to refresh' : '↓ Pull to refresh'}
+            </span>
+          </div>
+        )}
+
+        {loading && (
+          <div className="lb-skel" aria-label="Loading leaderboard">
+            {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
+              <div key={i} className="lb-skel-row">
+                <span className="lb-skel-rank" />
+                <span className="lb-skel-avatar" />
+                <span className="lb-skel-name" />
+                <span className="lb-skel-wdl" />
+                <span className="lb-skel-pts" />
+              </div>
+            ))}
+          </div>
+        )}
 
         {!loading && !hasAnyStandings && hasAnyPlayers && !filterActive && (
           <div className="lb-empty">
