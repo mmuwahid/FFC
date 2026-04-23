@@ -1,5 +1,66 @@
 # FFC Todo
 
+## NEXT SESSION — S024
+
+**Cold-start checklist:**
+- **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
+- Expected tip: `7745a05` (S023 close, 11 commits since S022).
+
+**S024 agenda:**
+
+1. **Acceptance testing** — user to verify all S023 work on production:
+   - `/leaderboard` → row tap → `/profile?profile_id=&season_id=` — correct profile + season pre-selected
+   - Self-view: edit pencil → sheet (positions save, theme switches `<html>` class, sort saves)
+   - Other-view: no pencil, no edit link; Admin-view: footer "Edit in Admin → Players" link
+   - Season picker: switch seasons → stats card updates; rank hint in header
+   - Last-5 strip: scoped to selected season; hidden when 0 results
+   - Achievements card: 6 tiles; career-starter CTA for 0-match profiles
+   - Recent matches: newest-first, correct W/D/L badges, goals/MOTM/cards line
+   - `/settings` → "League Rules" row → `/settings/rules` → 4 cards (Scoring, Late cancel, No-show, Friendly games); back works
+   - **Cross-session sync check** — Rules screen was built in two parallel sessions; verify the `lr-*` CSS and content are fully in sync (no duplicate CSS blocks, no stale inline styles in `Rules.tsx`, router has only one `/settings/rules` route)
+
+2. **§3.15 Match Detail** — next per masterplan §17 order; stub currently at `/match/:id`. Spec at `docs/superpowers/specs/2026-04-17-ffc-phase1-design.md` §3.15. Recent matches rows already tap to `/match/<id>`.
+
+3. **Deferred from S023 (friendly game system — app layer not wired):**
+   - Auto-flag write on guest add (§3.5 +1 slot flow): when guest count crosses threshold, write `friendly_flagged_at = now()` to matchday. Data model ready (migration 0013).
+   - No-show toggle on admin result entry (AdminMatches §3.18 per-row toggle). Data model ready.
+   - `v_season_standings` already excludes `is_friendly` matchdays (migration 0013 live).
+
+4. **Backburner (unchanged):**
+   - Poll Depth-B (§3.7) — multi-session; needs §3.18 admin-create-matchday tooling first
+   - Leaderboard realtime + pull-to-refresh + skeleton (Depth-B gate)
+   - Vector FFC crest SVG (when user exports from Illustrator/Figma)
+   - Palette re-align (red+navy → khaki-gold + cream)
+
+**Known gotchas (unchanged):**
+- **Session-start sync protocol** mandatory on cross-PC resume.
+- **`ffc/vercel.json` SPA rewrite is load-bearing.**
+- **Supabase email validator** rejects `example.com`. Use `m.muwahid+s###<role>@gmail.com`.
+- **Supabase MCP PAT is PadelHub-scoped.** Use `npx --yes supabase@latest db query --linked "..."`.
+- **`supabase gen types typescript --linked 2>/dev/null`** — stderr redirect mandatory.
+- **Windows `&`-in-path bug** — Node direct-invocation pattern.
+- **Terminal roles** auto-signOut in AppContext.
+- **CLAUDE.md truncates UUIDs** — query `profiles` first when seeding SQL.
+- **PWA service worker caches previous bundle** — hard refresh (Ctrl+Shift+R) after deploy if UI looks stale.
+
+---
+
+## Completed in S023 (23/APR/2026, Work PC)
+
+- [x] Spec approved: `docs/superpowers/specs/2026-04-23-rules-and-friendly-game-design.md` (League Rules + Friendly Game system + No-show penalty)
+- [x] Plan written: `docs/superpowers/plans/2026-04-23-player-profile-and-league-rules.md`
+- [x] Migration 0013: `matchdays.friendly_flagged_at`, `matchdays.is_friendly`, `match_players.is_no_show`, `app_settings` no-show keys, `v_season_standings` recreated with `AND NOT is_friendly` + `no_show_penalties` CTE
+- [x] Migration 0014: `search_path` fix + dead config cleanup
+- [x] TypeScript types regenerated; `no_show_points` added to `StandingEmbed`
+- [x] `pf-*` + `lr-*` + `st-*` CSS block appended to `index.css` (503 lines)
+- [x] `Profile.tsx` fully implemented (977 lines) — §3.14 Depth-B complete
+- [x] `Rules.tsx` created (static League Rules, 4 cards) and migrated to `lr-*` namespace
+- [x] Router `/settings/rules` wired; Settings.tsx League Rules row added
+- [x] AdminMatches: amber FRIENDLY? badge + Confirm/Dismiss modal for flagged matchdays
+- [x] Deployed — 11 commits, live at https://ffc-gilt.vercel.app
+
+---
+
 ## NEXT SESSION — S023 (§3.14 Player Profile — Phase 1 Depth-B slice)
 
 **Cold-start checklist:**
