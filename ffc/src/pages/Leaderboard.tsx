@@ -172,6 +172,7 @@ export function Leaderboard() {
   const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null)
   const [standings, setStandings] = useState<StandingEmbed[] | null>(null)
   const [profiles, setProfiles] = useState<ProfileLite[] | null>(null)
+  const [last5ByProfile, setLast5ByProfile] = useState<Map<string, ('W' | 'D' | 'L')[]>>(new Map())
   const [sort, setSort] = useState<SortKey>('points')
   const [activeFilters, setActiveFilters] = useState<Set<PlayerPosition | 'ALL'>>(new Set(['ALL']))
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -252,6 +253,7 @@ export function Leaderboard() {
     let cancelled = false
     setStandings(null)
     setProfiles(null)
+    setLast5ByProfile(new Map())
     setError(null)
 
     const standingsP = supabase
@@ -267,7 +269,17 @@ export function Leaderboard() {
       .in('role', ['player', 'admin', 'super_admin'])
       .eq('is_active', true)
 
-    Promise.all([standingsP, profilesP]).then(([s, p]) => {
+    /* v_player_last5 already limits to 5 most recent per (season, profile) via
+     * window function. Kickoff-desc means the first row is most recent — we
+     * want that slot last so the strip reads oldest→newest left-to-right per
+     * §3.2 convention. */
+    const last5P = supabase
+      .from('v_player_last5')
+      .select('profile_id, outcome, kickoff_at')
+      .eq('season_id', selectedSeasonId)
+      .order('kickoff_at', { ascending: true })
+
+    Promise.all([standingsP, profilesP, last5P]).then(([s, p, l]) => {
       if (cancelled) return
       if (s.error) {
         setError(s.error.message)
@@ -277,8 +289,23 @@ export function Leaderboard() {
         setError(p.error.message)
         return
       }
+      if (l.error) {
+        // Non-fatal — main page still renders without the strip.
+        console.warn('[FFC] v_player_last5 fetch failed', l.error.message)
+      }
       setStandings((s.data ?? []) as unknown as StandingEmbed[])
       setProfiles((p.data ?? []) as ProfileLite[])
+
+      const m = new Map<string, ('W' | 'D' | 'L')[]>()
+      for (const row of l.data ?? []) {
+        if (!row.profile_id || !row.outcome) continue
+        const out = row.outcome.toUpperCase() as 'W' | 'D' | 'L'
+        if (out !== 'W' && out !== 'D' && out !== 'L') continue
+        const arr = m.get(row.profile_id) ?? []
+        arr.push(out)
+        m.set(row.profile_id, arr)
+      }
+      setLast5ByProfile(m)
     })
 
     return () => {
@@ -616,6 +643,19 @@ export function Leaderboard() {
                   </span>
                   <span className="lb-mp">{mp}</span>
                   <span className="lb-pts">{row.points ?? 0}</span>
+                  {(() => {
+                    const strip = last5ByProfile.get(row.profile_id!) ?? []
+                    if (strip.length === 0) return null
+                    return (
+                      <span className="lb-last5" aria-label={`Last ${strip.length} results`}>
+                        {strip.map((o, i) => (
+                          <span key={i} className={`lb-form lb-form--${o}`} aria-hidden>
+                            {o}
+                          </span>
+                        ))}
+                      </span>
+                    )
+                  })()}
                 </button>
               )
             })}

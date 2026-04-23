@@ -1256,6 +1256,7 @@ textarea.auth-input {
   display: grid;
   grid-template-columns: 28px 32px 1fr 60px 28px 44px;
   column-gap: 10px;
+  row-gap: 4px;
   align-items: center;
   padding: 10px 8px;
   border-radius: 14px;
@@ -1268,6 +1269,31 @@ textarea.auth-input {
   cursor: pointer;
   width: 100%;
 }
+
+/* Last-5 strip: second row under the main row, spans name to end, right-aligned.
+ * Grid column start at 3 so it aligns under the name (skipping rank + avatar). */
+.lb-last5 {
+  grid-column: 3 / -1;
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+.lb-form {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+}
+.lb-form--W { background: var(--last-w); }
+.lb-form--D { background: var(--last-d); color: #fff; }
+.lb-form--L { background: var(--last-l); }
 .lb-row:hover { background: var(--surface-2); }
 
 .lb-row--header {
