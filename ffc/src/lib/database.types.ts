@@ -1413,6 +1413,14 @@ export type Database = {
     }
     Functions: {
       accept_substitute: { Args: { p_matchday_id: string }; Returns: undefined }
+      admin_draft_abandon: {
+        Args: { p_matchday_id: string; p_reason?: string }
+        Returns: string
+      }
+      admin_draft_force_complete: {
+        Args: { p_matchday_id: string; p_reason?: string }
+        Returns: string
+      }
       admin_submit_match_result: {
         Args: {
           p_approve?: boolean

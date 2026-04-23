@@ -61,6 +61,8 @@ type Sheet =
   | { kind: 'result_edit'; md: MatchdayWithMatch; match: MatchRow }
   | { kind: 'confirm_friendly'; md: MatchdayWithMatch }
   | { kind: 'dismiss_friendly'; md: MatchdayWithMatch }
+  | { kind: 'draft_force_complete'; md: MatchdayWithMatch }
+  | { kind: 'draft_abandon'; md: MatchdayWithMatch }
   | null
 
 // ─── Helpers ───────────────────────────────────────────────────
@@ -307,6 +309,8 @@ export function AdminMatches() {
               onLock={() => setSheet({ kind: 'lock', md })}
               onEnterResult={() => setSheet({ kind: 'result', md, mode: 'create' })}
               onEditResult={() => md.match && setSheet({ kind: 'result_edit', md, match: md.match })}
+              onDraftForceComplete={() => setSheet({ kind: 'draft_force_complete', md })}
+              onDraftAbandon={() => setSheet({ kind: 'draft_abandon', md })}
             />
           ))}
         </ul>
@@ -412,6 +416,42 @@ export function AdminMatches() {
                 onCancel={() => !sheetBusy && setSheet(null)}
               />
             )}
+            {sheet.kind === 'draft_force_complete' && (
+              <SimpleConfirmSheet
+                title="Force-complete draft"
+                body="Auto-assigns any remaining unpicked players to alternating teams (starting with the current picker) and marks the draft completed. This is audited and cannot be undone — use only if the captain draft is genuinely stuck."
+                confirmLabel="Force complete"
+                busy={sheetBusy}
+                onConfirm={async () => {
+                  setSheetBusy(true)
+                  const { error } = await supabase.rpc('admin_draft_force_complete', { p_matchday_id: sheet.md.id, p_reason: null })
+                  setSheetBusy(false)
+                  if (error) { setError(error.message); return }
+                  setSheet(null)
+                  setToast('Draft force-completed')
+                  await loadAll()
+                }}
+                onCancel={() => !sheetBusy && setSheet(null)}
+              />
+            )}
+            {sheet.kind === 'draft_abandon' && (
+              <SimpleConfirmSheet
+                title="Abandon draft"
+                body="Marks the draft abandoned so admins can restart via a fresh captain-draft flow. Existing picks are preserved in the audit log. This action is audited."
+                confirmLabel="Abandon draft"
+                busy={sheetBusy}
+                onConfirm={async () => {
+                  setSheetBusy(true)
+                  const { error } = await supabase.rpc('admin_draft_abandon', { p_matchday_id: sheet.md.id, p_reason: null })
+                  setSheetBusy(false)
+                  if (error) { setError(error.message); return }
+                  setSheet(null)
+                  setToast('Draft abandoned')
+                  await loadAll()
+                }}
+                onCancel={() => !sheetBusy && setSheet(null)}
+              />
+            )}
           </div>
         </div>
       )}
@@ -422,13 +462,15 @@ export function AdminMatches() {
 // ─── Matchday card ─────────────────────────────────────────────
 
 function MatchdayCard({
-  md, onEdit, onLock, onEnterResult, onEditResult,
+  md, onEdit, onLock, onEnterResult, onEditResult, onDraftForceComplete, onDraftAbandon,
 }: {
   md: MatchdayWithMatch
   onEdit: () => void
   onLock: () => void
   onEnterResult: () => void
   onEditResult: () => void
+  onDraftForceComplete: () => void
+  onDraftAbandon: () => void
 }) {
   const phase = phaseLabel(md)
   const hasResult = !!md.match
@@ -469,7 +511,12 @@ function MatchdayCard({
       </div>
 
       {md.draft?.status === 'in_progress' && (
-        <DraftInProgressCard draft={md.draft} effectiveFormat={md.effective_format} />
+        <DraftInProgressCard
+          draft={md.draft}
+          effectiveFormat={md.effective_format}
+          onForceComplete={onDraftForceComplete}
+          onAbandon={onDraftAbandon}
+        />
       )}
 
       <div className="admin-md-actions">
@@ -505,7 +552,14 @@ function resultLabel(r: MatchResult): string {
 }
 
 // ─── Phase 5.5 · Draft in progress (S026) ─────────────────────────
-function DraftInProgressCard({ draft, effectiveFormat }: { draft: DraftInfo; effectiveFormat: MatchFormat }) {
+function DraftInProgressCard({
+  draft, effectiveFormat, onForceComplete, onAbandon,
+}: {
+  draft: DraftInfo
+  effectiveFormat: MatchFormat
+  onForceComplete: () => void
+  onAbandon: () => void
+}) {
   const cap = effectiveFormat === '5v5' ? 10 : 14
   const stuckThresholdHours = 6
   const elapsedHours = (Date.now() - new Date(draft.started_at).getTime()) / (1000 * 60 * 60)
@@ -540,16 +594,14 @@ function DraftInProgressCard({ draft, effectiveFormat }: { draft: DraftInfo; eff
             <button
               type="button"
               className="auth-btn auth-btn--sheet-cancel admin-md-btn"
-              disabled
-              title="Phase 2 — admin_draft_force_complete RPC not yet wired"
+              onClick={onForceComplete}
             >
               Force complete
             </button>
             <button
               type="button"
               className="auth-btn auth-btn--reject admin-md-btn"
-              disabled
-              title="Phase 2 — admin_draft_abandon RPC not yet wired"
+              onClick={onAbandon}
             >
               Abandon draft
             </button>
