@@ -2028,6 +2028,24 @@ textarea.auth-input {
 .lr-table tr:last-child td { border-bottom: none; }
 .lr-table td:last-child { text-align: right; font-weight: 700; }
 .lr-prose { padding: 12px 14px; font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+.lr-prose strong { color: var(--text); font-weight: 700; }
+
+/* Scoring — 3-col horizontal layout (Win/Draw/Loss label over value) */
+.lr-scoring { display: grid; grid-template-columns: repeat(3, 1fr); }
+.lr-scoring-cell { padding: 16px 10px; text-align: center; border-right: 1px solid var(--border); }
+.lr-scoring-cell:last-child { border-right: none; }
+.lr-scoring-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+.lr-scoring-value { font-size: 20px; font-weight: 800; color: var(--text); }
+
+/* Inline note below a table or prose */
+.lr-note { padding: 10px 14px; font-size: 12px; color: var(--text-muted); font-style: italic; border-top: 1px solid var(--border); }
+
+/* Awards list */
+.lr-award-list { list-style: none; margin: 0; padding: 0; }
+.lr-award-item { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.lr-award-item:last-child { border-bottom: none; }
+.lr-award-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.lr-award-sub { font-size: 12px; color: var(--text-muted); text-align: right; }
 
 /* Settings — rows */
 .st-row {
