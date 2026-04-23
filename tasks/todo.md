@@ -1,34 +1,44 @@
 # FFC Todo
 
-## NEXT SESSION — S026
+## NEXT SESSION — S027
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S025 close commit (post-`bde8c70`). 2 code commits shipped in S025 + hot-patches to live DB migration 0016.
+- Expected tip: S026 close commit (post-`45383bc`). 1 code commit shipped in S026 bundling 5 scope items; migrations 0017+0018+0019 applied live.
 
-**S026 agenda:**
+**S027 agenda:**
 
-1. **Friendly-review end-to-end test** — `UPDATE matchdays SET friendly_flagged_at = now() WHERE id = '<md-id>'` on an existing matchday, verify amber review card shows in AdminMatches, test Confirm (→ `is_friendly=true`, excluded from `v_season_standings`) + Dismiss (→ flag cleared) RPCs.
+1. **Live user acceptance pass on https://ffc-gilt.vercel.app** for the 5 S026 scope items:
+   - **Poll §3.7** — all 9 states render cleanly. Seed states that need DB setup via SQL Editor:
+     - State 2 (not voted): default for signed-in super_admin before voting
+     - State 3 (confirmed #N): vote Yes, confirm spot # + Cancel button
+     - State 4 (waitlisted): needs >roster_cap confirmed — can seed extra yes votes from test accounts
+     - State 5 (guest unlocked): `UPDATE matchdays SET kickoff_at = now() + interval '23 hours' WHERE id=?` — guest CTA should activate
+     - State 6 (locked): `UPDATE matchdays SET roster_locked_at = now() WHERE id=?` → danger strip + Cancel-see-penalty
+     - State 6.5 (draft): `INSERT INTO draft_sessions (matchday_id, status, current_picker_team, reason) VALUES (?, 'in_progress', 'white', 'manual_captain_draft');` → pulsing amber header
+     - State 7 (penalty sheet): on State 6, tap Cancel-anyway → sheet
+     - State 8 (teams revealed): `UPDATE match_players SET team='white' WHERE ...; UPDATE match_players SET team='black' WHERE ...` → two-section layout
+   - **Leaderboard gate** — pull-to-refresh works on touch device; skeleton rows show on fresh mount; realtime updates when admin edits a match elsewhere
+   - **AdminMatches ✎ Edit player stats** — toggle on Edit result sheet → inline goal/card inputs; dirty counter; Save calls `edit_match_players` batch
+   - **Phase 5.5 card** — after seeding `draft_sessions` row, MatchdayCard shows "Phase 5.5 · Draft in progress" with pulsing dot + pick count + captain name + elapsed
+   - **Friendly auto-flag** — insert 4 `match_guests` rows (with full stats + null `cancelled_at`) on a 7v7 matchday; verify `matchdays.friendly_flagged_at` stamped non-null; amber review card shows in AdminMatches
 
-2. **§3.5 +1 guest auto-flag** — write SQL trigger or extend relevant RPC so `matchdays.friendly_flagged_at` is set when guest count crosses threshold (4 per 7v7, 3 per 5v5). Trigger logic is simple; the blocker is that there's no actual guest-add flow yet, so this is a stage-now-exercise-later item.
+2. **Captain reroll modal** (S010 subagent-B spec) — `_wip/item-b-draft-reroll-spec.md` has the full treatment. Needs `dropout_after_lock` notification flow wired in Phase-1 notifications surface first.
 
-3. **§3.7 Poll screen Depth-B kickoff** — next major UI slice per masterplan §17 order. Multi-session. Approved mockup: `mockups/3-7-poll.html`. Spec: `docs/superpowers/specs/2026-04-17-ffc-phase1-design.md` §3.7 — 9 states incl. State 6.5 draft-in-progress + State 8 two-team reveal + captain reroll. Now unblocked since §3.18 admin-create-matchday tooling exists. Consider spawning a planner agent to decompose into 2–3 slice-sized chunks.
+3. **`admin_draft_force_complete` + `admin_draft_abandon` RPCs** — unblocks the disabled Phase 5.5 override buttons. Straightforward: admin-only, audited, transitions `draft_sessions.status` + (force-complete variant) auto-distributes remaining picks.
 
-4. **Leaderboard Depth-B gate** (still deferred from S022) — realtime subscription on `matches` UPDATE + pull-to-refresh + 150ms skeleton rows.
+4. **`v_match_commitments` view extension** — add `match_guests.id` to the guest branch so Poll.tsx doesn't have to match by `display_name`. Single-migration fix.
 
-5. **Phase 2 seed item:** `edit_match_players` RPC + roster edit UI on Edit result sheet. Admin currently can only correct score/MOTM/notes post-approval; per-player stat corrections need this new RPC.
+5. **§3.1-v2 Captain helper screen** — multi-session. Once shipped, Phase 5.5 card + Poll State 6.5 get real data to exercise.
 
-6. **§3.18 Phase 5.5 — Draft-in-progress card** (multi-session prereq) — exposes admin override actions when a draft session is stuck (`draft_stuck_threshold_hours`). Requires `draft_sessions` table to actually be populated by the captain-draft flow on §3.1-v2, which in turn needs the poll screen. Queue after §3.7.
-
-7. **Deferred (unchanged):**
-   - §3.5 +1 guest UI (blocked on Poll screen guest-add flow landing first).
+6. **Deferred (unchanged):**
    - Admin_matches additional phases (captain picks, team entry) — all blocked on Poll/draft-session data.
 
-8. **Backburner (unchanged):**
+7. **Backburner (unchanged):**
    - Vector FFC crest SVG (blocked on user export from Illustrator/Figma).
    - Palette re-align (red+navy → khaki-gold + cream).
 
-**Known gotchas (unchanged + additions from S025):**
+**Known gotchas (unchanged + additions from S026):**
 - **Session-start sync protocol** mandatory on cross-PC resume.
 - **`ffc/vercel.json` SPA rewrite is load-bearing.**
 - **Supabase email validator** rejects `example.com`. Use `m.muwahid+s###<role>@gmail.com`.
@@ -39,13 +49,36 @@
 - **CLAUDE.md truncates UUIDs** — query `profiles` first when seeding SQL.
 - **PWA service worker caches previous bundle** — hard refresh (Ctrl+Shift+R) after deploy if UI looks stale.
 - **Mockup preview server rooted at `mockups/`** (S024) — URL is `http://localhost:5173/3-XX-xxx.html` (NOT `/mockups/3-XX-xxx.html`).
-- **Schema drift discovery pattern** (S024) — always query `information_schema.columns` BEFORE writing PostgREST embeds / order / filter clauses. S024 caught `matchdays.venue` (not `venue_label`), no `matchday_number` column, no `late_cancel_*` columns. S025 caught `seasons.starts_on` (not `started_on`).
+- **Schema drift discovery pattern** (S024+) — always query `information_schema.columns` BEFORE writing PostgREST embeds / order / filter clauses or plpgsql column refs. S024 caught `matchdays.venue` (not `venue_label`), no `matchday_number` column, no `late_cancel_*` columns. S025 caught `seasons.starts_on` (not `started_on`). **S026 caught:** `profiles.banned_until_matchday_id` doesn't exist (ban is `public.player_bans` table with `starts_at`/`ends_at`/`revoked_at`); `v_match_commitments` view exposes `guest_display_name` but NOT `match_guests.id` — caller must join client-side by display_name.
 - **Position enum is UPPERCASE** (`GK`/`DEF`/`CDM`/`W`/`ST`) — TS will catch lowercase.
 - **Leaderboard sort enum is `motm` not `motms`** — singular. TS will catch.
-- **NEW (S025): `team_color` not `team_colour`** — enum is American-spelling. plpgsql lazy-parses bodies so a `::public.team_colour` cast passes CREATE but fails at first call.
-- **NEW (S025): `log_admin_action` signature is 4-arg** — `(target_entity, target_id, action, payload)`. Admin is derived via `current_profile_id()` inside the function. DO NOT pass `v_admin` as a prefix arg — it will fail with "function does not exist". Query `pg_proc.pg_get_function_arguments(oid)` before writing plpgsql that calls this helper.
-- **NEW (S025): `edit_match_result` requires `approved_at IS NOT NULL`** — it raises `FFC_EDIT_NOT_APPROVED` on pending matches. Also it only handles top-level fields (score/result/motm/notes), NOT nested `players` edits. For Phase 1 the admin-direct-submit path via `admin_submit_match_result` creates+approves in one call so the pending branch is rare.
-- **NEW (S025): `admin_submit_match_result` raises `match_exists_use_edit_match_result`** if a matches row already exists for the matchday — the UI correctly swaps in the Edit result flow after first submit.
+- **`team_color` not `team_colour`** — enum is American-spelling. plpgsql lazy-parses bodies so a `::public.team_colour` cast passes CREATE but fails at first call.
+- **`log_admin_action` signature is 4-arg** — `(target_entity, target_id, action, payload)`. Admin is derived via `current_profile_id()` inside the function.
+- **`edit_match_result` requires `approved_at IS NOT NULL`** — raises `FFC_EDIT_NOT_APPROVED` on pending matches. Top-level fields only (score/result/motm/notes), NOT nested `players`. For per-player post-approval corrections use `edit_match_players` (**NEW S026**) which whitelists goals/yellow_cards/red_cards/is_no_show/is_captain/team.
+- **`admin_submit_match_result` raises `match_exists_use_edit_match_result`** if a matches row already exists for the matchday — the UI correctly swaps in the Edit result flow after first submit.
+- **NEW (S026): `cast_poll_vote(matchday_id, choice)`** — `choice` is `'yes'|'no'|'maybe'|'cancel'`. The enum `poll_choice` has only yes/no/maybe; the RPC branches on the string before cast. Re-voting yes after cancel resets `committed_at` (anti-seat-hoarding per §3.6).
+- **NEW (S026): `invite_guest(...)` 8-arg signature** — `(matchday_id, display_name, primary_position, secondary_position, stamina, accuracy, rating, description)`. Raises `FFC_INVITER_NOT_CONFIRMED` / `FFC_NO_GUEST_SLOT` / `FFC_POSITIONS_MUST_DIFFER`.
+- **NEW (S026): `guest_friendly_thresholds` is in `app_settings`** — key value `{"7v7": 4, "5v5": 3}`. Trigger `trg_match_guests_friendly_flag` stamps `matchdays.friendly_flagged_at` on threshold cross (INSERT or cancel-reactivation). Short-circuits on already-flagged or already-confirmed matchdays.
+
+---
+
+## Completed in S026 (23/APR/2026, Work PC)
+
+- [x] Cold-start — work PC `.git` pointer correct, `main = origin/main` clean at `d1ec173`
+- [x] Migration 0017 — `app_settings.guest_friendly_thresholds` + `match_guests_friendly_flag_trg()` + `trg_match_guests_friendly_flag` trigger
+- [x] Migration 0018 — `edit_match_players(match_id, players jsonb)` admin-only whitelist patch
+- [x] Migration 0019 — `cast_poll_vote(matchday_id, choice)` + `invite_guest(...8-arg...)`
+- [x] All 3 migrations applied to live DB + types regen (1895 → 1916 lines)
+- [x] §3.7 Poll.tsx — stub (9L) → Depth-B (765L) with all 9 states + realtime + guest invite + penalty sheet
+- [x] Leaderboard Depth-B gate — `loadSeason(mode)` callback, realtime on matches+match_players, PTR with resistance, 6-row skeleton with shimmer, 150ms min hold
+- [x] AdminMatches Edit result sheet — `[✎ Edit player stats]` toggle + inline per-row stat editor + batched `edit_match_players` call
+- [x] AdminMatches Phase 5.5 card — `DraftInProgressCard` with pulsing amber dot, pick count, picker team, captain, elapsed; stuck-threshold override buttons (disabled)
+- [x] CSS +347 lines (po-* namespace + admin-draft-* + admin-mp-* + lb-skel/ptr)
+- [x] TypeScript clean · Vite build clean (72 KB CSS / 629 KB JS / PWA precache 10 entries)
+- [x] Commit `45383bc` pushed to main (+2047/-74 across 8 files)
+- [x] Vercel deployment `dpl_4pL9QyCsipwsF6ZVAeXdLWXYEr1a` READY on production
+- [x] Post-deploy smoke via preview server — Poll route loads, PostgREST queries fire with correct column sets, no 500s / schema errors (401s expected, unauthenticated preview)
+- [x] Session close: session log · INDEX.md · todo.md · lessons.md · CLAUDE.md
 
 ---
 
