@@ -1,40 +1,39 @@
 # FFC Todo
 
-## NEXT SESSION — S027
+## NEXT SESSION — S029
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S026 close commit (post-`45383bc`). 1 code commit shipped in S026 bundling 5 scope items; migrations 0017+0018+0019 applied live.
+- Expected tip: `7e9a890` on `main` (S028 close, deploy fix). Pushed.
+- Migrations on live DB: **21** (0001 → 0021_admin_draft_override_rpcs).
 
-**S027 agenda:**
+**S029 agenda:**
 
-1. **Live user acceptance pass on https://ffc-gilt.vercel.app** for the 5 S026 scope items:
-   - **Poll §3.7** — all 9 states render cleanly. Seed states that need DB setup via SQL Editor:
-     - State 2 (not voted): default for signed-in super_admin before voting
-     - State 3 (confirmed #N): vote Yes, confirm spot # + Cancel button
-     - State 4 (waitlisted): needs >roster_cap confirmed — can seed extra yes votes from test accounts
-     - State 5 (guest unlocked): `UPDATE matchdays SET kickoff_at = now() + interval '23 hours' WHERE id=?` — guest CTA should activate
-     - State 6 (locked): `UPDATE matchdays SET roster_locked_at = now() WHERE id=?` → danger strip + Cancel-see-penalty
-     - State 6.5 (draft): `INSERT INTO draft_sessions (matchday_id, status, current_picker_team, reason) VALUES (?, 'in_progress', 'white', 'manual_captain_draft');` → pulsing amber header
-     - State 7 (penalty sheet): on State 6, tap Cancel-anyway → sheet
-     - State 8 (teams revealed): `UPDATE match_players SET team='white' WHERE ...; UPDATE match_players SET team='black' WHERE ...` → two-section layout
-   - **Leaderboard gate** — pull-to-refresh works on touch device; skeleton rows show on fresh mount; realtime updates when admin edits a match elsewhere
-   - **AdminMatches ✎ Edit player stats** — toggle on Edit result sheet → inline goal/card inputs; dirty counter; Save calls `edit_match_players` batch
-   - **Phase 5.5 card** — after seeding `draft_sessions` row, MatchdayCard shows "Phase 5.5 · Draft in progress" with pulsing dot + pick count + captain name + elapsed
-   - **Friendly auto-flag** — insert 4 `match_guests` rows (with full stats + null `cancelled_at`) on a 7v7 matchday; verify `matchdays.friendly_flagged_at` stamped non-null; amber review card shows in AdminMatches
+1. **⚠ Migration renumber (MANDATORY before executing S027 plan)** — the S027 planning session reserved migration `0020` for `seasons.planned_games`, but S028 already landed `0020_v_match_commitments_guest_id.sql`. If/when `docs/superpowers/plans/2026-04-23-matches-flashcard-plan.md` runs, rename its migration file to `0022_seasons_planned_games.sql` and update any plan step references before `npx supabase db push`.
 
-2. **Captain reroll modal** (S010 subagent-B spec) — `_wip/item-b-draft-reroll-spec.md` has the full treatment. Needs `dropout_after_lock` notification flow wired in Phase-1 notifications surface first.
+2. **Live acceptance pass on https://ffc-gilt.vercel.app** — catch-up for 2 sessions:
+   - **S026 scope** (still untested): Poll 9 states · Leaderboard realtime/PTR/skeleton · ✎ Edit player stats toggle · Phase 5.5 card · friendly auto-flag.
+   - **S028 scope** (new, also untested): Poll guest-id refactor (should work identically, no visible change) · Phase 5.5 **Force complete** + **Abandon draft** buttons (now live) · **§3.19 Formation Planner A+B+C** at `/match/:id/formation`:
+     - Captain navigates to the route (need a match with is_captain=true match_players row for the signed-in profile)
+     - Team strip shows WHITE/BLACK · kickoff countdown · format chip
+     - Pattern chip picker disabled for non-captains; Custom chip disabled until drag or explicit tap
+     - Pitch tokens auto-populate; GK slot gets gold ring
+     - Drag a token → pattern auto-flips to Custom; "Reset to {named}" appears
+     - GK mode toggle: Dedicated (default) / Rotate every 10 min
+     - In Rotate mode: native select picker shows profile members (guests excluded); token corner badges show rotation numbers
+     - Save → `upsert_formation` with correct payload; reload hydrates pattern + liveSlots + gkMode + startingGkProfileId
 
-3. **`admin_draft_force_complete` + `admin_draft_abandon` RPCs** — unblocks the disabled Phase 5.5 override buttons. Straightforward: admin-only, audited, transitions `draft_sessions.status` + (force-complete variant) auto-distributes remaining picks.
+3. **§3.19 Slice D** — realtime subscription on `formations` table for non-captain live view + `share_formation` RPC + "last synced HH:mm" chip + captain's notes persistence (nullable text column? or wire into an existing field — TBD).
 
-4. **`v_match_commitments` view extension** — add `match_guests.id` to the guest branch so Poll.tsx doesn't have to match by `display_name`. Single-migration fix.
+4. **§3.19 Slice E** — entry links: Poll State 8 "Plan formation" CTA for captains · AdminMatches matchday card "Formation" action · MatchDetail sheet link.
 
-5. **§3.1-v2 Captain helper screen** — multi-session. Once shipped, Phase 5.5 card + Poll State 6.5 get real data to exercise.
+5. **S027 Matches flashcard plan execution** — after the renumber from (1), follow `docs/superpowers/plans/2026-04-23-matches-flashcard-plan.md` top-to-bottom (7 tasks, each with a commit).
 
-6. **Deferred (unchanged):**
-   - Admin_matches additional phases (captain picks, team entry) — all blocked on Poll/draft-session data.
+6. **Captain reroll modal** (S010 subagent-B spec, `_wip/item-b-draft-reroll-spec.md`) — still blocked on `dropout_after_lock` notification flow.
 
-7. **Backburner (unchanged):**
+7. **§3.1-v2 Captain helper screen** — multi-session; once shipped, Phase 5.5 card + Poll State 6.5 get real data.
+
+8. **Backburner (unchanged):**
    - Vector FFC crest SVG (blocked on user export from Illustrator/Figma).
    - Palette re-align (red+navy → khaki-gold + cream).
 
@@ -59,8 +58,29 @@
 - **NEW (S026): `cast_poll_vote(matchday_id, choice)`** — `choice` is `'yes'|'no'|'maybe'|'cancel'`. The enum `poll_choice` has only yes/no/maybe; the RPC branches on the string before cast. Re-voting yes after cancel resets `committed_at` (anti-seat-hoarding per §3.6).
 - **NEW (S026): `invite_guest(...)` 8-arg signature** — `(matchday_id, display_name, primary_position, secondary_position, stamina, accuracy, rating, description)`. Raises `FFC_INVITER_NOT_CONFIRMED` / `FFC_NO_GUEST_SLOT` / `FFC_POSITIONS_MUST_DIFFER`.
 - **NEW (S026): `guest_friendly_thresholds` is in `app_settings`** — key value `{"7v7": 4, "5v5": 3}`. Trigger `trg_match_guests_friendly_flag` stamps `matchdays.friendly_flagged_at` on threshold cross (INSERT or cancel-reactivation). Short-circuits on already-flagged or already-confirmed matchdays.
+- **NEW (S028): Vercel builds with `tsc -b` (project-refs mode), local `tsc --noEmit` is more lenient.** Four TS errors slipped through local `--noEmit` and broke deploy `dpl_CDVKY...`. Rule: before pushing, run `node ./node_modules/typescript/bin/tsc -b` (same as `npm run build` first half) — catches unused vars + stricter Supabase RPC arg typing.
+- **NEW (S028): Supabase generated RPC arg types reject `null` for optional params.** Optional args show as `T | undefined`, not `T | null`. Passing `null as unknown as null` compiles locally but fails strict-build. Rule: omit the field via conditional spread (`...(x ? { p_field: x } : {})`) when you'd have passed null. For JSON-typed args coming from typed local objects, add `as unknown as Json` widening.
+- **NEW (S028): Migration number collisions between parallel planning sessions.** S027 reserved 0020 in a plan file but never executed it; S028 grabbed 0020 for a different migration. Rule: before picking a migration number, also grep `docs/superpowers/plans/` for unexecuted plans referencing `NNNN_*.sql`.
+- **NEW (S028): `v_match_commitments` now exposes `guest_id uuid`** — Poll.tsx maps guest commitments to match_guests rows by pk. Extension landed in `0020_v_match_commitments_guest_id.sql`; view re-created via `CREATE OR REPLACE VIEW` so existing grants preserved.
+- **NEW (S028): `admin_draft_force_complete` + `admin_draft_abandon` RPCs.** Phase 5.5 override buttons now wired. Force-complete auto-distributes unpicked match_players alternating teams from `current_picker_team` (ordered by `created_at` for reproducibility); raises `FFC_ALREADY_AT_CAP` if invoked at roster cap. Abandon leaves draft_picks intact for audit.
+- **NEW (S028): §3.19 Formation route lives at `/match/:id/formation`** (NOT `/admin/matches/:id/formation` — that route no longer exists). Captain-editable, team-readable; non-team-members see an access-gate card.
+- **NEW (S028): `starting_gk_profile_id` FKs profiles** — guests cannot be starting GK. UI excludes guests from the GK pool; rotation_number sequence skips them entirely.
 
 ---
+
+## Completed in S028 (23/APR/2026, Work PC)
+
+- [x] Cold-start — work PC `.git` pointer correct, `main = origin/main` clean at `c8815bc`
+- [x] Slice 1 — migration 0020_v_match_commitments_guest_id applied live; Poll.tsx refactored to pk lookup
+- [x] Slice 2 — migration 0021_admin_draft_override_rpcs applied live; AdminMatches Phase 5.5 buttons wired (SimpleConfirmSheet pattern)
+- [x] §3.19 Slice A — FormationPlanner scaffold + pattern presets (9 layouts) + captain-accessible route + 177 LOC CSS
+- [x] §3.19 Slice B — drag-drop tokens + custom pattern mode + Reset-to-preset button
+- [x] §3.19 Slice C — rotating GK toggle + starting-GK select + rotation_order + gk_profile_id persistence + token rotation badges + roster rot chips
+- [x] Fix — 4 strict-build TS errors caught by Vercel's `tsc -b` (unused selectedPreset memo, null-vs-undefined on Supabase RPC args); commit `7e9a890`
+- [x] 6 commits pushed: `8a753cd`, `c6bfb89`, `03bbcf5`, `e78ee99`, `f489c14`, `7e9a890`
+- [x] Vercel deploy `dpl_A2LF7PLNjw2oVB9wbdcYDaixzRva` READY on production
+- [x] Migrations on live DB: 21
+- [x] Session log + INDEX + todo.md + lessons.md + CLAUDE.md updates
 
 ## Completed in S026 (23/APR/2026, Work PC)
 
