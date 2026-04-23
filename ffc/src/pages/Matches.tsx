@@ -15,6 +15,14 @@ interface SeasonRow {
   ended_at: string | null
   archived_at: string | null
   created_at: string
+  planned_games: number | null
+}
+
+interface ScorerRow {
+  team: 'white' | 'black'
+  goals: number
+  profile: { display_name: string } | null
+  guest: { display_name: string } | null
 }
 
 interface MatchRow {
@@ -31,6 +39,7 @@ interface MatchRow {
   } | null
   motm_member: { display_name: string } | null
   motm_guest: { display_name: string } | null
+  scorers: ScorerRow[]
 }
 
 function formatDate(iso: string): string {
@@ -54,7 +63,7 @@ export function Matches() {
   useEffect(() => {
     supabase
       .from('seasons')
-      .select('id, name, ended_at, archived_at, created_at')
+      .select('id, name, ended_at, archived_at, created_at, planned_games')
       .order('created_at', { ascending: false })
       .then(({ data }) => {
         const rows = data ?? []
@@ -76,7 +85,8 @@ export function Matches() {
             id, result, score_white, score_black, approved_at, matchday_id,
             matchday:matchdays!inner(id, kickoff_at, is_friendly),
             motm_member:profiles!matches_motm_user_id_fkey(display_name),
-            motm_guest:match_guests!matches_motm_guest_id_fkey(display_name)
+            motm_guest:match_guests!matches_motm_guest_id_fkey(display_name),
+            scorers:match_players(team, goals, profile:profiles(display_name), guest:match_guests(display_name))
           `)
           .eq('season_id', activeSeasonId)
           .not('approved_at', 'is', null)
