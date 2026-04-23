@@ -1412,6 +1412,19 @@ export type Database = {
     }
     Functions: {
       accept_substitute: { Args: { p_matchday_id: string }; Returns: undefined }
+      admin_submit_match_result: {
+        Args: {
+          p_approve?: boolean
+          p_matchday_id: string
+          p_motm_guest_id: string
+          p_motm_profile_id: string
+          p_notes?: string
+          p_players: Json
+          p_score_black: number
+          p_score_white: number
+        }
+        Returns: string
+      }
       approve_match_entry: {
         Args: { p_edits?: Json; p_pending_id: string }
         Returns: string
@@ -1421,6 +1434,10 @@ export type Database = {
         Returns: string
       }
       archive_season: { Args: { p_season_id: string }; Returns: undefined }
+      ban_player: {
+        Args: { p_ends_at: string; p_profile_id: string; p_reason: string }
+        Returns: string
+      }
       confirm_friendly_matchday: {
         Args: { p_matchday_id: string }
         Returns: undefined
@@ -1432,6 +1449,17 @@ export type Database = {
           p_matchday_id: string
           p_white_guests: string[]
           p_white_roster: string[]
+        }
+        Returns: string
+      }
+      create_matchday: {
+        Args: {
+          p_format?: Database["public"]["Enums"]["match_format"]
+          p_kickoff_at: string
+          p_poll_closes_at: string
+          p_poll_opens_at: string
+          p_season_id: string
+          p_venue: string
         }
         Returns: string
       }
@@ -1481,6 +1509,7 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      lock_roster: { Args: { p_matchday_id: string }; Returns: undefined }
       log_admin_action: {
         Args: {
           p_action: string
@@ -1506,6 +1535,7 @@ export type Database = {
         Args: { p_match_id: string; p_profile_ids: string[] }
         Returns: undefined
       }
+      reinstate_rejected: { Args: { p_profile_id: string }; Returns: undefined }
       reject_match_entry: {
         Args: { p_pending_id: string; p_reason: string }
         Returns: undefined
@@ -1566,6 +1596,7 @@ export type Database = {
           white_captain: string
         }[]
       }
+      unban_player: { Args: { p_profile_id: string }; Returns: undefined }
       update_guest_stats: {
         Args: {
           p_accuracy: Database["public"]["Enums"]["guest_trait"]
@@ -1603,6 +1634,30 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      update_matchday: {
+        Args: {
+          p_format?: Database["public"]["Enums"]["match_format"]
+          p_format_explicit_null?: boolean
+          p_kickoff_at?: string
+          p_matchday_id: string
+          p_poll_closes_at?: string
+          p_poll_opens_at?: string
+          p_venue?: string
+          p_venue_explicit_null?: boolean
+        }
+        Returns: undefined
+      }
+      update_player_profile: {
+        Args: {
+          p_display_name: string
+          p_is_active: boolean
+          p_primary_position: Database["public"]["Enums"]["player_position"]
+          p_profile_id: string
+          p_role?: Database["public"]["Enums"]["user_role"]
+          p_secondary_position: Database["public"]["Enums"]["player_position"]
+        }
+        Returns: undefined
       }
       upsert_formation: {
         Args: {
