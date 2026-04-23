@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../lib/AppContext'
@@ -58,13 +58,31 @@ interface ProfileLite {
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'points', label: 'Points' },
+  { value: 'wins', label: 'Wins' },
   { value: 'goals', label: 'Goals' },
   { value: 'motm', label: 'MOTM' },
-  { value: 'wins', label: 'Wins' },
-  { value: 'last5_form', label: 'Last-5 form' },
+  { value: 'last5_form', label: 'Last 5' },
 ]
 
 const POSITION_CHIPS: (PlayerPosition | 'ALL')[] = ['ALL', 'GK', 'DEF', 'CDM', 'W', 'ST']
+
+/* Inline SVG icons — avoid emoji for precise-alignment + theme-aware colour.
+ * Filter = 3-line funnel. Sort = stacked up/down arrows. */
+const FilterIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M3 5h14" />
+    <path d="M6 10h8" />
+    <path d="M9 15h2" />
+  </svg>
+)
+const SortIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M6 4v11" />
+    <path d="M3 7l3-3 3 3" />
+    <path d="M14 15V4" />
+    <path d="M11 12l3 3 3-3" />
+  </svg>
+)
 
 /* Initials fallback for avatar disc. "Mohammed Muwahid" → "MM". */
 function initialsOf(name: string): string {
@@ -157,7 +175,25 @@ export function Leaderboard() {
   const [sort, setSort] = useState<SortKey>('points')
   const [activeFilters, setActiveFilters] = useState<Set<PlayerPosition | 'ALL'>>(new Set(['ALL']))
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [sortOpen, setSortOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const filterWrapRef = useRef<HTMLDivElement>(null)
+  const sortWrapRef = useRef<HTMLDivElement>(null)
+
+  /* Close filter/sort popovers on outside click. Both use the same listener
+   * because the cost of one global mousedown is trivial. */
+  useEffect(() => {
+    if (!filterOpen && !sortOpen) return
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (filterOpen && filterWrapRef.current && !filterWrapRef.current.contains(t)) setFilterOpen(false)
+      if (sortOpen && sortWrapRef.current && !sortWrapRef.current.contains(t)) setSortOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [filterOpen, sortOpen])
 
   /* Seasons — load once on mount. Picker defaults to active season (ended_at NULL)
    * else most recent archived. */
@@ -347,55 +383,106 @@ export function Leaderboard() {
           {selectedSeason?.archived_at && <span className="lb-archived-tag">archived</span>}
         </div>
 
-        <button
-          type="button"
-          className={`lb-season-chip${selectedSeason?.archived_at ? ' lb-season-chip--archived' : ''}`}
-          onClick={() => setPickerOpen(true)}
-          disabled={!seasons}
-        >
-          <span className="lb-season-dot" aria-hidden />
-          <span>
-            {selectedSeason?.name ?? 'Loading…'}
-            {selectedSeason && (
-              <> · {selectedSeason.archived_at ? 'archived' : selectedSeason.ended_at ? 'ended' : 'ongoing'}</>
-            )}
-          </span>
-          <span className="lb-caret" aria-hidden>▾</span>
-        </button>
-
-        <div className="lb-filter-row" role="tablist" aria-label="Position filter">
-          {POSITION_CHIPS.map((pos) => {
-            const active = activeFilters.has(pos)
-            return (
-              <button
-                key={pos}
-                type="button"
-                className={`lb-filter-chip${active ? ' lb-filter-chip--active' : ''}`}
-                data-pos={pos === 'ALL' ? undefined : pos}
-                onClick={() => togglePosition(pos)}
-                aria-pressed={active}
-              >
-                {pos}
-              </button>
-            )
-          })}
-          <select
-            className="lb-sort"
-            value={sort}
-            onChange={(e) => void handleSortChange(e.target.value as SortKey)}
-            aria-label="Sort by"
+        <div className="lb-controls-row">
+          <button
+            type="button"
+            className={`lb-season-chip${selectedSeason?.archived_at ? ' lb-season-chip--archived' : ''}`}
+            onClick={() => setPickerOpen(true)}
+            disabled={!seasons}
           >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                Sort: {opt.label}
-              </option>
-            ))}
-          </select>
+            <span className="lb-season-dot" aria-hidden />
+            <span className="lb-season-chip-text">
+              {selectedSeason?.name ?? 'Loading…'}
+              {selectedSeason && (
+                <> · {selectedSeason.archived_at ? 'archived' : selectedSeason.ended_at ? 'ended' : 'ongoing'}</>
+              )}
+            </span>
+            <span className="lb-caret" aria-hidden>▾</span>
+          </button>
+
+          <div className="lb-icon-wrap" ref={filterWrapRef}>
+            <button
+              type="button"
+              className={`lb-icon-btn${filterActive ? ' lb-icon-btn--active' : ''}`}
+              onClick={() => {
+                setFilterOpen((v) => !v)
+                setSortOpen(false)
+              }}
+              aria-label="Filter by position"
+              aria-expanded={filterOpen}
+            >
+              <FilterIcon />
+              {filterActive && (
+                <span className="lb-icon-btn-badge" aria-hidden>
+                  {filteredPositions?.size ?? 0}
+                </span>
+              )}
+            </button>
+            {filterOpen && (
+              <div className="lb-dropdown" role="menu">
+                {POSITION_CHIPS.map((pos) => {
+                  const active = activeFilters.has(pos)
+                  return (
+                    <button
+                      key={pos}
+                      type="button"
+                      role="menuitemcheckbox"
+                      aria-checked={active}
+                      className={`lb-dropdown-item${active ? ' lb-dropdown-item--selected' : ''}`}
+                      data-pos={pos === 'ALL' ? undefined : pos}
+                      onClick={() => togglePosition(pos)}
+                    >
+                      <span>{pos === 'ALL' ? 'All positions' : pos}</span>
+                      {active && <span className="lb-dropdown-check" aria-hidden>✓</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="lb-icon-wrap" ref={sortWrapRef}>
+            <button
+              type="button"
+              className="lb-icon-btn"
+              onClick={() => {
+                setSortOpen((v) => !v)
+                setFilterOpen(false)
+              }}
+              aria-label="Sort by"
+              aria-expanded={sortOpen}
+            >
+              <SortIcon />
+            </button>
+            {sortOpen && (
+              <div className="lb-dropdown" role="menu">
+                {SORT_OPTIONS.map((opt) => {
+                  const selected = opt.value === sort
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={selected}
+                      className={`lb-dropdown-item${selected ? ' lb-dropdown-item--selected' : ''}`}
+                      onClick={() => {
+                        void handleSortChange(opt.value)
+                        setSortOpen(false)
+                      }}
+                    >
+                      <span>{opt.label}</span>
+                      {selected && <span className="lb-dropdown-check" aria-hidden>✓</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {filterActive && !loading && (
           <div className="lb-count-line">
-            {totalVisible} of {(standings?.length ?? 0) + (profiles?.length ?? 0) - (standings?.length ?? 0)}
+            {totalVisible} visible
           </div>
         )}
       </header>
