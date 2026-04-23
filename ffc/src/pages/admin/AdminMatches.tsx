@@ -111,6 +111,40 @@ function formatDraftElapsed(startedAt: string): string {
   return `${hrs}h ${rem}m ago`
 }
 
+// ─── Match result × player goals sanity check (S026+) ────────────
+// A saved result must have its team score equal the sum of individual
+// player goals for that team. Example: WHITE 3-1 BLACK but only two white
+// players have goals > 0 (totalling 2) → mismatch; must be blocked.
+// Works for both the creation flow (admin_submit_match_result) and the
+// post-approval edit flow (edit_match_result + edit_match_players).
+interface TeamGoalRow { team: 'white' | 'black' | null; goals: number | null | undefined }
+
+function validateScoreMatchesGoals(
+  scoreWhite: number,
+  scoreBlack: number,
+  rows: TeamGoalRow[],
+): { ok: boolean; messages: string[]; whiteSum: number; blackSum: number } {
+  let whiteSum = 0
+  let blackSum = 0
+  for (const r of rows) {
+    const g = r.goals ?? 0
+    if (r.team === 'white') whiteSum += g
+    else if (r.team === 'black') blackSum += g
+  }
+  const messages: string[] = []
+  if (whiteSum !== scoreWhite) {
+    messages.push(
+      `WHITE team: scoreline shows ${scoreWhite} but players scored ${whiteSum}. Double-check match result or player stats.`,
+    )
+  }
+  if (blackSum !== scoreBlack) {
+    messages.push(
+      `BLACK team: scoreline shows ${scoreBlack} but players scored ${blackSum}. Double-check match result or player stats.`,
+    )
+  }
+  return { ok: messages.length === 0, messages, whiteSum, blackSum }
+}
+
 // ─── Component ─────────────────────────────────────────────────
 
 export function AdminMatches() {
@@ -122,6 +156,7 @@ export function AdminMatches() {
   const [sheetBusy, setSheetBusy] = useState(false)
   const [seasonId, setSeasonId] = useState<string | null>(null)
   const [seasonFormat, setSeasonFormat] = useState<MatchFormat>('7v7')
+  const [toast, setToast] = useState<string | null>(null)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
@@ -248,6 +283,12 @@ export function AdminMatches() {
         </div>
       )}
 
+      {toast && (
+        <div className="st-toast" role="alert" onAnimationEnd={() => setToast(null)}>
+          {toast}
+        </div>
+      )}
+
       {loading ? (
         <div className="app-loading">Loading…</div>
       ) : byBucket[seg].length === 0 ? (
@@ -321,6 +362,7 @@ export function AdminMatches() {
                 setBusy={setSheetBusy}
                 onDone={async () => { setSheet(null); await loadAll() }}
                 onError={setError}
+                onToast={setToast}
                 onCancel={() => !sheetBusy && setSheet(null)}
               />
             )}
@@ -332,6 +374,7 @@ export function AdminMatches() {
                 setBusy={setSheetBusy}
                 onDone={async () => { setSheet(null); await loadAll() }}
                 onError={setError}
+                onToast={setToast}
                 onCancel={() => !sheetBusy && setSheet(null)}
               />
             )}
@@ -524,6 +567,7 @@ interface BaseSheetProps {
   setBusy: (b: boolean) => void
   onDone: () => void | Promise<void>
   onError: (msg: string) => void
+  onToast?: (msg: string) => void
   onCancel: () => void
 }
 
@@ -701,7 +745,7 @@ interface ResultRow {
 }
 
 function ResultEntrySheet({
-  md, busy, setBusy, onDone, onError, onCancel,
+  md, busy, setBusy, onDone, onError, onToast, onCancel,
 }: BaseSheetProps & { md: MatchdayWithMatch }) {
   const [scoreWhite, setScoreWhite] = useState(0)
   const [scoreBlack, setScoreBlack] = useState(0)
@@ -742,7 +786,17 @@ function ResultEntrySheet({
   const updateRow = (idx: number, patch: Partial<ResultRow>) =>
     setRows(rows.map((r, i) => i === idx ? { ...r, ...patch } : r))
 
+  // Live goal-sum check — drives inline warning + blocks submit
+  const goalCheck = validateScoreMatchesGoals(scoreWhite, scoreBlack, rows)
+
   const submit = async () => {
+    // Only enforce when at least one score is > 0 and we have roster rows —
+    // drafting an empty result before filling the roster should be allowed.
+    if (rows.length > 0 && (scoreWhite > 0 || scoreBlack > 0) && !goalCheck.ok) {
+      onError(goalCheck.messages.join(' '))
+      onToast?.(goalCheck.messages[0])
+      return
+    }
     setBusy(true)
     const args: Database['public']['Functions']['admin_submit_match_result']['Args'] = {
       p_matchday_id: md.id,
@@ -770,6 +824,7 @@ function ResultEntrySheet({
 
   const motmChoices = rows.filter((r) => r.profile_id && !r.is_no_show)
   const usedIds = new Set(rows.map((r) => r.profile_id).filter(Boolean) as string[])
+  const showGoalWarn = rows.length > 0 && (scoreWhite > 0 || scoreBlack > 0) && !goalCheck.ok
 
   return (
     <>
@@ -786,6 +841,16 @@ function ResultEntrySheet({
           <span>BLACK</span>
           <input type="number" min={0} className="auth-input" value={scoreBlack} onChange={(e) => setScoreBlack(Math.max(0, Number(e.target.value) || 0))} />
         </label>
+      </div>
+
+      <div className={`admin-goal-sum ${showGoalWarn ? 'admin-goal-sum--warn' : 'admin-goal-sum--ok'}`} role="status">
+        <span>⚪ goals by players: <strong>{goalCheck.whiteSum}</strong> / {scoreWhite}</span>
+        <span>⚫ goals by players: <strong>{goalCheck.blackSum}</strong> / {scoreBlack}</span>
+        {showGoalWarn && (
+          <div className="admin-goal-sum-msg">
+            ⚠ {goalCheck.messages.join(' ')}
+          </div>
+        )}
       </div>
 
       <div className="admin-roster-block">
@@ -860,7 +925,13 @@ function ResultEntrySheet({
 
       <div className="sheet-actions">
         <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel} disabled={busy}>Cancel</button>
-        <button type="button" className="auth-btn auth-btn--approve" onClick={submit} disabled={busy}>
+        <button
+          type="button"
+          className="auth-btn auth-btn--approve"
+          onClick={submit}
+          disabled={busy || showGoalWarn}
+          title={showGoalWarn ? 'Player goals must add up to the scoreline' : undefined}
+        >
           {busy ? 'Saving…' : approve ? 'Submit & approve' : 'Save draft'}
         </button>
       </div>
@@ -882,7 +953,7 @@ type PlayerPatch = {
 }
 
 function ResultEditSheet({
-  md, match, busy, setBusy, onDone, onError, onCancel,
+  md, match, busy, setBusy, onDone, onError, onToast, onCancel,
 }: BaseSheetProps & { md: MatchdayWithMatch; match: MatchRow }) {
   const [scoreWhite, setScoreWhite] = useState(match.score_white ?? 0)
   const [scoreBlack, setScoreBlack] = useState(match.score_black ?? 0)
@@ -928,9 +999,23 @@ function ResultEditSheet({
     setPatches((prev) => ({ ...prev, [mpId]: { ...(prev[mpId] ?? {}), ...patch } }))
   }
 
+  // Live goal-sum check combines persisted rows + any pending patches
+  const effectivePlayers = players.map((p) => {
+    const pa = patches[p.id]
+    if (!pa) return { team: p.team, goals: p.goals ?? 0 }
+    return { team: p.team, goals: pa.goals ?? p.goals ?? 0 }
+  })
+  const goalCheck = validateScoreMatchesGoals(scoreWhite, scoreBlack, effectivePlayers)
+  const showGoalWarn = !goalCheck.ok
+
   const submit = async () => {
     if (!match.approved_at) {
       onError('Not-yet-approved matches must be approved via admin_submit_match_result.')
+      return
+    }
+    if (showGoalWarn) {
+      onError(goalCheck.messages.join(' '))
+      onToast?.(goalCheck.messages[0])
       return
     }
     setBusy(true)
@@ -1008,6 +1093,16 @@ function ResultEditSheet({
         </label>
       </div>
 
+      <div className={`admin-goal-sum ${showGoalWarn ? 'admin-goal-sum--warn' : 'admin-goal-sum--ok'}`} role="status">
+        <span>⚪ goals by players: <strong>{goalCheck.whiteSum}</strong> / {scoreWhite}</span>
+        <span>⚫ goals by players: <strong>{goalCheck.blackSum}</strong> / {scoreBlack}</span>
+        {showGoalWarn && (
+          <div className="admin-goal-sum-msg">
+            ⚠ {goalCheck.messages.join(' ')}
+          </div>
+        )}
+      </div>
+
       <div className="admin-mp-header">
         <button
           type="button"
@@ -1055,7 +1150,13 @@ function ResultEditSheet({
 
       <div className="sheet-actions">
         <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel} disabled={busy}>Cancel</button>
-        <button type="button" className="auth-btn auth-btn--approve" onClick={submit} disabled={busy || !match.approved_at}>
+        <button
+          type="button"
+          className="auth-btn auth-btn--approve"
+          onClick={submit}
+          disabled={busy || !match.approved_at || showGoalWarn}
+          title={showGoalWarn ? 'Player goals must add up to the scoreline' : undefined}
+        >
           {busy ? 'Saving…' : 'Save changes'}
         </button>
       </div>
