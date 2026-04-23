@@ -424,7 +424,7 @@ export function AdminMatches() {
                 busy={sheetBusy}
                 onConfirm={async () => {
                   setSheetBusy(true)
-                  const { error } = await supabase.rpc('admin_draft_force_complete', { p_matchday_id: sheet.md.id, p_reason: null })
+                  const { error } = await supabase.rpc('admin_draft_force_complete', { p_matchday_id: sheet.md.id })
                   setSheetBusy(false)
                   if (error) { setError(error.message); return }
                   setSheet(null)
@@ -442,7 +442,7 @@ export function AdminMatches() {
                 busy={sheetBusy}
                 onConfirm={async () => {
                   setSheetBusy(true)
-                  const { error } = await supabase.rpc('admin_draft_abandon', { p_matchday_id: sheet.md.id, p_reason: null })
+                  const { error } = await supabase.rpc('admin_draft_abandon', { p_matchday_id: sheet.md.id })
                   setSheetBusy(false)
                   if (error) { setError(error.message); return }
                   setSheet(null)

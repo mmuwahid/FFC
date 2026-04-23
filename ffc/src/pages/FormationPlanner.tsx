@@ -35,13 +35,12 @@ import {
   CUSTOM_PATTERN,
   type FormationMatchFormat,
   type FormationPositionLabel,
-  type FormationPreset,
   type FormationSlot,
   getPreset,
   presetsForFormat,
   rosterSizeForFormat,
 } from '../lib/formationPresets'
-import type { Database } from '../lib/database.types'
+import type { Database, Json } from '../lib/database.types'
 
 type TeamColor = Database['public']['Enums']['team_color']
 type PlayerPosition = Database['public']['Enums']['player_position']
@@ -259,10 +258,9 @@ export function FormationPlanner() {
   useEffect(() => { void loadAll() }, [loadAll])
 
   const presets = useMemo(() => presetsForFormat(format), [format])
-  const selectedPreset: FormationPreset | null = useMemo(() => {
-    if (pattern === CUSTOM_PATTERN) return null
-    return getPreset(pattern, format)
-  }, [pattern, format])
+  // NOTE: pre-Slice-B we held a `selectedPreset` memo, but after drag-drop
+  // landed liveSlots became the single source of truth — the preset is
+  // now only referenced inside the useEffect below that syncs liveSlots.
 
   // When the selected named pattern changes (not custom), sync liveSlots to
   // its preset coords and remember it as the "last named" fallback. In
@@ -420,13 +418,18 @@ export function FormationPlanner() {
     const gkProfileId = gkMode === 'rotate' ? startingGkProfileId : defaultDedicatedGk
     const rotationJsonb = gkMode === 'rotate' && rotationRows.length > 0 ? rotationRows : null
 
+    // Supabase generated types expect `string | undefined` for the optional
+    // profile_id arg and `Json | undefined` for rotation_order (not null),
+    // so omit those fields entirely in dedicated mode rather than passing
+    // null. RotationRow[] widens to Json[] via an explicit cast since the
+    // generated Json type uses an index signature we can't auto-satisfy.
     const args = {
       p_matchday_id: matchday.id,
       p_team: myRosterEntry.team,
       p_pattern: pattern,
-      p_layout_jsonb: layout,
-      p_rotation_order: rotationJsonb as unknown as null,
-      p_starting_gk_profile_id: gkProfileId as unknown as null,
+      p_layout_jsonb: layout as unknown as Json,
+      ...(rotationJsonb ? { p_rotation_order: rotationJsonb as unknown as Json } : {}),
+      ...(gkProfileId ? { p_starting_gk_profile_id: gkProfileId } : {}),
     }
     const { error: rpcErr } = await supabase.rpc('upsert_formation', args)
     setSaving(false)
