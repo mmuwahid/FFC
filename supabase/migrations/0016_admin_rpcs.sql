@@ -72,7 +72,6 @@ BEGIN
    WHERE id = p_profile_id;
 
   PERFORM public.log_admin_action(
-    v_admin,
     'profile',
     p_profile_id,
     'update_player_profile',
@@ -132,7 +131,7 @@ BEGIN
    WHERE id = p_profile_id;
 
   PERFORM public.log_admin_action(
-    v_admin, 'profile', p_profile_id, 'ban_player',
+    'profile', p_profile_id, 'ban_player',
     jsonb_build_object('ban_id', v_ban_id, 'reason', btrim(p_reason), 'ends_at', p_ends_at)
   );
 
@@ -164,7 +163,7 @@ BEGIN
    WHERE id = p_profile_id;
 
   PERFORM public.log_admin_action(
-    v_admin, 'profile', p_profile_id, 'unban_player',
+    'profile', p_profile_id, 'unban_player',
     jsonb_build_object('bans_revoked', v_count)
   );
 END;
@@ -197,7 +196,7 @@ BEGIN
    WHERE id = p_profile_id;
 
   PERFORM public.log_admin_action(
-    v_admin, 'profile', p_profile_id, 'reinstate_rejected',
+    'profile', p_profile_id, 'reinstate_rejected',
     jsonb_build_object('previous_reason', v_reason)
   );
 END;
@@ -245,7 +244,7 @@ BEGIN
   ) RETURNING id INTO v_id;
 
   PERFORM public.log_admin_action(
-    v_admin, 'matchday', v_id, 'create_matchday',
+    'matchday', v_id, 'create_matchday',
     jsonb_build_object(
       'season_id', p_season_id, 'kickoff_at', p_kickoff_at,
       'venue', p_venue, 'format', p_format
@@ -290,7 +289,7 @@ BEGIN
    WHERE id = p_matchday_id;
 
   PERFORM public.log_admin_action(
-    v_admin, 'matchday', p_matchday_id, 'update_matchday',
+    'matchday', p_matchday_id, 'update_matchday',
     jsonb_build_object(
       'before', v_before,
       'patch', jsonb_build_object(
@@ -324,7 +323,7 @@ BEGIN
   UPDATE public.matchdays SET roster_locked_at = now() WHERE id = p_matchday_id;
 
   PERFORM public.log_admin_action(
-    v_admin, 'matchday', p_matchday_id, 'lock_roster', '{}'::jsonb
+    'matchday', p_matchday_id, 'lock_roster', '{}'::jsonb
   );
 END;
 $$;
@@ -435,7 +434,7 @@ BEGIN
   END IF;
 
   PERFORM public.log_admin_action(
-    v_admin, 'match', v_match_id, 'admin_submit_match_result',
+    'match', v_match_id, 'admin_submit_match_result',
     jsonb_build_object(
       'matchday_id', p_matchday_id,
       'score_white', p_score_white, 'score_black', p_score_black,

@@ -58,10 +58,15 @@ function dateLabel(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()
 }
 function timeLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  // 12-hour format: "8:15pm"
+  const s = new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  return s.replace(' AM', 'am').replace(' PM', 'pm').replace(/\s/g, '')
+}
+function dowLabel(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', { weekday: 'short' }).toUpperCase()
 }
 function fullLabel(iso: string): string {
-  return `${dateLabel(iso)} · ${timeLabel(iso)}`
+  return `${dowLabel(iso)} · ${dateLabel(iso)} · ${timeLabel(iso)}`
 }
 
 function bucketize(md: MatchdayWithMatch): Segment {
@@ -341,7 +346,7 @@ function MatchdayCard({
     <li className={`admin-md-card${approved ? ' admin-md-card--final' : ''}`}>
       <div className="admin-md-head">
         <div className="admin-md-head-main">
-          <span className="admin-md-date">{dateLabel(md.kickoff_at)}</span>
+          <span className="admin-md-date">{dowLabel(md.kickoff_at)} · {dateLabel(md.kickoff_at)}</span>
           <span className="admin-md-time">· {timeLabel(md.kickoff_at)}</span>
           {md.venue && <span className="admin-md-venue">· {md.venue}</span>}
         </div>
@@ -356,9 +361,9 @@ function MatchdayCard({
       {hasResult && md.match && (
         <div className="admin-md-result">
           <div className="admin-md-score">
-            <span className="admin-md-score-white">WHITE {md.match.score_white}</span>
+            <span className="admin-md-score-white">⚪ WHITE {md.match.score_white}</span>
             <span className="admin-md-score-sep">–</span>
-            <span className="admin-md-score-black">{md.match.score_black} BLACK</span>
+            <span className="admin-md-score-black">{md.match.score_black} BLACK ⚫</span>
           </div>
           {md.match.result && <span className={`admin-md-result-chip admin-md-result-chip--${md.match.result}`}>{resultLabel(md.match.result)}</span>}
         </div>
@@ -440,7 +445,7 @@ function CreateMatchdaySheet({
   const [pollCloses, setPollCloses] = useState(() => {
     const d = new Date(nextThu); d.setDate(d.getDate() - 1); d.setHours(21, 0, 0, 0); return toLocalInput(d.toISOString())
   })
-  const [format, setFormat] = useState<MatchFormat | ''>('')
+  const [format, setFormat] = useState<MatchFormat>(seasonDefaultFormat || '7v7')
 
   const submit = async () => {
     if (!kickoff || !pollOpens || !pollCloses) { onError('All dates required.'); return }
@@ -451,22 +456,25 @@ function CreateMatchdaySheet({
       p_venue: venue.trim(),
       p_poll_opens_at: fromLocalInput(pollOpens),
       p_poll_closes_at: fromLocalInput(pollCloses),
+      p_format: format,
     }
-    if (format) args.p_format = format
     const { error } = await supabase.rpc('create_matchday', args)
     setBusy(false)
     if (error) { onError(error.message); return }
     await onDone()
   }
 
+  const preview = (local: string) => local ? fullLabel(fromLocalInput(local)) : '—'
+
   return (
     <>
       <h3>Create matchday</h3>
-      <p className="sheet-sub">Season default format: {seasonDefaultFormat}. Leave format blank to inherit.</p>
+      <p className="sheet-sub">Season default format: {seasonDefaultFormat}.</p>
 
       <label className="admin-field">
         <span className="admin-field-label">Kickoff</span>
         <input type="datetime-local" className="auth-input" value={kickoff} onChange={(e) => setKickoff(e.target.value)} />
+        <span className="admin-dt-preview">{preview(kickoff)}</span>
       </label>
 
       <label className="admin-field">
@@ -477,19 +485,18 @@ function CreateMatchdaySheet({
       <label className="admin-field">
         <span className="admin-field-label">Poll opens</span>
         <input type="datetime-local" className="auth-input" value={pollOpens} onChange={(e) => setPollOpens(e.target.value)} />
+        <span className="admin-dt-preview">{preview(pollOpens)}</span>
       </label>
 
       <label className="admin-field">
         <span className="admin-field-label">Poll closes</span>
         <input type="datetime-local" className="auth-input" value={pollCloses} onChange={(e) => setPollCloses(e.target.value)} />
+        <span className="admin-dt-preview">{preview(pollCloses)}</span>
       </label>
 
       <div className="admin-field">
         <span className="admin-field-label">Format</span>
         <div className="admin-chip-row">
-          <button type="button" className={`admin-chip${format === '' ? ' admin-chip--on' : ''}`} onClick={() => setFormat('')}>
-            Inherit ({seasonDefaultFormat})
-          </button>
           <button type="button" className={`admin-chip${format === '7v7' ? ' admin-chip--on' : ''}`} onClick={() => setFormat('7v7')}>7v7</button>
           <button type="button" className={`admin-chip${format === '5v5' ? ' admin-chip--on' : ''}`} onClick={() => setFormat('5v5')}>5v5</button>
         </div>
@@ -512,7 +519,7 @@ function EditMatchdaySheet({
   const [venue, setVenue] = useState(md.venue ?? '')
   const [pollOpens, setPollOpens] = useState(toLocalInput(md.poll_opens_at))
   const [pollCloses, setPollCloses] = useState(toLocalInput(md.poll_closes_at))
-  const [format, setFormat] = useState<MatchFormat | ''>(md.format ?? '')
+  const [format, setFormat] = useState<MatchFormat>((md.format ?? seasonDefaultFormat) || '7v7')
 
   const submit = async () => {
     setBusy(true)
@@ -523,33 +530,36 @@ function EditMatchdaySheet({
       p_poll_closes_at: fromLocalInput(pollCloses),
       p_venue: venue.trim() || undefined,
       p_venue_explicit_null: venue.trim() === '',
+      p_format: format,
     }
-    if (format) args.p_format = format
-    else args.p_format_explicit_null = true
     const { error } = await supabase.rpc('update_matchday', args)
     setBusy(false)
     if (error) { onError(error.message); return }
     await onDone()
   }
 
+  const preview = (local: string) => local ? fullLabel(fromLocalInput(local)) : '—'
+
   return (
     <>
-      <h3>Edit matchday — {dateLabel(md.kickoff_at)}</h3>
+      <h3>Edit matchday — {dowLabel(md.kickoff_at)} · {dateLabel(md.kickoff_at)}</h3>
       <p className="sheet-sub">Season default: {seasonDefaultFormat}.</p>
 
       <label className="admin-field"><span className="admin-field-label">Kickoff</span>
-        <input type="datetime-local" className="auth-input" value={kickoff} onChange={(e) => setKickoff(e.target.value)} /></label>
+        <input type="datetime-local" className="auth-input" value={kickoff} onChange={(e) => setKickoff(e.target.value)} />
+        <span className="admin-dt-preview">{preview(kickoff)}</span></label>
       <label className="admin-field"><span className="admin-field-label">Venue</span>
         <input className="auth-input" value={venue} onChange={(e) => setVenue(e.target.value)} /></label>
       <label className="admin-field"><span className="admin-field-label">Poll opens</span>
-        <input type="datetime-local" className="auth-input" value={pollOpens} onChange={(e) => setPollOpens(e.target.value)} /></label>
+        <input type="datetime-local" className="auth-input" value={pollOpens} onChange={(e) => setPollOpens(e.target.value)} />
+        <span className="admin-dt-preview">{preview(pollOpens)}</span></label>
       <label className="admin-field"><span className="admin-field-label">Poll closes</span>
-        <input type="datetime-local" className="auth-input" value={pollCloses} onChange={(e) => setPollCloses(e.target.value)} /></label>
+        <input type="datetime-local" className="auth-input" value={pollCloses} onChange={(e) => setPollCloses(e.target.value)} />
+        <span className="admin-dt-preview">{preview(pollCloses)}</span></label>
 
       <div className="admin-field">
         <span className="admin-field-label">Format</span>
         <div className="admin-chip-row">
-          <button type="button" className={`admin-chip${format === '' ? ' admin-chip--on' : ''}`} onClick={() => setFormat('')}>Inherit ({seasonDefaultFormat})</button>
           <button type="button" className={`admin-chip${format === '7v7' ? ' admin-chip--on' : ''}`} onClick={() => setFormat('7v7')}>7v7</button>
           <button type="button" className={`admin-chip${format === '5v5' ? ' admin-chip--on' : ''}`} onClick={() => setFormat('5v5')}>5v5</button>
         </div>
@@ -813,40 +823,31 @@ function ResultEditSheet({
 
   if (loading) return <div className="app-loading" style={{ padding: 32 }}>Loading…</div>
 
+  // Only players with events: scored, carded, no-show, captain, or MOTM.
+  const hasEvent = (p: MatchPlayerRow): boolean =>
+    (p.goals ?? 0) > 0 || (p.yellow_cards ?? 0) > 0 || (p.red_cards ?? 0) > 0 ||
+    !!p.is_no_show || !!p.is_captain || p.profile_id === match.motm_user_id || p.guest_id === match.motm_guest_id
+  const whiteEvents = players.filter((p) => p.team === 'white' && hasEvent(p))
+  const blackEvents = players.filter((p) => p.team === 'black' && hasEvent(p))
+
   return (
     <>
-      <h3>Edit result — {dateLabel(md.kickoff_at)}</h3>
+      <h3>Edit result — {dowLabel(md.kickoff_at)} · {dateLabel(md.kickoff_at)}</h3>
       <p className="sheet-sub">Score / MOTM / notes only. Per-player stat corrections are a Phase 2 item.</p>
 
       <div className="admin-score-row">
-        <label className="admin-score-field"><span>WHITE</span>
+        <label className="admin-score-field"><span>⚪ WHITE</span>
           <input type="number" min={0} className="auth-input" value={scoreWhite} onChange={(e) => setScoreWhite(Math.max(0, Number(e.target.value) || 0))} />
         </label>
         <span className="admin-score-sep">–</span>
-        <label className="admin-score-field"><span>BLACK</span>
+        <label className="admin-score-field"><span>BLACK ⚫</span>
           <input type="number" min={0} className="auth-input" value={scoreBlack} onChange={(e) => setScoreBlack(Math.max(0, Number(e.target.value) || 0))} />
         </label>
       </div>
 
-      <div className="admin-roster-block">
-        <h4>Roster ({players.length}) — read-only</h4>
-        <ul className="admin-roster-list admin-roster-list--ro">
-          {players.map((p) => (
-            <li key={p.id} className={`admin-roster-row admin-roster-row--${p.team}`}>
-              <div className="admin-roster-name">
-                <span className={`admin-roster-team admin-roster-team--${p.team}`}>{p.team === 'white' ? 'W' : 'B'}</span>
-                <span>{p.display_name}</span>
-                {p.is_captain && <span className="chip chip-role">C</span>}
-              </div>
-              <div className="admin-roster-stats admin-roster-stats--ro">
-                <span>⚽ {p.goals ?? 0}</span>
-                {(p.yellow_cards ?? 0) > 0 && <span className="c-yel">🟨 {p.yellow_cards}</span>}
-                {(p.red_cards ?? 0) > 0 && <span className="c-red">🟥 {p.red_cards}</span>}
-                {p.is_no_show && <span className="admin-chip admin-chip--on admin-chip--sm">NS</span>}
-              </div>
-            </li>
-          ))}
-        </ul>
+      <div className="admin-team-grid">
+        <RosterColumn title="⚪ WHITE" rows={whiteEvents} motmProfileId={match.motm_user_id} motmGuestId={match.motm_guest_id} />
+        <RosterColumn title="BLACK ⚫" rows={blackEvents} motmProfileId={match.motm_user_id} motmGuestId={match.motm_guest_id} />
       </div>
 
       <label className="admin-field">
@@ -871,6 +872,46 @@ function ResultEditSheet({
         </button>
       </div>
     </>
+  )
+}
+
+function RosterColumn({
+  title, rows, motmProfileId, motmGuestId,
+}: {
+  title: string
+  rows: (MatchPlayerRow & { display_name: string })[]
+  motmProfileId: string | null
+  motmGuestId: string | null
+}) {
+  return (
+    <div className="admin-team-col">
+      <h5 className="admin-team-col-title">{title}</h5>
+      {rows.length === 0 ? (
+        <p className="admin-team-col-empty">No events</p>
+      ) : (
+        <ul className="admin-team-col-list">
+          {rows.map((p) => {
+            const isMotm = (p.profile_id && p.profile_id === motmProfileId) ||
+                           (p.guest_id && p.guest_id === motmGuestId)
+            return (
+              <li key={p.id} className="admin-team-col-row">
+                <span className="admin-team-col-name">
+                  {p.is_captain && <span className="admin-team-c">(C)</span>}
+                  {p.display_name}
+                  {isMotm && <span className="admin-team-motm">⭐</span>}
+                </span>
+                <span className="admin-team-col-stats">
+                  {(p.goals ?? 0) > 0 && <span>⚽ {p.goals}</span>}
+                  {(p.yellow_cards ?? 0) > 0 && <span className="c-yel">🟨{(p.yellow_cards ?? 0) > 1 ? ` ${p.yellow_cards}` : ''}</span>}
+                  {(p.red_cards ?? 0) > 0 && <span className="c-red">🟥</span>}
+                  {p.is_no_show && <span className="admin-chip admin-chip--on admin-chip--sm">NS</span>}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
   )
 }
 

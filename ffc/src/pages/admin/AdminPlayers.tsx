@@ -685,14 +685,14 @@ function BanSheet({
       <div className="admin-field">
         <span className="admin-field-label">Duration</span>
         <div className="admin-chip-row">
-          {[7, 14, 30, 60, 90].map((d) => (
+          {[7, 14].map((d) => (
             <button
               key={d}
               type="button"
               className={`admin-chip${days === d ? ' admin-chip--on' : ''}`}
               onClick={() => setDays(d)}
             >
-              {d}d
+              {d} Days
             </button>
           ))}
           <input
@@ -703,6 +703,7 @@ function BanSheet({
             max={365}
             onChange={(e) => setDays(Math.max(1, Math.min(365, Number(e.target.value) || 1)))}
           />
+          <span className="auth-hint" style={{ marginLeft: 4 }}>days</span>
         </div>
         <span className="auth-hint">Returns {dateLabel(toISOEnd(days))}</span>
       </div>
