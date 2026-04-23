@@ -13,6 +13,7 @@ import { Leaderboard } from './pages/Leaderboard'
 import { Profile } from './pages/Profile'
 import { MatchDetail } from './pages/MatchDetail'
 import { Settings } from './pages/Settings'
+import { Rules } from './pages/Rules'
 import { RefEntry } from './pages/RefEntry'
 import { NotFound } from './pages/NotFound'
 import { AdminHome } from './pages/admin/AdminHome'
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
       { path: 'profile/:id', element: <Profile /> },
       { path: 'match/:id', element: <MatchDetail /> },
       { path: 'settings', element: <Settings /> },
+      { path: 'settings/rules', element: <Rules /> },
       { path: 'admin', element: <AdminHome /> },
       { path: 'admin/players', element: <AdminPlayers /> },
       { path: 'admin/matches', element: <AdminMatches /> },
