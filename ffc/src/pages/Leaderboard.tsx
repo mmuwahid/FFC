@@ -320,12 +320,6 @@ export function Leaderboard() {
         arr.push(out)
         m.set(row.profile_id, arr)
       }
-      // Temporary diagnostic for the S022 polish pass — remove next slice.
-      console.info('[FFC] leaderboard data:', {
-        standings: s.data?.length ?? 0,
-        last5_rows: l.data?.length ?? 0,
-        last5_profiles: m.size,
-      })
       setLast5ByProfile(m)
     })
 

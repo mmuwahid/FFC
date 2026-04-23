@@ -1,6 +1,6 @@
 # FFC Todo
 
-## NEXT SESSION — S022 (Step 4 UI slice kickoff — Poll full Depth-B vs Leaderboard)
+## NEXT SESSION — S023 (§3.14 Player Profile — Phase 1 Depth-B slice)
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol → "Session-start sync protocol" subsection:
@@ -9,31 +9,69 @@
   3. `git fetch && git status -sb && git log --oneline -5`.
   4. If behind origin with working-tree "modifications" matching the ahead commits: `git stash push --include-untracked` → `git pull --ff-only` → `git stash drop`.
   5. If genuinely uncommitted WIP: ask user.
-- Expected tip: `a39f56f` or later. Expect clean status.
-- **Phase 1 Step 3 COMPLETE** + **4 S021 polish items LIVE** (OAuth Path B verified, real PWA icons, Signup confirm-email handler, audit-log docs).
-- **Live:** https://ffc-gilt.vercel.app — full auth flow + real FFC crest everywhere (favicon, apple-touch-icon, PWA manifest, splash).
+- Expected tip: S022 close commit or later (S022 shipped 5 commits + 1 close — `59889f1`, `9d5c3c2`, `c33b781`, `5c97867`, `d3cdcf8`, close).
+- **Phase 1 Step 4 SLICE 1 COMPLETE** — Leaderboard live end-to-end at https://ffc-gilt.vercel.app/leaderboard. First seeded match in Season 1 (Mohammed 3pts · Test Player 0pts · cards + MOTM populated for visual test).
 
-**S022 agenda:**
+**S023 agenda:**
 
-1. **Step 4 UI slice decision — spawn `planner` agent first.** Two valid paths per masterplan §17:
-   - **Option A — Poll full Depth-B (§3.7):** closes Step 3's acceptance gap (masterplan says Step 3 should end with "approved player commits a poll vote"; S020 only shipped a `/poll` stub). 9-state machine, richer RPC surface.
-   - **Option B — Leaderboard (§3.13):** first per §3 section order. Read-only, lower risk, fast win. RPCs minimal — mostly aggregating `match_players` / `matches` data.
-   - Planner brief: "Given Option A vs Option B, compare (1) mockup readiness (both approved S011/S012), (2) RPC surface + DB dependency, (3) scope fit for a single session ~4-6 hours, (4) risk of regressing S020 auth flow. Propose one option with acceptance criterion that can be verified via Playwright + DB query."
-2. **Mockup review → implement → smoke-test** the chosen slice per FFC workflow. Mockup files: `mockups/3-7-poll-screen.html` (Option A) or `mockups/3-13-leaderboard.html` (Option B).
-3. **Vector FFC crest SVG** if user has one exported — 5-minute manifest addition (`{src: /favicon.svg, sizes: any, type: image/svg+xml, purpose: any}` + `<link rel="icon" type="image/svg+xml" href="/favicon.svg">` in index.html).
-4. **Palette re-alignment** (backburner) — still on "eventually" list from S012. Current red+navy vs brand khaki-gold (#AEA583) + cream (#EDE9E1) + black + white. Low priority; user sign-off to stay current.
+1. **§3.14 Player Profile — Phase 1 Depth-B.** Default next per masterplan §17 order. Leaderboard row-taps already route to `/profile?profile_id=&season_id=` — currently hits the Profile stub, so this closes a visible navigation loop.
+   - Spec: `docs/superpowers/specs/2026-04-17-ffc-phase1-design.md:2042+`
+   - Mockup: `mockups/3-14-player-profile.html` (S012 approved after S010 Bug A/B fixes)
+   - **Shape:**
+     - Identity hero: avatar · display_name · primary/secondary position pills · MOTM chip · self-edit shortcut (self-view only)
+     - Season stats card (6 KPIs per S007 R3): Points · MP · W-D-L · Goals · MOTM · Late-cancel
+     - Last-5 form strip (24px W/D/L circles per §3.2)
+     - Achievements card (6 tiles per S007 R5): ⭐ MOTMs · 🔥 W-streak · 🎯 Goals · 🟨 Yellows · 🟥 Reds · 📉 L-streak
+     - Recent matches list: last 10 newest across all seasons, per-row W/D/L chip from profile-owner perspective, tap → `/match/:id` (which is still a stub; that's OK for this slice)
+     - Settings shortcut link (self-view only, routes to `/settings`)
+   - **Data:** `v_season_standings` (season row) · `v_player_last5` (strip) · `profiles` (identity) · one recent-matches SQL (spec line 2060-2072 — already written) · three achievements-aggregate SQL queries (spec line 2073+ — already written). **Zero new SQL, zero new RPCs.**
+   - Acceptance: self-view renders for super_admin w/ Season 1 Match 1 showing; public-view from Leaderboard tap renders Test Player's view; zero-match state renders cleanly when switching to a profile with no matches (use `m.muwahid+s020reject@gmail.com` → oh wait that's rejected and filtered out, so rebuild the empty state via a non-seeded user later if needed); dark + light both render; TS + build clean; curl /profile 200; anon error-state cleanly formatted.
+   - **Estimated scope:** 1 long session or 1.5 sessions. Profile is heavier than Leaderboard. Consider planner-agent at open if uncertain.
 
-**Known gotchas still live:**
-- **Session-start sync protocol** (new in S021). Never skip it on a cross-PC resume — the stale `.git` pointer looks like "dozens of modifications" that are actually already-pushed commits.
-- **Google consent screen shows `hylarwwsedjxwavuwjrn.supabase.co`, not "FFC".** Supabase Pro + $25/mo custom domain required to fix — not worth it for a private league.
-- **`ffc/vercel.json` SPA rewrite is load-bearing.** Don't delete it.
-- **Supabase email validator rejects `example.com` and throwaway domains.** Test emails = real Gmail or `m.muwahid+s###<role>@gmail.com` aliases.
-- **Supabase MCP PAT is PadelHub-scoped** (403 on FFC project). Use `npx --yes supabase@latest db query --linked "..."` for SQL inspection.
-- **`supabase gen types typescript --linked 2>/dev/null`** — the stderr redirect is mandatory or the "Initialising login role..." diagnostic contaminates the types file.
-- **Windows `&`-in-path bug** (`11 - AI & Digital`) — `.bin/*.cmd` wrappers truncate. Use `node ./node_modules/<pkg>/bin/<bin>` direct invocation. Vercel Linux CI unaffected.
-- **Google OAuth via Playwright is blocked** by Google's anti-Chromium detection — test Path B with user click-through on real browser, verify DB delta via SQL.
-- **Terminal roles** (`rejected`, future `banned`) must auto-signOut in AppContext, not just render a display flag.
-- **`favicon.svg` stale CDN cache** on Vercel edge — harmless (no code path references it), will age out.
+2. **Side-items still backburner:**
+   - Vector FFC crest SVG — when user exports from Illustrator/Figma
+   - Palette re-align (red+navy → khaki-gold + cream per brand) — still low priority
+   - Poll Depth-B kickoff (§3.7) — multi-session, blocked on §3.18 admin-create-matchday tooling
+   - Leaderboard realtime subscription + pull-to-refresh + skeleton rows (Depth-B acceptance gate still open but not user-facing issues)
+
+**Known gotchas still live (unchanged from S022):**
+- **Session-start sync protocol** (from S021). Never skip it on a cross-PC resume.
+- **Google consent screen shows `hylarwwsedjxwavuwjrn.supabase.co`.** Pro + custom domain = $25/mo to fix — deferred indefinitely.
+- **`ffc/vercel.json` SPA rewrite is load-bearing.**
+- **Supabase email validator** rejects `example.com`. Use `m.muwahid+s###<role>@gmail.com`.
+- **Supabase MCP PAT is PadelHub-scoped.** Use `npx --yes supabase@latest db query --linked "..."`.
+- **`supabase gen types typescript --linked 2>/dev/null`** — stderr redirect mandatory.
+- **Windows `&`-in-path bug** (`11 - AI & Digital`) — Node direct-invocation pattern.
+- **Terminal roles** auto-signOut in AppContext.
+- **CLAUDE.md truncates UUIDs.** When seeding SQL or cross-referencing a specific profile/auth_user_id, query `profiles` first — don't fill-in from memory (S022 seed hit this).
+- **PWA service worker caches previous bundle** — hard refresh (Ctrl+Shift+R) after a Vercel deploy if the UI looks stale.
+
+---
+
+## Completed in S022 (23/APR/2026, Work PC — full close)
+
+- [x] Cross-PC cold-start sync: rewrote `FFC/.git` pointer work-PC→work-PC (was pointing home), stash-pull-drop `5791a77 → 028834f` (first real-world run of S021 protocol — clean first try)
+- [x] Planner agent spawned: compared Poll (§3.7) vs Leaderboard (§3.13) on 7 axes, recommended Leaderboard (masterplan §17 order + zero new SQL + renders against 0-match DB)
+- [x] Pre-flight SQL checks: view GRANTs ✅ · `profiles.leaderboard_sort` column+enum ✅ · Season 1 seed ✅
+- [x] Leaderboard initial slice (`59889f1`): 490-line `Leaderboard.tsx` + 469-line `.lb-*` CSS. Season picker, position filter chips, sort dropdown w/ persistence, sticky header, ranked rows w/ medal icons, Not-yet-played group, empty-state tile, tiebreak chain, row-tap → profile route
+- [x] Deploy 1 READY in 13s, user verified happy path on prod (Season 1 · ongoing, Not-yet-played group showing 2 profiles, empty-state tile)
+- [x] User UX feedback round 1 (`9d5c3c2`): sort pill + position chip row → compact 38×38 icon buttons opening anchored dropdowns. Sort order reordered Points/Wins/Goals/MOTM/Last 5; labels simplified. Filter is multi-select w/ active-count badge
+- [x] User UX feedback round 2 (`c33b781`): season picker bottom sheet → anchored dropdown too ("same location, no eye/finger divert"). All 3 popovers share one component + one click-outside effect. Dead bottom-sheet CSS deleted (~90 lines)
+- [x] User approval of dropdown pattern: "tested they are perfect much more clean this way" — saved `feedback_anchored_dropdowns.md` to memory as durable rule for future FFC screens
+- [x] User chose "polish + close" over Profile/Poll for S023 handoff
+- [x] Last-5 strip wired (`5c97867`): `v_player_last5` query alongside standings, indexed by profile_id, rendered below main row
+- [x] Seed one approved match via SQL (1 matchday + 1 match `win_white` 3-1 + 2 match_players rows, super_admin MOTM). SQL hit 3 errors: enum value wrong (`WHITE_WIN` → `win_white`), UUID literal UNION ALL needs explicit `::uuid` casts, CLAUDE.md truncated Test Player UUID and fill-in from memory was wrong
+- [x] Three miss-fixes after user review (`d3cdcf8`): last-5 pinned `grid-row: 2` (auto-placement was landing in collapsed slot) · cards column added (7th grid col, `🟨N 🟥M` hidden when 0) · MOTM chip `⭐N` added to name-block (hidden when 0)
+- [x] Seed updated with cards: Mohammed 1y, Test Player 1y+1r
+- [x] User verified end-to-end post-hard-refresh: "its rendering now working perfectly"
+- [x] Removed temporary `console.info` diagnostic (in close commit)
+- [x] Session log `sessions/S022/session-log.md` written
+- [x] `sessions/INDEX.md` S022 row added, Next-session pointer → S023
+- [x] `tasks/todo.md` S023 agenda block (this)
+- [x] `tasks/lessons.md` +4 entries (UUID literal casts in UNION ALL, session-log UUID truncation, CSS grid auto-placement needs pinning, mockup→code column-drop discipline)
+- [x] `CLAUDE.md` status header refresh
+- [x] `feedback_anchored_dropdowns.md` memory file (saved mid-session at polish-round-2 approval)
+- [x] Close commit pushed + deployed
 
 ---
 
