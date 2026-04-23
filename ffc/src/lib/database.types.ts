@@ -1003,6 +1003,7 @@ export type Database = {
           primary_position:
             | Database["public"]["Enums"]["player_position"]
             | null
+          push_prefs: Json
           reject_reason: string | null
           role: Database["public"]["Enums"]["user_role"]
           secondary_position:
@@ -1027,6 +1028,7 @@ export type Database = {
           primary_position?:
             | Database["public"]["Enums"]["player_position"]
             | null
+          push_prefs?: Json
           reject_reason?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           secondary_position?:
@@ -1051,6 +1053,7 @@ export type Database = {
           primary_position?:
             | Database["public"]["Enums"]["player_position"]
             | null
+          push_prefs?: Json
           reject_reason?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           secondary_position?:
