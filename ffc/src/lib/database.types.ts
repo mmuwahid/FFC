@@ -1342,6 +1342,7 @@ export type Database = {
         Row: {
           commitment_type: string | null
           guest_display_name: string | null
+          guest_id: string | null
           inviter_id: string | null
           matchday_id: string | null
           participant_id: string | null

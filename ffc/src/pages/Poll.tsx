@@ -167,10 +167,10 @@ export function Poll() {
       setMyVote(null)
     }
 
-    // Commitments via v_match_commitments
+    // Commitments via v_match_commitments (guest_id added in migration 0020 — maps guest rows by pk)
     const { data: commitRows } = await supabase
       .from('v_match_commitments')
-      .select('commitment_type, participant_id, inviter_id, guest_display_name, sort_ts, slot_order')
+      .select('commitment_type, participant_id, inviter_id, guest_display_name, guest_id, sort_ts, slot_order')
       .eq('matchday_id', m.id)
       .order('sort_ts', { ascending: true })
 
@@ -223,8 +223,8 @@ export function Poll() {
           avatar_url: info.avatar_url,
         })
       } else if (r.commitment_type === 'guest') {
-        // Match guest row to commitment via display_name + sort_ts proximity
-        const guest = guestMdRows.find((g) => g.display_name === r.guest_display_name)
+        // Map guest commitment to guest row by id (exposed in v_match_commitments as of migration 0020)
+        const guest = r.guest_id ? guestMdRows.find((g) => g.id === r.guest_id) : null
         if (!guest) continue
         merged.push({
           kind: 'guest',
