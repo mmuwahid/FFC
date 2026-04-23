@@ -8,7 +8,7 @@ export function Rules() {
   return (
     <div>
       <div className="lr-nav">
-        <button className="lr-back-btn" aria-label="Back" onClick={() => navigate(-1)}>←</button>
+        <button className="lr-back-btn" aria-label="Back" onClick={() => navigate('/settings')}>←</button>
         <span className="lr-title">League Rules</span>
       </div>
 

@@ -275,7 +275,7 @@ export function Leaderboard() {
     const standingsP = supabase
       .from('v_season_standings')
       .select(
-        'profile_id, display_name, wins, draws, losses, goals, yellows, reds, motms, late_cancel_points, points, profile:profiles!inner(primary_position, secondary_position, avatar_url, role, is_active)',
+        'profile_id, display_name, wins, draws, losses, goals, yellows, reds, motms, late_cancel_points, no_show_points, points, profile:profiles!inner(primary_position, secondary_position, avatar_url, role, is_active)',
       )
       .eq('season_id', selectedSeasonId)
 
