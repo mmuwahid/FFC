@@ -1,25 +1,27 @@
 # FFC Todo
 
-## NEXT SESSION — S032
+## NEXT SESSION — S033
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S031 docs commit on `main` (post-`a689ba3`). Slices A+B of §3.1-v2 pushed at S031 close.
-- Migrations on live DB: **24** (unchanged, 0001 → 0024). S031 was UI-only.
+- Expected tip: S032 close commit on `main` (post-S031's `1357c70`). S032 commit pending push at S032 close — push before deploy.
+- Migrations on live DB: **24** (unchanged, 0001 → 0024). S032 was UI-only.
 
-**S032 agenda:**
+**S033 agenda:**
 
-1. **Live acceptance results triage** — S031 acceptance pass (21 items across S030/S029/S028/S026) still in flight at S031 close. Pick up any failures from user's report; fix + commit in-session.
+1. **Live acceptance triage (compound)** — S031's 21-item checklist (S030 + S029 + S028 + S026) still in flight + S031's new Slice A+B + S032's Slice C. Pick up any failures from user's report and fix in-session.
 
-2. **§3.1-v2 Slice A+B acceptance** — new `/matchday/:id/captains` screen, reached via `👔 Pick captains` button on any AdminMatches card where `roster_locked_at IS NOT NULL AND match_exists`. Test flow: Formula-mode suggested pair card → Confirm sheet → set_matchday_captains RPC → verify `match_players.is_captain` flipped on the two chosen profile_ids. Randomizer mode re-rolls until confirmed. Rank-gap >5 pair should surface the advisory sub-modal.
+2. **§3.1-v2 Slice C acceptance** — on `/matchday/:id/captains`:
+   - Tap the `✓✓✓` triplet on a candidate row. The detail pill (`✓ min-matches N MP · ✓ attendance N% · ✓ cap Nmd ago`) must render below the row WITHOUT also firing the confirm sheet. Tap again to collapse.
+   - Concurrent-admin toast: open two admin sessions in different browsers. Pick captains in browser A. In browser B, try to commit a different pair. The `⚡ Captains were picked {time ago}` modal should surface showing A's admin name + current pair + your intended pair + Cancel-and-refresh / Overwrite-anyway actions.
 
-3. **§3.1-v2 Slice C** (optional polish) — criteria-triplet click-to-expand tooltip, concurrent-admin toast. Not load-bearing for Phase 1.
+3. **§3.1-v2 Slice A+B acceptance** — from S031 (not yet verified): suggested pair card, candidate list sections (Eligible/Partial/Ineligible), White=weaker auto-assignment, Randomizer re-roll, rank-gap >5 advisory modal, guest subsection.
 
-4. **Set `planned_games` on Season 1** — still pending unless user already did it. `/admin/seasons` → Edit Season 1 → set to actual plan (e.g. 30). Until set, `/matches` flashcard banner shows `GAME N` with no denominator.
+4. **Set `planned_games` on Season 1** — still pending. `/admin/seasons` → Edit Season 1 → set to actual plan (e.g. 30). Until set, `/matches` flashcard banner shows `GAME N` with no denominator.
 
-5. **Captain reroll modal** (S010 subagent-B spec, `_wip/item-b-draft-reroll-spec.md`) — still blocked on `dropout_after_lock` notification flow.
+5. **§3.1-v2 mockup palette alignment** — mockup uses khaki/red tokens; live app uses blue/slate. Current `.ch-*` CSS uses live-app tokens. If user wants mockup look, re-theme.
 
-6. **§3.1-v2 mockup palette alignment** — mockup uses khaki/red tokens, live app uses blue/slate. Current `.ch-*` CSS uses live app tokens. If user wants mockup look, re-theme.
+6. **Captain reroll modal** (S010 subagent-B spec, archived) — still blocked on `dropout_after_lock` notification flow.
 
 7. **Backburner (unchanged):**
    - Vector FFC crest SVG (blocked on user export from Illustrator/Figma).
@@ -55,6 +57,24 @@
 - **NEW (S028): `starting_gk_profile_id` FKs profiles** — guests cannot be starting GK. UI excludes guests from the GK pool; rotation_number sequence skips them entirely.
 
 ---
+
+## Completed in S032 (24/APR/2026, Work PC)
+
+- [x] Cross-PC sync on cold start — `.git` pointer rewritten from `C:/Users/User/FFC-git` to `C:/Users/UNHOEC03/FFC-git`; state (b) lag resolved via stash-pull-drop, advanced HEAD by 12 commits to `1357c70`.
+- [x] **§3.1-v2 Slice C Item 1 — triplet click-to-expand.** `Triplet` gains optional `expanded`/`onToggle` props. CandidateRow holds expansion state and renders `.ch-triplet-detail` below the row-button when open, with per-check pass/fail colour-coded raw values. `stopPropagation` on the span prevents the row's main button from firing when the triplet is tapped (avoids nested-button a11y violation).
+- [x] **§3.1-v2 Slice C Item 2 — concurrent-admin toast.** `initialCaptainIds` captured in `loadAll`. `commitPair(w, b, force=false)` pre-checks `match_players.is_captain` vs initial set; if changed, fetches most-recent `admin_audit_log` entry (admin name via `profiles:admin_profile_id(display_name)` embed) and surfaces `ConcurrentAdminModal` with current pair + intended pair + time ago + Cancel-and-refresh / Overwrite-anyway. `force=true` bypasses.
+- [x] `formatTimeAgo(iso)` helper (`Ns/Nm/Nh` ago per magnitude).
+- [x] CSS Slice C namespace: `.ch-triplet--interactive`, `.ch-triplet--on`, `.ch-triplet-detail`, `.ch-sheet--concurrent`, `.ch-sheet-concurrent-body`, `.ch-concurrent-hint` (~45 lines).
+- [x] JSDoc header moved Slice C items from "Deferred" → active Slice C block.
+- [x] Build green: `tsc -b --force` EXIT=0, `vite build` EXIT=0 (CSS 96.20 kB, JS 682.84 kB, PWA 10 entries).
+- [x] Schema-drift caught: first pass embedded `team` on `profiles:`; fixed to `'profile_id, team, profiles:profile_id(display_name)'` after reading `database.types.ts`.
+
+## S032 gotchas / lessons (additive)
+
+- **Nested button is invalid HTML inside React** — put `onClick` on a sibling span with `e.stopPropagation()` to give the inner element its own tap behaviour without breaking a11y. Trade-off: keyboard users still activate the parent via Enter; the inner tap is pointer-only. Acceptable for Phase 1 polish.
+- **`match_players.team` is on `match_players`, not `profiles`.** Same schema-drift pattern FFC has hit since S025 — always open `database.types.ts` before writing an embed.
+- **`admin_audit_log` is admin-SELECT only** per migration 0009 (`is_admin()` policy). Safe to query from admin-gated screens without extra grants.
+- **`.ch-concurrent-hint` required `!important` on `color`** to beat the surrounding `.ch-sheet-concurrent-body` rule's cascaded `color` on child `<p>`. Alternative would be a more specific selector; chose `!important` for brevity in a single-purpose class.
 
 ## Completed in S031 (24/APR/2026, Home PC — worktree `gracious-colden-c36fec`)
 

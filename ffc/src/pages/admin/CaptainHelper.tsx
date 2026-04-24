@@ -22,10 +22,17 @@
  *   - Rank-gap > 5 advisory "Proceed anyway?" sub-modal. Does not hard-block
  *     per spec — admin can still commit with an explicit second action.
  *
- * Deferred to Slice C:
- *   - Criteria-triplet tooltip expansion (raw values click-to-show).
- *   - Concurrent-admin toast ("Captains were picked by X Ns ago") — Phase 1
- *     keeps last-write-wins.
+ * Slice C (this pass):
+ *   - Criteria-triplet click-to-expand — tap the ✓/✗ triplet on a candidate row
+ *     to reveal the raw values (MP · attendance% · cooldown-md) inline beneath
+ *     the row. Replaces the hover-only `title` attribute which was invisible on
+ *     touch devices. Parent button's onClick is suppressed via stopPropagation
+ *     on the span (no nested buttons).
+ *   - Concurrent-admin toast — pre-commit check re-reads match_players
+ *     is_captain + the most recent admin_audit_log entry for this match. If
+ *     captains changed between screen-load and commit (another admin picked in
+ *     parallel), show a "Captains were set by X Ns ago" modal with Overwrite /
+ *     Cancel + refresh. Phase 1 keeps last-write-wins — advisory only.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -98,6 +105,25 @@ interface GapWarningState {
   gap: number
 }
 
+interface ConcurrentWarning {
+  intended_white_id: string
+  intended_black_id: string
+  current_white_name: string | null
+  current_black_name: string | null
+  by_admin_name: string | null
+  at_iso: string | null
+}
+
+function formatTimeAgo(iso: string | null): string {
+  if (!iso) return 'just now'
+  const diffSec = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000))
+  if (diffSec < 60) return `${diffSec}s ago`
+  const mins = Math.round(diffSec / 60)
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.round(mins / 60)
+  return `${hrs}h ago`
+}
+
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/)
   if (parts.length === 0) return '?'
@@ -140,6 +166,8 @@ export function CaptainHelper() {
   const [confirmSheet, setConfirmSheet] = useState<ConfirmSheetState | null>(null)
   const [gapWarning, setGapWarning] = useState<GapWarningState | null>(null)
   const [saving, setSaving] = useState(false)
+  const [initialCaptainIds, setInitialCaptainIds] = useState<string[]>([])
+  const [concurrentWarning, setConcurrentWarning] = useState<ConcurrentWarning | null>(null)
 
   const isAdmin = role === 'admin' || role === 'super_admin'
 
@@ -194,10 +222,12 @@ export function CaptainHelper() {
       if (rosterErr) throw rosterErr
 
       const rosterIds: string[] = []
+      const capIds: string[] = []
       const profileLookup: Record<string, { display_name: string; primary_position: PlayerPosition | null; secondary_position: PlayerPosition | null; is_captain: boolean }> = {}
       for (const row of rosterRows ?? []) {
         if (!row.profile_id) continue
         rosterIds.push(row.profile_id)
+        if (row.is_captain) capIds.push(row.profile_id)
         const p = row.profiles as unknown as { id: string; display_name: string; primary_position: PlayerPosition | null; secondary_position: PlayerPosition | null } | null
         if (p) {
           profileLookup[row.profile_id] = {
@@ -208,6 +238,7 @@ export function CaptainHelper() {
           }
         }
       }
+      setInitialCaptainIds(capIds)
 
       if (rosterIds.length === 0) {
         setCandidates([])
@@ -367,11 +398,58 @@ export function CaptainHelper() {
   )
 
   const commitPair = useCallback(
-    async (white_id: string, black_id: string) => {
-      if (!matchday) return
+    async (white_id: string, black_id: string, force = false) => {
+      if (!matchday || !match) return
       setSaving(true)
       setError(null)
       try {
+        // Slice C: concurrent-admin pre-commit check. If another admin has
+        // picked captains between screen-load and now, show an advisory toast
+        // (last-write-wins per spec). `force` skips the check when user has
+        // explicitly chosen Overwrite from the toast.
+        if (!force) {
+          const { data: currentCapRows, error: curErr } = await supabase
+            .from('match_players')
+            .select('profile_id, team, profiles:profile_id(display_name)')
+            .eq('match_id', match.id)
+            .eq('is_captain', true)
+          if (curErr) throw curErr
+          const typedCapRows = (currentCapRows ?? []) as unknown as { profile_id: string | null; team: 'white' | 'black'; profiles: { display_name: string } | null }[]
+          const currentIds = typedCapRows.map((r) => r.profile_id).filter((x): x is string => !!x)
+          const initialSet = new Set(initialCaptainIds)
+          const currentSet = new Set(currentIds)
+          const changed = currentSet.size !== initialSet.size || [...currentSet].some((x) => !initialSet.has(x))
+          if (changed) {
+            // Audit log lookup for admin name + timestamp.
+            const { data: auditRow } = await supabase
+              .from('admin_audit_log')
+              .select('admin_profile_id, created_at, profiles:admin_profile_id(display_name)')
+              .eq('target_entity', 'matches')
+              .eq('target_id', match.id)
+              .eq('action', 'set_matchday_captains')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+            const byAdmin = auditRow as unknown as { admin_profile_id: string; created_at: string; profiles: { display_name: string } | null } | null
+            let cwName: string | null = null
+            let cbName: string | null = null
+            for (const row of typedCapRows) {
+              if (!row.profiles) continue
+              if (row.team === 'white') cwName = row.profiles.display_name
+              else if (row.team === 'black') cbName = row.profiles.display_name
+            }
+            setConcurrentWarning({
+              intended_white_id: white_id,
+              intended_black_id: black_id,
+              current_white_name: cwName,
+              current_black_name: cbName,
+              by_admin_name: byAdmin?.profiles?.display_name ?? null,
+              at_iso: byAdmin?.created_at ?? null,
+            })
+            setSaving(false)
+            return
+          }
+        }
         const { error: confErr } = await supabase.rpc('set_matchday_captains', {
           p_matchday_id: matchday.id,
           p_white_profile_id: white_id,
@@ -380,6 +458,7 @@ export function CaptainHelper() {
         if (confErr) throw confErr
         setConfirmSheet(null)
         setGapWarning(null)
+        setConcurrentWarning(null)
         navigate('/admin/matches')
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to save captains.')
@@ -387,7 +466,7 @@ export function CaptainHelper() {
         setSaving(false)
       }
     },
-    [matchday, navigate]
+    [matchday, match, initialCaptainIds, navigate]
   )
 
   const onConfirm = useCallback(() => {
@@ -586,6 +665,21 @@ export function CaptainHelper() {
           onProceed={() => void commitPair(gapWarning.white_id, gapWarning.black_id)}
         />
       )}
+
+      {concurrentWarning && (
+        <ConcurrentAdminModal
+          warn={concurrentWarning}
+          candidateById={candidateById}
+          saving={saving}
+          onOverwrite={() => void commitPair(concurrentWarning.intended_white_id, concurrentWarning.intended_black_id, true)}
+          onCancelAndRefresh={() => {
+            setConcurrentWarning(null)
+            setGapWarning(null)
+            setConfirmSheet(null)
+            void loadAll()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -660,6 +754,8 @@ function SuggestedPairCard({
 }
 
 function CandidateRow({ c, dim, onPick }: { c: Candidate; dim: boolean; onPick: () => void }) {
+  const [tripletOpen, setTripletOpen] = useState(false)
+  const cdLabel = c.matchdays_since_captained >= 999 ? 'never captained' : `cap ${c.matchdays_since_captained}md ago`
   return (
     <li className={`ch-cand-row${dim ? ' ch-cand-row--dim' : ''}${c.is_currently_captain ? ' ch-cand-row--captain' : ''}`}>
       <button type="button" className="ch-cand-btn" onClick={onPick}>
@@ -670,9 +766,24 @@ function CandidateRow({ c, dim, onPick }: { c: Candidate; dim: boolean; onPick: 
           {c.is_currently_captain && <span className="ch-cand-captain" title="Current captain">(C)</span>}
           <PositionPills primary={c.primary_position} secondary={c.secondary_position} />
         </span>
-        <Triplet c={c} />
+        <Triplet c={c} expanded={tripletOpen} onToggle={() => setTripletOpen((v) => !v)} />
         <span className="ch-cand-meta">{c.matches_played} MP</span>
       </button>
+      {tripletOpen && (
+        <div className="ch-triplet-detail">
+          <span className={c.meets_min_matches ? 'ch-triplet-y' : 'ch-triplet-n'}>
+            {c.meets_min_matches ? '✓' : '✗'} min-matches <strong>{c.matches_played} MP</strong>
+          </span>
+          <span aria-hidden>·</span>
+          <span className={c.meets_attendance ? 'ch-triplet-y' : 'ch-triplet-n'}>
+            {c.meets_attendance ? '✓' : '✗'} attendance <strong>{Math.round(c.attendance_rate * 100)}%</strong>
+          </span>
+          <span aria-hidden>·</span>
+          <span className={c.cooldown_ok ? 'ch-triplet-y' : 'ch-triplet-n'}>
+            {c.cooldown_ok ? '✓' : '✗'} {cdLabel}
+          </span>
+        </div>
+      )}
     </li>
   )
 }
@@ -686,9 +797,21 @@ function PositionPills({ primary, secondary }: { primary: PlayerPosition | null;
   )
 }
 
-function Triplet({ c }: { c: Candidate }) {
+function Triplet({ c, expanded, onToggle }: { c: Candidate; expanded?: boolean; onToggle?: () => void }) {
+  const tooltip = `min-matches · attendance · cooldown — ${c.matches_played} MP · ${Math.round(c.attendance_rate * 100)}% · ${c.matchdays_since_captained >= 999 ? 'never' : `${c.matchdays_since_captained}md`}`
+  const interactive = !!onToggle
+  const className = `ch-triplet${interactive ? ' ch-triplet--interactive' : ''}${expanded ? ' ch-triplet--on' : ''}`
+  // Nested <button> is invalid HTML, so the interactive Triplet stays a <span>
+  // with onClick + stopPropagation — prevents the parent row button firing.
+  // Keyboard users keep primary row activation via the outer button.
   return (
-    <span className="ch-triplet" title={`min-matches · attendance · cooldown — ${c.matches_played} MP · ${Math.round(c.attendance_rate * 100)}% · ${c.matchdays_since_captained >= 999 ? 'never' : `${c.matchdays_since_captained}md`}`}>
+    <span
+      className={className}
+      title={interactive ? undefined : tooltip}
+      onClick={interactive ? (e) => { e.stopPropagation(); onToggle!() } : undefined}
+      aria-expanded={interactive ? !!expanded : undefined}
+      aria-label={interactive ? tooltip : undefined}
+    >
       <span className={c.meets_min_matches ? 'ch-triplet-y' : 'ch-triplet-n'}>{c.meets_min_matches ? '✓' : '✗'}</span>
       <span className={c.meets_attendance ? 'ch-triplet-y' : 'ch-triplet-n'}>{c.meets_attendance ? '✓' : '✗'}</span>
       <span className={c.cooldown_ok ? 'ch-triplet-y' : 'ch-triplet-n'}>{c.cooldown_ok ? '✓' : '✗'}</span>
@@ -730,6 +853,42 @@ function GuestRow({ g }: { g: Guest }) {
       )}
       {expanded && hasDesc && <div className="ch-guest-desc">{g.description}</div>}
     </li>
+  )
+}
+
+function ConcurrentAdminModal({
+  warn, candidateById, saving, onOverwrite, onCancelAndRefresh,
+}: {
+  warn: ConcurrentWarning
+  candidateById: Record<string, Candidate>
+  saving: boolean
+  onOverwrite: () => void
+  onCancelAndRefresh: () => void
+}) {
+  const intendedWhite = candidateById[warn.intended_white_id]
+  const intendedBlack = candidateById[warn.intended_black_id]
+  const timeAgo = formatTimeAgo(warn.at_iso)
+  const adminLabel = warn.by_admin_name ? `by ${warn.by_admin_name}` : 'by another admin'
+  return (
+    <div className="ch-sheet-scrim" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget && !saving) onCancelAndRefresh() }}>
+      <div className="ch-sheet ch-sheet--concurrent">
+        <div className="ch-sheet-handle" aria-hidden />
+        <div className="ch-sheet-title">⚡ Captains were picked {timeAgo}</div>
+        <div className="ch-sheet-concurrent-body">
+          <p>
+            <strong>{warn.current_white_name ?? '—'}</strong> (white) and <strong>{warn.current_black_name ?? '—'}</strong> (black) were just set {adminLabel}.
+          </p>
+          <p>
+            Your pair: <strong>{intendedWhite?.display_name ?? '—'}</strong> (white) + <strong>{intendedBlack?.display_name ?? '—'}</strong> (black).
+          </p>
+          <p className="ch-concurrent-hint">Overwriting will replace the current pair. Cancel to see the latest captains.</p>
+        </div>
+        <div className="ch-sheet-actions">
+          <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancelAndRefresh} disabled={saving}>Cancel & refresh</button>
+          <button type="button" className="auth-btn auth-btn--approve" onClick={onOverwrite} disabled={saving}>{saving ? 'Overwriting…' : 'Overwrite anyway'}</button>
+        </div>
+      </div>
+    </div>
   )
 }
 
