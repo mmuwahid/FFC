@@ -7,7 +7,7 @@ import type { Database } from '../lib/database.types'
 /* §3.13 Leaderboard — Phase 1 Depth-B slice (S022) + Depth-B gate (S026).
  * Data: v_season_standings + profiles (FK embed) + seasons for the picker.
  * Scope: ranked list, Not-yet-played group, season picker, position filter,
- * sort dropdown with profiles.leaderboard_sort persistence, medal icons for
+ * sort dropdown (session-local, defaults to 'points' per S037), medal icons for
  * top 3 in current season only, last-5 strip, realtime subscription on
  * matches UPDATE, pull-to-refresh, skeleton rows. */
 
@@ -248,24 +248,11 @@ export function Leaderboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  /* Load the signed-in user's sort preference once per profile. Unauthenticated
-   * views keep the 'points' default without persistence (spec explicit). */
-  useEffect(() => {
-    if (!profileId) return
-    let cancelled = false
-    supabase
-      .from('profiles')
-      .select('leaderboard_sort')
-      .eq('id', profileId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled) return
-        if (data?.leaderboard_sort) setSort(data.leaderboard_sort)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [profileId])
+  /* S037: sort always initialises to 'points' for everyone. The per-user
+   * persistence was removed when the corresponding Settings row was deleted;
+   * each visit starts fresh and users change the sort in-screen via the
+   * dropdown icon. The profiles.leaderboard_sort DB column is left in place
+   * but no longer read or written from the client. */
 
   /* Standings loader. Exposed as a callback so realtime + pull-to-refresh
    * can re-trigger without duplicating the query logic. `mode` drives which
@@ -455,11 +442,9 @@ export function Leaderboard() {
     }
   }, [standings, profiles, sort, filteredPositions])
 
-  const handleSortChange = async (next: SortKey) => {
+  const handleSortChange = (next: SortKey) => {
+    // Session-local only; no DB persistence per S037.
     setSort(next)
-    if (!profileId) return
-    const { error: err } = await supabase.from('profiles').update({ leaderboard_sort: next }).eq('id', profileId)
-    if (err) console.warn('[FFC] leaderboard_sort persist failed', err.message)
   }
 
   const togglePosition = (pos: PlayerPosition | 'ALL') => {

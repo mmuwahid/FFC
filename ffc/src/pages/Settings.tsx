@@ -5,14 +5,15 @@ import { useApp } from '../lib/AppContext'
 import type { Database } from '../lib/database.types'
 
 /* §3.16 Settings — Phase 1 Depth-B (S024 slice 4).
- * Six rows: Theme · Push · Leaderboard sort · Positions · Display name · Account.
+ * Five rows: Theme · Push · Positions · Display name · Account.
+ * (Leaderboard sort moved into the Leaderboard screen's own sort dropdown
+ *  in S037 — no duplicate control in Settings.)
  * Push delivery backend is Phase 2; this screen only stores preferences
  * on profiles.push_prefs jsonb (migration 0015) and surfaces the permission
  * state tiles (first-visit prompt / denied fallback).
  */
 
 type ThemePreference = Database['public']['Enums']['theme_preference']
-type SortKey = Database['public']['Enums']['leaderboard_sort']
 type PlayerPosition = Database['public']['Enums']['player_position']
 
 interface PushPrefs {
@@ -31,7 +32,6 @@ interface ProfileData {
   email: string | null
   theme_preference: ThemePreference
   push_prefs: PushPrefs
-  leaderboard_sort: SortKey
   primary_position: PlayerPosition | null
   secondary_position: PlayerPosition | null
 }
@@ -50,13 +50,6 @@ const THEME_CHIPS: { value: ThemePreference; label: string }[] = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
   { value: 'system', label: 'System' },
-]
-
-const SORT_CHIPS: { value: SortKey; label: string }[] = [
-  { value: 'points', label: 'Points' },
-  { value: 'wins', label: 'W' },
-  { value: 'goals', label: 'Goals' },
-  { value: 'motm', label: 'MOTM' },
 ]
 
 const POSITIONS: PlayerPosition[] = ['GK', 'DEF', 'CDM', 'W', 'ST']
@@ -124,7 +117,7 @@ export function Settings() {
     ;(async () => {
       const { data, error: err } = await supabase
         .from('profiles')
-        .select('id, display_name, email, theme_preference, push_prefs, leaderboard_sort, primary_position, secondary_position')
+        .select('id, display_name, email, theme_preference, push_prefs, primary_position, secondary_position')
         .eq('auth_user_id', session.user.id)
         .maybeSingle()
       if (err || !data) {
@@ -138,7 +131,6 @@ export function Settings() {
         email: data.email,
         theme_preference: data.theme_preference,
         push_prefs: normalisePushPrefs(data.push_prefs),
-        leaderboard_sort: data.leaderboard_sort,
         primary_position: data.primary_position,
         secondary_position: data.secondary_position,
       }
@@ -160,13 +152,6 @@ export function Settings() {
     applyThemeClass(val)
     const res = await patchProfile({ theme_preference: val })
     if (!res.ok) setToast("Couldn't save theme. Try again.")
-  }
-
-  async function handleSortChange(val: SortKey) {
-    if (!profile) return
-    setProfile({ ...profile, leaderboard_sort: val })
-    const res = await patchProfile({ leaderboard_sort: val })
-    if (!res.ok) setToast("Couldn't save sort preference.")
   }
 
   async function handlePositionChange(field: 'primary_position' | 'secondary_position', val: PlayerPosition | null) {
@@ -347,24 +332,7 @@ export function Settings() {
         </div>
       </section>
 
-      {/* ============ Row 3: Leaderboard sort ============ */}
-      <section className="st-section">
-        <div className="st-section-label">Leaderboard sort</div>
-        <div className="st-chip-row">
-          {SORT_CHIPS.map(c => (
-            <button
-              key={c.value}
-              type="button"
-              className={`st-chip ${profile.leaderboard_sort === c.value ? 'st-chip-active' : ''}`}
-              onClick={() => handleSortChange(c.value)}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* ============ Row 4: Positions ============ */}
+      {/* ============ Row 3: Positions ============ */}
       <section className="st-section">
         <div className="st-section-label">Positions</div>
         <div className="st-positions">
@@ -391,7 +359,7 @@ export function Settings() {
         </div>
       </section>
 
-      {/* ============ Row 5: Display name ============ */}
+      {/* ============ Row 4: Display name ============ */}
       <section className="st-section">
         <div className="st-section-label">Display name</div>
         <div className={`st-name-row ${nameShake ? 'st-shake' : ''}`}>
@@ -414,7 +382,7 @@ export function Settings() {
         {nameError && <div className="st-name-error">{nameError}</div>}
       </section>
 
-      {/* ============ Row 6: Account ============ */}
+      {/* ============ Row 5: Account ============ */}
       <section className="st-section">
         <div className="st-section-label">Account</div>
         <div className="st-account">
