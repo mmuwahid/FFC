@@ -706,10 +706,25 @@ textarea.auth-input {
  * Admin · Players · Pending tab (§3.17 — S019 scope)
  * ════════════════════════════════════════════════════════════════════════ */
 .admin-players {
+  /* S036: brand palette scope-override. */
+  --bg: #0e1826;
+  --surface: rgba(20, 34, 52, 0.68);
+  --surface-2: rgba(10, 22, 40, 0.6);
+  --border: rgba(242, 234, 214, 0.14);
+  --text: #f2ead6;
+  --text-muted: rgba(242, 234, 214, 0.62);
+  --accent: #e5ba5b;
+  --success: #4fbf93;
+  --warn: #d7a04a;
+  --warning: #d7a04a;
+  --danger: #e63349;
+
   flex: 1;
   display: flex;
   flex-direction: column;
   padding: 12px 0 8px;
+  background: var(--bg);
+  color: var(--text);
 }
 .admin-players-top {
   padding: 0 16px 12px;
@@ -992,11 +1007,31 @@ textarea.auth-input {
 }
 
 .lb-screen {
+  /* S036: brand palette scope-override. Same 10-token pattern as
+     S033/S035. Leaderboard uses var(--bg/--surface/--text/--accent/
+     --success/--warn/--danger/--border) throughout; these resolve to
+     brand values here. */
+  --bg: #0e1826;
+  --surface: rgba(20, 34, 52, 0.68);
+  --surface-2: rgba(10, 22, 40, 0.6);
+  --border: rgba(242, 234, 214, 0.14);
+  --text: #f2ead6;
+  --text-muted: rgba(242, 234, 214, 0.62);
+  --accent: #e5ba5b;       /* gold — rank medals, position pills, MOTM star */
+  --success: #4fbf93;
+  --warn: #d7a04a;
+  --warning: #d7a04a;
+  --danger: #e63349;
+  --skel-a: rgba(242, 234, 214, 0.04);
+  --skel-b: rgba(242, 234, 214, 0.10);
+
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
   gap: 0;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .lb-head {
@@ -1599,10 +1634,27 @@ textarea.auth-input {
 
 /* Screen wrapper */
 .pf-screen {
+  /* S036: brand palette scope-override. */
+  --bg: #0e1826;
+  --surface: rgba(20, 34, 52, 0.68);
+  --surface-2: rgba(10, 22, 40, 0.6);
+  --border: rgba(242, 234, 214, 0.14);
+  --text: #f2ead6;
+  --text-muted: rgba(242, 234, 214, 0.62);
+  --accent: #e5ba5b;
+  --success: #4fbf93;
+  --warn: #d7a04a;
+  --warning: #d7a04a;
+  --danger: #e63349;
+  --skel-a: rgba(242, 234, 214, 0.04);
+  --skel-b: rgba(242, 234, 214, 0.10);
+
   display: flex;
   flex-direction: column;
   min-height: 100%;
   padding-bottom: calc(var(--safe-bottom, 0px) + 80px);
+  background: var(--bg);
+  color: var(--text);
 }
 
 /* Top nav (back + edit) */
@@ -2057,7 +2109,27 @@ textarea.auth-input {
 .pf-save-btn:disabled { opacity: 0.5; cursor: default; }
 
 /* League Rules screen */
-.lr-screen { padding: 16px 14px; display: flex; flex-direction: column; gap: 14px; }
+.lr-screen {
+  /* S036: brand palette scope-override. */
+  --bg: #0e1826;
+  --surface: rgba(20, 34, 52, 0.68);
+  --surface-2: rgba(10, 22, 40, 0.6);
+  --border: rgba(242, 234, 214, 0.14);
+  --text: #f2ead6;
+  --text-muted: rgba(242, 234, 214, 0.62);
+  --accent: #e5ba5b;
+  --success: #4fbf93;
+  --warn: #d7a04a;
+  --warning: #d7a04a;
+  --danger: #e63349;
+
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--bg);
+  color: var(--text);
+}
 .lr-nav { display: flex; align-items: center; gap: 12px; padding: 10px 14px 4px; }
 .lr-back-btn {
   width: 36px; height: 36px; border-radius: 10px;
@@ -2137,7 +2209,24 @@ textarea.auth-input {
 /* ============================================================= */
 /* §3.16 Settings — full screen (.st-*)                           */
 /* ============================================================= */
-.st-screen { padding: 18px 18px 32px; }
+.st-screen {
+  /* S036: brand palette scope-override. */
+  --bg: #0e1826;
+  --surface: rgba(20, 34, 52, 0.68);
+  --surface-2: rgba(10, 22, 40, 0.6);
+  --border: rgba(242, 234, 214, 0.14);
+  --text: #f2ead6;
+  --text-muted: rgba(242, 234, 214, 0.62);
+  --accent: #e5ba5b;
+  --success: #4fbf93;
+  --warn: #d7a04a;
+  --warning: #d7a04a;
+  --danger: #e63349;
+
+  padding: 18px 18px 32px;
+  background: var(--bg);
+  color: var(--text);
+}
 .st-title {
   font-family: "Fraunces", Georgia, serif;
   font-size: 22px; font-weight: 700; margin: 0 0 16px;
@@ -2357,7 +2446,24 @@ textarea.auth-input {
 /* ============================================================= */
 /* §3.20 Matches — list screen (.mt-*)                            */
 /* ============================================================= */
-.mt-screen { padding: 8px 0 24px; }
+.mt-screen {
+  /* S036: brand palette scope-override. */
+  --bg: #0e1826;
+  --surface: rgba(20, 34, 52, 0.68);
+  --surface-2: rgba(10, 22, 40, 0.6);
+  --border: rgba(242, 234, 214, 0.14);
+  --text: #f2ead6;
+  --text-muted: rgba(242, 234, 214, 0.62);
+  --accent: #e5ba5b;
+  --success: #4fbf93;
+  --warn: #d7a04a;
+  --warning: #d7a04a;
+  --danger: #e63349;
+
+  padding: 8px 0 24px;
+  background: var(--bg);
+  color: var(--text);
+}
 .mt-head {
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; padding: 14px 18px 8px; position: relative;
@@ -2732,7 +2838,24 @@ textarea.auth-input {
 }
 
 /* Matchday card */
-.admin-matches { padding-bottom: 32px; }
+.admin-matches {
+  /* S036: brand palette scope-override. */
+  --bg: #0e1826;
+  --surface: rgba(20, 34, 52, 0.68);
+  --surface-2: rgba(10, 22, 40, 0.6);
+  --border: rgba(242, 234, 214, 0.14);
+  --text: #f2ead6;
+  --text-muted: rgba(242, 234, 214, 0.62);
+  --accent: #e5ba5b;
+  --success: #4fbf93;
+  --warn: #d7a04a;
+  --warning: #d7a04a;
+  --danger: #e63349;
+
+  padding-bottom: 32px;
+  background: var(--bg);
+  color: var(--text);
+}
 .admin-md-list { list-style: none; padding: 0 16px; margin: 0; display: flex; flex-direction: column; gap: 10px; }
 .admin-md-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
@@ -3987,11 +4110,26 @@ textarea.auth-input {
 
 /* ─── §3 Admin · Seasons — S034 redesign ────────────────────── */
 .as-root {
+  /* S036: brand palette scope-override. Also anchors bg/text. */
+  --bg: #0e1826;
+  --surface: rgba(20, 34, 52, 0.68);
+  --surface-2: rgba(10, 22, 40, 0.6);
+  --border: rgba(242, 234, 214, 0.14);
+  --text: #f2ead6;
+  --text-muted: rgba(242, 234, 214, 0.62);
+  --accent: #e5ba5b;
+  --success: #4fbf93;
+  --warn: #d7a04a;
+  --warning: #d7a04a;
+  --danger: #e63349;
+
   min-height: 100vh;
   padding: calc(env(safe-area-inset-top, 0) + 10px) 16px calc(env(safe-area-inset-bottom, 0) + 96px);
   display: flex;
   flex-direction: column;
   gap: 14px;
+  background: var(--bg);
+  color: var(--text);
 }
 .as-topbar {
   display: grid;
@@ -4292,9 +4430,24 @@ textarea.auth-input {
 
 /* Admin hub page — 3 large link cards */
 .ah-root {
+  /* S036: brand palette scope-override. */
+  --bg: #0e1826;
+  --surface: rgba(20, 34, 52, 0.68);
+  --surface-2: rgba(10, 22, 40, 0.6);
+  --border: rgba(242, 234, 214, 0.14);
+  --text: #f2ead6;
+  --text-muted: rgba(242, 234, 214, 0.62);
+  --accent: #e5ba5b;
+  --success: #4fbf93;
+  --warn: #d7a04a;
+  --warning: #d7a04a;
+  --danger: #e63349;
+
   min-height: 100vh;
   padding: calc(env(safe-area-inset-top, 0) + 10px) 16px calc(env(safe-area-inset-bottom, 0) + 96px);
   display: flex; flex-direction: column; gap: 14px;
+  background: var(--bg);
+  color: var(--text);
 }
 .ah-topbar {
   display: grid;

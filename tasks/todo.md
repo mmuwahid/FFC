@@ -1,23 +1,33 @@
 # FFC Todo
 
-## NEXT SESSION — S036
+## NEXT SESSION — S037
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S035 commit on `main`. Push at session close.
-- Migrations on live DB: **25** (unchanged — S035 was CSS-only).
+- Expected tip: S036 commit on `main`. Push at session close.
+- Migrations on live DB: **25** (unchanged — S036 was CSS-only).
 
-**S036 agenda:**
+**S037 agenda:**
 
-1. **Live acceptance of S035 Poll re-theme on https://ffc-gilt.vercel.app.** Hard-refresh first (SW cache). Open `/poll`: verify cream text on brand navy paper, gold accents (me-tag, guest-rating strong, self-avatar ring, novote border left-edge, team-header-active shadow), red danger strips (locked, error), red CTAs. Semi-transparent hero + status cards should blend nicely with the navy bg. Rest of app (Leaderboard, Profile, Matches, Admin) should look unchanged.
+1. **Live whole-app acceptance on https://ffc-gilt.vercel.app** — hard-refresh first (SW cache). All 10 in-app screens now on brand palette. Walk every tab and sub-page:
+   - Home → Poll (gold accents, red CTAs)
+   - Table → Leaderboard (cream ink on navy, gold medals)
+   - Matches (cream flashcards)
+   - Profile (cream hero band, gold achievement tiles)
+   - Settings (cream rows, red Admin platform pill at bottom for admins)
+   - Settings → Rules (cream tables)
+   - Admin platform → Season management (Seasons list + create/edit sheet all on brand)
+   - Admin platform → Player management
+   - Admin platform → Matches management
+   - Captain helper `/matchday/:id/captains` (already on brand since S033)
+   - Formation planner `/match/:id/formation`
+   Everything should feel like the same app.
 
-2. **Continue palette propagation** via S033 tokenisation playbook if user likes the Poll result:
-   - **Leaderboard** (`/leaderboard`) — `.lb-screen` root, similar token surface.
-   - **Profile** (`/profile`) — `.pf-*` namespace.
-   - **Matches** (`/matches`) — `.ms-*` or `.mx-*` namespace.
+2. **Micro-polish pass** expected — whole-app consistency will surface specific tints, chart shades, chip variants that didn't stand out in piecemeal screens. Fix as user spots them.
 
 3. **Carry-over acceptance** (still in flight):
-   - S034: admin IA + AdminSeasons (dates DD/MMM/YYYY, pill CTA, edit/delete flow).
+   - S035: Poll re-theme.
+   - S034: admin IA + AdminSeasons redesign (dates DD/MMM/YYYY, pill CTA).
    - S033: CaptainHelper palette.
    - S032: Slice C (triplet click-to-expand + concurrent-admin toast).
    - S031 21-item checklist.
@@ -25,7 +35,21 @@
 4. **Backburner (unchanged):**
    - Vector FFC crest SVG (blocked on user export).
    - Captain reroll modal (blocked on `dropout_after_lock` notification flow).
-   - Global palette re-align (app-wide — may not be needed once screen-by-screen propagation is done).
+
+## Completed in S036 (24/APR/2026, Work PC)
+
+- [x] 8 screens tokenised in one sweep: `.lb-screen` (Leaderboard), `.pf-screen` (Profile), `.mt-screen` (Matches), `.lr-screen` (Rules), `.st-screen` (Settings), `.admin-players`, `.admin-matches`, `.as-root` (AdminSeasons) + `.ah-root` (AdminHome).
+- [x] Each root got the 12-token brand block (`--bg / --surface / --surface-2 / --border / --text / --text-muted / --accent / --success / --warn / --warning / --danger / --skel-a / --skel-b`) plus `background: var(--bg); color: var(--text);` anchor. Rest of app (auth screens, global root, portal overlays) intentionally untouched.
+- [x] `tsc -b --force` EXIT=0; `vite build` EXIT=0 (PWA 2541 KB).
+- [x] Preview smoke: 6/6 non-auth-gated routes render with brand tokens; AdminSeasons/AdminHome access-gate also on brand.
+- [x] Session docs + commit/push + deploy.
+
+## S036 gotchas / lessons (additive)
+
+- **Per-root token declaration vs shared helper class** — considered abstracting the 12-line block into a `.brand-theme` helper, rejected: (a) each screen root has different layout properties that don't cleanly merge, (b) per-root declaration makes screen-level themeability explicit at edit-time, (c) zero abstraction tax. ~100 LOC of duplication is the correct trade-off for explicit adoption.
+- **`--warn` + `--warning` dual alias** — screens use different naming conventions (`--warn` in Poll/Leaderboard, `--warning` in Profile). Defining both at the root scope means no app-wide rename needed; each screen's existing rules resolve correctly.
+- **Preview harness quirk** — `window.location.href = X` destroys the JS execution context, so batched-visit scripts fail on the second iteration. Sequential `navigate → wait → inspect` per route is the correct pattern.
+
 
 ## Completed in S035 (24/APR/2026, Work PC)
 
