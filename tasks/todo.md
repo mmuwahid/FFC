@@ -1,31 +1,31 @@
 # FFC Todo
 
-## NEXT SESSION — S033
+## NEXT SESSION — S034
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S032 close commit on `main` (post-S031's `1357c70`). S032 commit pending push at S032 close — push before deploy.
-- Migrations on live DB: **24** (unchanged, 0001 → 0024). S032 was UI-only.
+- Expected tip: S033 commit on `main` (post-`830405b`). Push status verified at session close.
+- Migrations on live DB: **24** (unchanged, 0001 → 0024). S033 was CSS + data-only.
+- Live DB state: season row renamed `Season 1` → `Season 11` with `planned_games=40`.
 
-**S033 agenda:**
+**S034 agenda:**
 
-1. **Live acceptance triage (compound)** — S031's 21-item checklist (S030 + S029 + S028 + S026) still in flight + S031's new Slice A+B + S032's Slice C. Pick up any failures from user's report and fix in-session.
+1. **Live acceptance (compound)** on https://ffc-gilt.vercel.app. Hard-refresh once before testing (PWA SW cache).
+   - **S033 palette re-theme** — open `/matchday/:id/captains` on a locked matchday: verify cream text on dark navy, red Use-this-pair + Roll buttons, gold pair-card highlight, gold Locked chip, gold (not cyan) concurrent-admin toast. Rest of app (Leaderboard, Poll, Profile, Admin) should still look blue/slate (unchanged).
+   - **S033 data** — `/matches` flashcard banner should now read `GAME N / 40` (was `GAME N / 35`). `/admin/seasons` should list "Season 11" (was "Season 1").
+   - **S032 Slice C** — triplet click-to-expand on candidate rows + concurrent-admin toast (needs 2 admin browsers).
+   - **S031 21-item checklist** still in flight: S030/S029/S028/S026 scope ([sessions/S031/acceptance-checklist.md](../sessions/S031/acceptance-checklist.md)).
 
-2. **§3.1-v2 Slice C acceptance** — on `/matchday/:id/captains`:
-   - Tap the `✓✓✓` triplet on a candidate row. The detail pill (`✓ min-matches N MP · ✓ attendance N% · ✓ cap Nmd ago`) must render below the row WITHOUT also firing the confirm sheet. Tap again to collapse.
-   - Concurrent-admin toast: open two admin sessions in different browsers. Pick captains in browser A. In browser B, try to commit a different pair. The `⚡ Captains were picked {time ago}` modal should surface showing A's admin name + current pair + your intended pair + Cancel-and-refresh / Overwrite-anyway actions.
+2. **Propagate brand palette to other screens** if S033 feels right. Next candidates:
+   - **Poll** (`/poll`) — most-trafficked player screen.
+   - **Leaderboard** (`/leaderboard`) — season-wide visual anchor.
+   - Pattern: declare brand tokens on the screen's root, point every `rgba()` through `var(--*)` — same approach as S033's `.ch-root` block.
 
-3. **§3.1-v2 Slice A+B acceptance** — from S031 (not yet verified): suggested pair card, candidate list sections (Eligible/Partial/Ineligible), White=weaker auto-assignment, Randomizer re-roll, rank-gap >5 advisory modal, guest subsection.
+3. **Captain reroll modal** (S010 subagent-B spec, archived) — still blocked on `dropout_after_lock` notification flow.
 
-4. **Set `planned_games` on Season 1** — still pending. `/admin/seasons` → Edit Season 1 → set to actual plan (e.g. 30). Until set, `/matches` flashcard banner shows `GAME N` with no denominator.
-
-5. **§3.1-v2 mockup palette alignment** — mockup uses khaki/red tokens; live app uses blue/slate. Current `.ch-*` CSS uses live-app tokens. If user wants mockup look, re-theme.
-
-6. **Captain reroll modal** (S010 subagent-B spec, archived) — still blocked on `dropout_after_lock` notification flow.
-
-7. **Backburner (unchanged):**
+4. **Backburner (unchanged):**
    - Vector FFC crest SVG (blocked on user export from Illustrator/Figma).
-   - Palette re-align (red+navy → khaki-gold + cream).
+   - Global palette re-align (red+navy → khaki-gold + cream, app-wide).
 
 **Known gotchas (unchanged + additions from S026):**
 - **Session-start sync protocol** mandatory on cross-PC resume.
@@ -57,6 +57,23 @@
 - **NEW (S028): `starting_gk_profile_id` FKs profiles** — guests cannot be starting GK. UI excludes guests from the GK pool; rotation_number sequence skips them entirely.
 
 ---
+
+## Completed in S033 (24/APR/2026, Work PC)
+
+- [x] Cold-start sync clean — HEAD at `830405b`, origin/main aligned, no drift.
+- [x] **DB data fix** — `UPDATE seasons SET name='Season 11', planned_games=40 WHERE id='ab60594c-…'` via `npx supabase db query --linked`. No code change needed; `Matches.tsx` banner already reads the column (S029).
+- [x] **§3.1-v2 Captain Helper palette re-theme** — replaced `.ch-*` CSS block (~412 LOC) with brand-tokenised version scoped to `.ch-root`.
+  - 18 custom properties declared at root: `--ch-paper / --ch-surface / --ch-surface-soft / --ch-surface-deep / --ch-ink / --ch-ink-soft / --ch-ink-mute / --ch-ink-faint / --ch-border / --ch-border-strong / --ch-divider / --ch-accent / --ch-accent-weak / --ch-accent-line / --ch-accent-ink / --ch-gold / --ch-gold-weak / --ch-gold-line / --ch-success / --ch-success-weak / --ch-warn / --ch-warn-weak / --ch-warn-line / --ch-danger`.
+  - Role changes: Use-this-pair + Roll → accent red CTA; Mode-toggle active → accent tint; Primary pair card → gold border+glow; Locked chip → gold-weak; Concurrent-admin modal (S032) → gold (informational, not cyan "info"); gap-warning → warn tokens; current-captain row border → gold.
+  - Shared `.auth-btn--approve` overridden inside `.ch-root .ch-sheet-actions` only — login/signup screens unaffected.
+  - Text dominant: cool `rgba(233,236,243,*)` → cream `#f2ead6`/`rgba(242,234,214,*)` via 3-tier `--ch-ink*` hierarchy.
+- [x] Strict `tsc -b --force` EXIT=0; `vite build` EXIT=0 (PWA 10 entries / 2525 KB precache).
+
+## S033 gotchas / lessons (additive)
+
+- **Tokenisation strategy for single-screen re-theme** — declare 18-ish custom properties once on the screen's root (`.ch-root`), then point every rule at `var(--ch-*)`. Rules stay structurally unchanged; future palette swaps touch only the token declarations. Pattern worth repeating when re-theming Poll + Leaderboard next.
+- **Scoping shared classes inside a themed subtree** — `.auth-btn--approve` is used across the app (login, signup, etc.) with a default green. To override just for captain-helper sheets without breaking auth, use `.ch-root .ch-sheet-actions .auth-btn--approve {...}`. Selector specificity does the work.
+- **Gold > cyan for "another admin did X" modals** — cyan reads as "neutral info" (like a toast). Gold reads as "attention, notable." The concurrent-admin case is advisory but worth a tighter eyebrow-raise than a passing toast; gold strikes the right register.
 
 ## Completed in S032 (24/APR/2026, Work PC)
 
