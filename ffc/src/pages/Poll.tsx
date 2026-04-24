@@ -127,6 +127,18 @@ export function Poll() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
+  /* §3.15 — Post-lock captain reroll modal state.
+   * `dropoutNotif` = latest unactioned `dropout_after_lock` notification for the caller
+   * + current matchday. Surfaces the action card to captains when teams are revealed.
+   * `rerollConfirmOpen` = confirmation sub-sheet for the irreversible reroll action. */
+  const [dropoutNotif, setDropoutNotif] = useState<{
+    id: string
+    created_at: string
+    substitute_name: string | null
+  } | null>(null)
+  const [rerollConfirmOpen, setRerollConfirmOpen] = useState(false)
+  const [rerollCutoffHours, setRerollCutoffHours] = useState<number>(12)
+
   /* Load active matchday (poll open OR upcoming within 7 days). */
   const loadAll = useCallback(async () => {
     setError(null)
@@ -307,6 +319,50 @@ export function Poll() {
         ban_days: v.late_cancel_ban_days_within_24h ?? 7,
       })
     }
+
+    // §3.15 — Reroll cutoff window (app_settings) + latest unactioned dropout_after_lock notif.
+    const { data: cutoffRow } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'reroll_cutoff_hours_before_kickoff')
+      .maybeSingle()
+    if (cutoffRow?.value !== undefined && cutoffRow?.value !== null) {
+      const parsed = Number(cutoffRow.value as unknown as string | number)
+      if (Number.isFinite(parsed) && parsed > 0) setRerollCutoffHours(parsed)
+    }
+
+    if (profileId && m.roster_locked_at) {
+      const { data: notifs } = await supabase
+        .from('notifications')
+        .select('id, created_at, payload')
+        .eq('recipient_id', profileId)
+        .eq('kind', 'dropout_after_lock')
+        .is('read_at', null)
+        .order('created_at', { ascending: false })
+        .limit(5)
+      // Client-side filter by payload.matchday_id (JSON-contains filter unreliable across envs)
+      const mine = (notifs ?? []).find((n) => {
+        const p = n.payload as { matchday_id?: string; outcome?: string } | null
+        return p?.matchday_id === m.id && p?.outcome !== 'accepted'
+      })
+      if (mine) {
+        const subId = (mine.payload as { substitute?: string } | null)?.substitute
+        let subName: string | null = null
+        if (subId) {
+          const { data: subProf } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('id', subId)
+            .maybeSingle()
+          subName = subProf?.display_name ?? null
+        }
+        setDropoutNotif({ id: mine.id, created_at: mine.created_at, substitute_name: subName })
+      } else {
+        setDropoutNotif(null)
+      }
+    } else {
+      setDropoutNotif(null)
+    }
   }, [profileId])
 
   useEffect(() => { void loadAll() }, [loadAll])
@@ -351,6 +407,28 @@ export function Poll() {
   const confirmCancelWithPenalty = async () => {
     setPenaltySheetOpen(false)
     await vote('cancel')
+  }
+
+  /* §3.15 — Captain response to post-lock dropout. */
+  const onAcceptSubstitute = async () => {
+    if (!md || md === 'none') return
+    setBusy(true); setError(null)
+    const { error: e } = await supabase.rpc('accept_substitute', { p_matchday_id: md.id })
+    setBusy(false)
+    if (e) { setError(e.message); return }
+    setDropoutNotif(null)
+    await loadAll()
+  }
+
+  const onRequestReroll = async () => {
+    if (!md || md === 'none') return
+    setBusy(true); setError(null)
+    const { error: e } = await supabase.rpc('request_reroll', { p_matchday_id: md.id })
+    setBusy(false)
+    setRerollConfirmOpen(false)
+    if (e) { setError(e.message); return }
+    setDropoutNotif(null)
+    await loadAll()
   }
 
   if (md === null) {
@@ -540,6 +618,48 @@ export function Poll() {
       {draftStrip}
       {guestStrip}
 
+      {/* §3.15 — Post-lock captain reroll card. Appears to captains when a dropout_after_lock
+       * notification is unactioned for this matchday. After cutoff window (default 12h before
+       * kickoff), the reroll option is withdrawn — captain can only Acknowledge the substitute. */}
+      {dropoutNotif && iAmCaptain && locked && hoursToKick > 0 && (
+        <div className="po-dropout-card">
+          <div className="po-dropout-title">Dropout on the roster</div>
+          <div className="po-dropout-body">
+            {dropoutNotif.substitute_name
+              ? `A player has cancelled. ${dropoutNotif.substitute_name} has been auto-promoted from the waitlist to fill the slot.`
+              : 'A player has cancelled. The first waitlisted player has been auto-promoted.'}
+          </div>
+          {hoursToKick > rerollCutoffHours ? (
+            <div className="po-dropout-actions">
+              <button
+                type="button"
+                className="auth-btn auth-btn--approve"
+                onClick={onAcceptSubstitute}
+                disabled={busy}
+              >Accept substitute</button>
+              <button
+                type="button"
+                className="auth-btn auth-btn--reject"
+                onClick={() => setRerollConfirmOpen(true)}
+                disabled={busy}
+              >Request reroll</button>
+            </div>
+          ) : (
+            <>
+              <div className="po-dropout-hint">Reroll window has closed ({rerollCutoffHours}h before kickoff).</div>
+              <div className="po-dropout-actions">
+                <button
+                  type="button"
+                  className="auth-btn auth-btn--approve"
+                  onClick={onAcceptSubstitute}
+                  disabled={busy}
+                >Acknowledge</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Confirmed list — State 8 splits into two teams if teams revealed */}
       {teamsRevealed ? (
         <>
@@ -630,6 +750,34 @@ export function Poll() {
           onKeep={() => setPenaltySheetOpen(false)}
           busy={busy}
         />
+      )}
+
+      {/* §3.15 — Reroll confirmation sub-sheet */}
+      {rerollConfirmOpen && (
+        <div className="sheet-overlay" role="dialog" aria-modal onClick={() => !busy && setRerollConfirmOpen(false)}>
+          <div className="sheet-card po-dropout-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-grabber" aria-hidden />
+            <h3>Redraft teams?</h3>
+            <p className="po-dropout-sheet-body">
+              All non-captain slots will be redrawn from scratch. Current team assignments will be lost.
+              This cannot be undone.
+            </p>
+            <div className="po-dropout-sheet-actions">
+              <button
+                type="button"
+                className="auth-btn auth-btn--sheet-cancel"
+                onClick={() => setRerollConfirmOpen(false)}
+                disabled={busy}
+              >Keep teams</button>
+              <button
+                type="button"
+                className="auth-btn auth-btn--reject"
+                onClick={onRequestReroll}
+                disabled={busy}
+              >Reroll now</button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   )
