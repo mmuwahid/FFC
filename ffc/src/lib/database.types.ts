@@ -1240,6 +1240,69 @@ export type Database = {
           },
         ]
       }
+      season_seed_stats: {
+        Row: {
+          created_at: string
+          draws_seed: number
+          goals_seed: number
+          late_cancel_points_seed: number
+          losses_seed: number
+          motms_seed: number
+          no_show_points_seed: number
+          profile_id: string
+          reds_seed: number
+          season_id: string
+          updated_at: string
+          wins_seed: number
+          yellows_seed: number
+        }
+        Insert: {
+          created_at?: string
+          draws_seed?: number
+          goals_seed?: number
+          late_cancel_points_seed?: number
+          losses_seed?: number
+          motms_seed?: number
+          no_show_points_seed?: number
+          profile_id: string
+          reds_seed?: number
+          season_id: string
+          updated_at?: string
+          wins_seed?: number
+          yellows_seed?: number
+        }
+        Update: {
+          created_at?: string
+          draws_seed?: number
+          goals_seed?: number
+          late_cancel_points_seed?: number
+          losses_seed?: number
+          motms_seed?: number
+          no_show_points_seed?: number
+          profile_id?: string
+          reds_seed?: number
+          season_id?: string
+          updated_at?: string
+          wins_seed?: number
+          yellows_seed?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "season_seed_stats_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "season_seed_stats_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seasons: {
         Row: {
           archived_at: string | null
@@ -1327,22 +1390,7 @@ export type Database = {
           profile_id: string | null
           season_id: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "match_players_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "matchdays_season_id_fkey"
-            columns: ["season_id"]
-            isOneToOne: false
-            referencedRelation: "seasons"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       v_match_commitments: {
         Row: {
@@ -1399,22 +1447,7 @@ export type Database = {
           wins: number | null
           yellows: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "match_players_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "matchdays_season_id_fkey"
-            columns: ["season_id"]
-            isOneToOne: false
-            referencedRelation: "seasons"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Functions: {
