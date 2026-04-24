@@ -1,29 +1,25 @@
 # FFC Todo
 
-## NEXT SESSION — S031
+## NEXT SESSION — S032
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: `b20befe` on `main` (S030 close — Formation Slices D+E). **PUSH NEEDED** — 2 commits pending (`32dd8d9` Slice D, `b20befe` Slice E) — blocked by Claude settings in S030; user must `git push origin main` before deploy.
-- Migrations on live DB: **24** (0001 → 0024_formations_slice_d). Note: `0023_season_rpc_optional_planned_games` requires S029's push to be deployed, but was already applied to DB in S029 — if rolling back, consider DB + code drift.
+- Expected tip: S031 docs commit on `main` (post-`a689ba3`). Slices A+B of §3.1-v2 pushed at S031 close.
+- Migrations on live DB: **24** (unchanged, 0001 → 0024). S031 was UI-only.
 
-**S031 agenda:**
+**S032 agenda:**
 
-1. **Push to deploy** — `git push origin main`. Once pushed, Vercel auto-deploys S029 (5 commits) and S030 (2 commits).
+1. **Live acceptance results triage** — S031 acceptance pass (21 items across S030/S029/S028/S026) still in flight at S031 close. Pick up any failures from user's report; fix + commit in-session.
 
-2. **Set `planned_games` on Season 1** — `/admin/seasons` → Edit → set to match actual plan (e.g. 30). Until set, Matches banners show `GAME N` with no denominator.
+2. **§3.1-v2 Slice A+B acceptance** — new `/matchday/:id/captains` screen, reached via `👔 Pick captains` button on any AdminMatches card where `roster_locked_at IS NOT NULL AND match_exists`. Test flow: Formula-mode suggested pair card → Confirm sheet → set_matchday_captains RPC → verify `match_players.is_captain` flipped on the two chosen profile_ids. Randomizer mode re-rolls until confirmed. Rank-gap >5 pair should surface the advisory sub-modal.
 
-3. **Live acceptance pass on https://ffc-gilt.vercel.app** — catch-up for 4 sessions:
-   - **S030 scope** (just shipped): Formation Slice D (notes textarea, share button, realtime, last-synced chip) + Slice E entry links (Poll State 8, AdminMatches card, MatchDetailSheet).
-   - **S029 scope**: `/matches` flashcard · `/admin/seasons` create + edit flow.
-   - **S028 scope**: Phase 5.5 Force complete + Abandon · §3.19 Formation A+B+C at `/match/:id/formation`.
-   - **S026 scope**: Poll 9 states · Leaderboard realtime/PTR · edit_match_players · Phase 5.5 card · friendly auto-flag.
+3. **§3.1-v2 Slice C** (optional polish) — criteria-triplet click-to-expand tooltip, concurrent-admin toast. Not load-bearing for Phase 1.
 
-4. **Optional polish** — separate `update_formation_notes` RPC for lightweight notes save without touching layout.
+4. **Set `planned_games` on Season 1** — still pending unless user already did it. `/admin/seasons` → Edit Season 1 → set to actual plan (e.g. 30). Until set, `/matches` flashcard banner shows `GAME N` with no denominator.
 
 5. **Captain reroll modal** (S010 subagent-B spec, `_wip/item-b-draft-reroll-spec.md`) — still blocked on `dropout_after_lock` notification flow.
 
-6. **§3.1-v2 Captain helper screen** — multi-session; once shipped, Phase 5.5 card + Poll State 6.5 get real data.
+6. **§3.1-v2 mockup palette alignment** — mockup uses khaki/red tokens, live app uses blue/slate. Current `.ch-*` CSS uses live app tokens. If user wants mockup look, re-theme.
 
 7. **Backburner (unchanged):**
    - Vector FFC crest SVG (blocked on user export from Illustrator/Figma).
@@ -57,6 +53,28 @@
 - **NEW (S028): `admin_draft_force_complete` + `admin_draft_abandon` RPCs.** Phase 5.5 override buttons now wired. Force-complete auto-distributes unpicked match_players alternating teams from `current_picker_team` (ordered by `created_at` for reproducibility); raises `FFC_ALREADY_AT_CAP` if invoked at roster cap. Abandon leaves draft_picks intact for audit.
 - **NEW (S028): §3.19 Formation route lives at `/match/:id/formation`** (NOT `/admin/matches/:id/formation` — that route no longer exists). Captain-editable, team-readable; non-team-members see an access-gate card.
 - **NEW (S028): `starting_gk_profile_id` FKs profiles** — guests cannot be starting GK. UI excludes guests from the GK pool; rotation_number sequence skips them entirely.
+
+---
+
+## Completed in S031 (24/APR/2026, Home PC — worktree `gracious-colden-c36fec`)
+
+- [x] S030 push verified in-flight — `origin/main` at `e446fe1`, Vercel `dpl_5FgKYfJBE7uGWbQKAi6JmveXBq7v` READY, production 200, zero runtime errors in 6 h
+- [x] Service-worker cache diagnosis — live CSS bundle `/assets/index-DFUkxSSz.css` contains all 14 `splitc-*` classes; Matches flashcard code IS deployed. User just needs to unregister SW + hard-refresh to see it.
+- [x] Acceptance checklist written (`sessions/S031/acceptance-checklist.md`) — 21 items across S030/S029/S028/S026
+- [x] Worktree `core.worktree` misconfiguration diagnosed + fixed (was pointing at main tree)
+- [x] Shared `node_modules` junction via PowerShell `New-Item -ItemType Junction` (avoided full npm install in worktree)
+- [x] **§3.1-v2 Captain Helper — Slice A** (`0f2b820`): new page `CaptainHelper.tsx` (684 LOC), route `/matchday/:id/captains`, admin gate, Formula + Randomizer modes, suggested pair card from `suggest_captain_pairs`, candidate list sectioned Eligible/Partial/Ineligible with ✓✓✓ triplet, confirm sheet with White=weaker auto-assignment, `set_matchday_captains` RPC, AdminMatches `👔 Pick captains` entry button, full `.ch-*` CSS namespace
+- [x] **§3.1-v2 Captain Helper — Slice B** (`a689ba3`): guests-on-roster subsection with S007 stats (pills, rating chip, trait chips, expandable description), rank-gap >5 "Proceed anyway?" advisory sub-modal (not a hard block per spec), `commitPair()` refactor for shared commit path, enum-drift fix (`guest_rating` is `average` not `avg`)
+- [x] Strict `tsc -b --force` clean at every checkpoint
+- [x] 3 commits pushed to `origin/main` at close (Slice A, Slice B, docs)
+
+## S031 gotchas (new lessons)
+
+- **Git-worktree `core.worktree` must match the physical worktree path.** Claude Code's `isolation: "worktree"` feature sometimes writes the wrong `core.worktree` into `config.worktree`, making `git status` blind to edits. Check via `git rev-parse --show-toplevel` — if it returns the main tree's path, run `git config --worktree core.worktree <abs-worktree-path>` to fix.
+- **Windows `cmd //c mklink /J` fails inside the FFC path** because of the `&` in "11 - AI & Digital" (same bug CLAUDE.md flags for `.bin/*.cmd`). Use PowerShell `New-Item -ItemType Junction -Path ... -Target ...` instead.
+- **Bash heredoc with CSS content trips on `$`** even inside single-quoted sentinel. Use the Edit tool with explicit old-string → new-string when appending CSS blocks.
+- **`guest_rating` enum values are `weak | average | strong`** — not `avg`. Schema-drift discovery pattern (CLAUDE.md) still applies.
+- **Preview browser is sandboxed to localhost** — can't navigate to external URLs for live production testing. For auth-gated production flows, hand off to user.
 
 ---
 
