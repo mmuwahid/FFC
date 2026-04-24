@@ -33,7 +33,7 @@ export function RoleLayout() {
           </NavLink>
           <NavLink to="/leaderboard">
             <span className="nav-ico" aria-hidden>📊</span>
-            <span className="nav-label">Table</span>
+            <span className="nav-label">Leaderboard</span>
           </NavLink>
           <NavLink to="/matches">
             <span className="nav-ico" aria-hidden>📅</span>

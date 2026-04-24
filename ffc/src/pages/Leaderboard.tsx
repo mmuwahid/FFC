@@ -284,10 +284,15 @@ export function Leaderboard() {
 
       const startedAt = performance.now()
 
+      // NB: no `profile:profiles!inner(...)` embed. After S037's migration 0026
+      // the view is backed by a UNION over live aggregates + season_seed_stats,
+      // which breaks PostgREST's auto-join detection between the view and
+      // profiles. Profile fields are merged client-side from the parallel
+      // profiles query below.
       const standingsP = supabase
         .from('v_season_standings')
         .select(
-          'profile_id, display_name, wins, draws, losses, goals, yellows, reds, motms, late_cancel_points, no_show_points, points, profile:profiles!inner(primary_position, secondary_position, avatar_url, role, is_active)',
+          'profile_id, display_name, wins, draws, losses, goals, yellows, reds, motms, late_cancel_points, no_show_points, points',
         )
         .eq('season_id', seasonId)
 
@@ -326,8 +331,32 @@ export function Leaderboard() {
         if (hold > 0) await new Promise((r) => setTimeout(r, hold))
       }
 
-      setStandings((s.data ?? []) as unknown as StandingEmbed[])
-      setProfiles((p.data ?? []) as ProfileLite[])
+      // Merge profile fields onto each standing row client-side. Rows without
+      // a matching profile (rejected/inactive) get `.profile = null` which the
+      // downstream filters already handle (played-partition drops null-profile rows).
+      const profilesList = (p.data ?? []) as ProfileLite[]
+      const profileById = new Map<string, ProfileLite>()
+      for (const prof of profilesList) profileById.set(prof.id, prof)
+
+      const rawStandings = (s.data ?? []) as unknown as Omit<StandingEmbed, 'profile'>[]
+      const hydrated: StandingEmbed[] = rawStandings.map((row) => {
+        const prof = row.profile_id ? profileById.get(row.profile_id) ?? null : null
+        return {
+          ...row,
+          profile: prof
+            ? {
+                primary_position: prof.primary_position,
+                secondary_position: prof.secondary_position,
+                avatar_url: prof.avatar_url,
+                role: prof.role,
+                is_active: prof.is_active,
+              }
+            : null,
+        }
+      })
+
+      setStandings(hydrated)
+      setProfiles(profilesList)
 
       const m = new Map<string, ('W' | 'D' | 'L')[]>()
       for (const row of l.data ?? []) {
