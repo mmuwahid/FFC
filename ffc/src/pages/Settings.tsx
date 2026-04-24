@@ -96,7 +96,8 @@ function normalisePushPrefs(raw: unknown): PushPrefs {
 
 export function Settings() {
   const navigate = useNavigate()
-  const { session, signOut } = useApp()
+  const { session, signOut, role } = useApp()
+  const isAdmin = role === 'admin' || role === 'super_admin'
 
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -432,6 +433,16 @@ export function Settings() {
           <span className="st-chevron">›</span>
         </button>
       </section>
+
+      {/* ============ Admin platform entry — S034 ============ */}
+      {isAdmin && (
+        <section className="st-section">
+          <button type="button" className="st-admin-link" onClick={() => navigate('/admin')}>
+            <span>🛠 Admin platform</span>
+            <span className="st-chevron">›</span>
+          </button>
+        </section>
+      )}
 
       {toast && (
         <div className="st-toast" onAnimationEnd={() => setToast(null)}>

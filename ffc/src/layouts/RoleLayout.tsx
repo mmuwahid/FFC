@@ -1,13 +1,10 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { useApp } from '../lib/AppContext'
 
-/* Authenticated shell. Four tabs for players; five tabs when the admin
- * layout is in effect. Single component keeps the bottom-nav markup
- * consistent and lets the admin tab appear/disappear as role changes. */
+/* Authenticated shell. Five tabs for everyone — the Admin entry point
+ * moved into Settings → Admin platform at S034 (was a conditional 5th
+ * nav tab before). Single component keeps the bottom-nav markup
+ * consistent regardless of role. */
 export function RoleLayout() {
-  const { role } = useApp()
-  const isAdmin = role === 'admin' || role === 'super_admin'
-
   return (
     <div className="app-shell">
       <header className="app-topbar">
@@ -40,12 +37,6 @@ export function RoleLayout() {
             <span className="nav-ico" aria-hidden>⚙️</span>
             <span className="nav-label">Settings</span>
           </NavLink>
-          {isAdmin && (
-            <NavLink to="/admin">
-              <span className="nav-ico" aria-hidden>🛠</span>
-              <span className="nav-label">Admin</span>
-            </NavLink>
-          )}
         </div>
       </nav>
     </div>

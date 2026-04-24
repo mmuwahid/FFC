@@ -1,4 +1,21 @@
-import { useCallback, useEffect, useState } from 'react'
+/**
+ * §3 Admin · Seasons — S034 redesign.
+ *
+ * Replaces the inline always-visible create form with:
+ *   • "+ New season" pill CTA at the top
+ *   • Bottom sheet for create / edit (shared form, same component)
+ *   • Richer list (format chip, DD/MMM/YYYY dates, end date, status)
+ *   • Edit + Delete icons per row (delete only when no matchdays)
+ *
+ * Backend:
+ *   create_season (S029, now requires planned_games — migration 0025)
+ *   update_season (S034, migration 0025)
+ *   delete_season (S034, migration 0025 — guarded against non-empty seasons)
+ */
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+
+import { useApp } from '../../lib/AppContext'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../lib/database.types'
 
@@ -11,181 +28,462 @@ type SeasonRow = Pick<
 type MatchFormat = Database['public']['Enums']['match_format']
 type RosterPolicy = Database['public']['Enums']['roster_policy']
 
-// Inline edit state for planned_games on an active season
-type EditState = { id: string; value: string } | null
+interface SeasonWithCount extends SeasonRow {
+  matchday_count: number
+}
 
-function statusLabel(row: SeasonRow): string {
-  if (row.archived_at) return 'ARCHIVED'
-  if (row.ended_at) return 'ENDED'
-  return 'ACTIVE'
+interface FormState {
+  name: string
+  starts_on: string
+  ends_on: string
+  planned_games: string
+  default_format: MatchFormat
+  roster_policy: RosterPolicy
+}
+
+interface SheetState {
+  mode: 'create' | 'edit'
+  season: SeasonRow | null
+}
+
+const EMPTY_FORM: FormState = {
+  name: '',
+  starts_on: '',
+  ends_on: '',
+  planned_games: '',
+  default_format: '7v7',
+  roster_policy: 'carry_forward',
+}
+
+const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
+
+function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  // `iso` is a YYYY-MM-DD (Postgres DATE). Parse in local TZ so we don't
+  // silently shift across the day boundary.
+  const [y, m, d] = iso.split('-').map(Number)
+  if (!y || !m || !d) return iso
+  return `${String(d).padStart(2, '0')}/${MONTH_ABBR[m - 1]}/${y}`
+}
+
+function statusLabel(row: SeasonRow): { label: string; tone: 'active' | 'ended' | 'archived' } {
+  if (row.archived_at) return { label: 'ARCHIVED', tone: 'archived' }
+  if (row.ended_at) return { label: 'ENDED', tone: 'ended' }
+  return { label: 'ACTIVE', tone: 'active' }
+}
+
+function fromRow(row: SeasonRow): FormState {
+  return {
+    name: row.name,
+    starts_on: row.starts_on,
+    ends_on: row.ends_on ?? '',
+    planned_games: row.planned_games?.toString() ?? '',
+    default_format: row.default_format,
+    roster_policy: row.roster_policy,
+  }
 }
 
 export function AdminSeasons() {
-  const [seasons, setSeasons] = useState<SeasonRow[]>([])
+  const { role } = useApp()
+  const navigate = useNavigate()
+  const isAdmin = role === 'admin' || role === 'super_admin'
+
+  const [seasons, setSeasons] = useState<SeasonWithCount[]>([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
 
-  // Create form state
-  const [newName, setNewName] = useState('')
-  const [newStartsOn, setNewStartsOn] = useState('')
-  const [newPlanned, setNewPlanned] = useState<string>('')
-  const [newFormat, setNewFormat] = useState<MatchFormat>('7v7')
-  const [newPolicy, setNewPolicy] = useState<RosterPolicy>('carry_forward')
-  const [creating, setCreating] = useState(false)
+  const [sheet, setSheet] = useState<SheetState | null>(null)
+  const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
 
-  // Inline edit state for planned_games on an active season
-  const [editing, setEditing] = useState<EditState>(null)
-  const [savingEdit, setSavingEdit] = useState(false)
+  const [deleting, setDeleting] = useState<SeasonWithCount | null>(null)
+  const [deleteInFlight, setDeleteInFlight] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     setErr(null)
-    const { data, error } = await supabase
-      .from('seasons')
-      .select('id, name, starts_on, ends_on, planned_games, default_format, roster_policy, ended_at, archived_at')
-      .order('starts_on', { ascending: false })
-    if (error) { setErr(error.message); setLoading(false); return }
-    setSeasons((data ?? []) as SeasonRow[])
-    setLoading(false)
+    try {
+      const { data: rows, error } = await supabase
+        .from('seasons')
+        .select('id, name, starts_on, ends_on, planned_games, default_format, roster_policy, ended_at, archived_at')
+        .order('starts_on', { ascending: false })
+      if (error) throw error
+
+      // Fetch matchday counts in one query; aggregate client-side.
+      const ids = (rows ?? []).map((r) => r.id)
+      const counts: Record<string, number> = {}
+      if (ids.length > 0) {
+        const { data: mdRows, error: mdErr } = await supabase
+          .from('matchdays')
+          .select('season_id')
+          .in('season_id', ids)
+        if (mdErr) throw mdErr
+        for (const r of mdRows ?? []) {
+          if (r.season_id) counts[r.season_id] = (counts[r.season_id] ?? 0) + 1
+        }
+      }
+
+      setSeasons((rows ?? []).map((r) => ({ ...r, matchday_count: counts[r.id] ?? 0 })))
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to load seasons')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { void load() }, [load])
 
-  const onCreate = useCallback(async (e: React.FormEvent) => {
+  const openCreate = useCallback(() => {
+    setErr(null)
+    setForm(EMPTY_FORM)
+    setSheet({ mode: 'create', season: null })
+  }, [])
+
+  const openEdit = useCallback((row: SeasonRow) => {
+    setErr(null)
+    setForm(fromRow(row))
+    setSheet({ mode: 'edit', season: row })
+  }, [])
+
+  const closeSheet = useCallback(() => {
+    if (saving) return
+    setSheet(null)
+    setErr(null)
+  }, [saving])
+
+  const onSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!sheet) return
     setErr(null)
-    if (!newName.trim() || !newStartsOn) { setErr('Name and start date are required'); return }
-    const planned = newPlanned.trim() === '' ? null : Number(newPlanned)
-    if (planned !== null && (!Number.isInteger(planned) || planned < 1)) {
-      setErr('Planned games must be a whole number ≥ 1'); return
+
+    if (!form.name.trim()) { setErr('Name is required'); return }
+    if (!form.starts_on) { setErr('Start date is required'); return }
+    const planned = Number(form.planned_games)
+    if (!form.planned_games || !Number.isInteger(planned) || planned < 1) {
+      setErr('Planned games is required (whole number ≥ 1)')
+      return
     }
-    setCreating(true)
-    const { error } = await supabase.rpc('create_season', {
-      p_name: newName,
-      p_starts_on: newStartsOn,
-      ...(planned !== null ? { p_planned_games: planned } : {}),
-      p_default_format: newFormat,
-      p_roster_policy: newPolicy,
-    })
-    setCreating(false)
-    if (error) { setErr(error.message); return }
-    setNewName(''); setNewStartsOn(''); setNewPlanned('')
-    setNewFormat('7v7'); setNewPolicy('carry_forward')
-    await load()
-  }, [newName, newStartsOn, newPlanned, newFormat, newPolicy, load])
-
-  const beginEdit = useCallback((row: SeasonRow) => {
-    setEditing({ id: row.id, value: row.planned_games?.toString() ?? '' })
-    setErr(null)
-  }, [])
-
-  const cancelEdit = useCallback(() => setEditing(null), [])
-
-  const saveEdit = useCallback(async (seasonId: string) => {
-    if (!editing) return
-    setErr(null)
-    const val = editing.value.trim() === '' ? null : Number(editing.value)
-    if (val !== null && (!Number.isInteger(val) || val < 1)) {
-      setErr('Planned games must be a whole number ≥ 1'); return
+    const endsOn = form.ends_on || null
+    if (endsOn && endsOn < form.starts_on) {
+      setErr('End date must be on or after start date'); return
     }
-    setSavingEdit(true)
-    const { error } = await supabase.rpc('update_season_planned_games', {
-      p_season_id: seasonId,
-      ...(val !== null ? { p_planned_games: val } : {}),
-    })
-    setSavingEdit(false)
-    if (error) { setErr(error.message); return }
-    setEditing(null)
-    await load()
-  }, [editing, load])
+
+    setSaving(true)
+    try {
+      if (sheet.mode === 'create') {
+        const { error } = await supabase.rpc('create_season', {
+          p_name: form.name,
+          p_starts_on: form.starts_on,
+          p_planned_games: planned,
+          p_default_format: form.default_format,
+          p_roster_policy: form.roster_policy,
+        })
+        if (error) throw error
+      } else {
+        const orig = sheet.season!
+        const clearingEnds = !endsOn && !!orig.ends_on
+        const { error } = await supabase.rpc('update_season', {
+          p_season_id: orig.id,
+          p_name: form.name,
+          p_starts_on: form.starts_on,
+          p_planned_games: planned,
+          p_default_format: form.default_format,
+          p_roster_policy: form.roster_policy,
+          ...(endsOn ? { p_ends_on: endsOn } : {}),
+          ...(clearingEnds ? { p_clear_ends_on: true } : {}),
+        })
+        if (error) throw error
+      }
+      setSheet(null)
+      await load()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setSaving(false)
+    }
+  }, [sheet, form, load])
+
+  const onDeleteConfirm = useCallback(async () => {
+    if (!deleting) return
+    setDeleteInFlight(true)
+    setErr(null)
+    try {
+      const { error } = await supabase.rpc('delete_season', { p_season_id: deleting.id })
+      if (error) throw error
+      setDeleting(null)
+      await load()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Delete failed')
+    } finally {
+      setDeleteInFlight(false)
+    }
+  }, [deleting, load])
+
+  const sortedSeasons = useMemo(() => seasons, [seasons])
+
+  if (!isAdmin) {
+    return (
+      <div className="as-root">
+        <div className="as-empty">
+          <h3>Admin only</h3>
+          <p>This screen is restricted to admins and super-admins.</p>
+          <button type="button" className="auth-btn auth-btn--approve" onClick={() => navigate('/poll')}>Back to Poll</button>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div style={{ padding: '16px', maxWidth: 720, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>Admin · Seasons</h1>
+    <div className="as-root">
+      <div className="as-topbar">
+        <button type="button" className="as-back" onClick={() => navigate('/settings')}>‹ Back</button>
+        <h1 className="as-title">Seasons</h1>
+        <button type="button" className="as-new-btn" onClick={openCreate}>
+          <span aria-hidden>+</span> New season
+        </button>
+      </div>
 
-      <form onSubmit={onCreate} style={{
-        background: '#152038', border: '1px solid rgba(255,255,255,0.1)',
-        borderRadius: 10, padding: 14, marginBottom: 20,
-        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10,
-      }}>
-        <div style={{ gridColumn: '1 / -1', fontWeight: 700, fontSize: 13, letterSpacing: 0.12, textTransform: 'uppercase', color: '#60a5fa' }}>New season</div>
-        <label>Name
-          <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Season 2" style={{ width: '100%' }} />
-        </label>
-        <label>Starts on
-          <input type="date" value={newStartsOn} onChange={e => setNewStartsOn(e.target.value)} style={{ width: '100%' }} />
-        </label>
-        <label>Planned games (optional)
-          <input type="number" min={1} value={newPlanned} onChange={e => setNewPlanned(e.target.value)} placeholder="e.g. 30" style={{ width: '100%' }} />
-        </label>
-        <label>Format
-          <select value={newFormat} onChange={e => setNewFormat(e.target.value as MatchFormat)} style={{ width: '100%' }}>
-            <option value="7v7">7v7</option>
-            <option value="5v5">5v5</option>
-          </select>
-        </label>
-        <label>Roster policy
-          <select value={newPolicy} onChange={e => setNewPolicy(e.target.value as RosterPolicy)} style={{ width: '100%' }}>
-            <option value="carry_forward">carry_forward</option>
-            <option value="fresh">fresh</option>
-          </select>
-        </label>
-        <div style={{ gridColumn: '1 / -1' }}>
-          <button type="submit" disabled={creating}>
-            {creating ? 'Creating…' : 'Create season'}
-          </button>
-          {err && <span style={{ color: '#f87171', marginLeft: 10 }}>{err}</span>}
-        </div>
-      </form>
+      {err && !sheet && !deleting && (
+        <div className="as-error" role="alert">{err}</div>
+      )}
 
       {loading ? (
-        <div>Loading…</div>
+        <div className="as-loading">Loading seasons…</div>
+      ) : sortedSeasons.length === 0 ? (
+        <div className="as-empty">
+          <h3>No seasons yet</h3>
+          <p>Create the first season to get started.</p>
+        </div>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-          <thead>
-            <tr style={{ textAlign: 'left', color: '#8b97ad', fontSize: 11, letterSpacing: 0.1, textTransform: 'uppercase' }}>
-              <th style={{ padding: '6px 4px' }}>Name</th>
-              <th style={{ padding: '6px 4px' }}>Starts</th>
-              <th style={{ padding: '6px 4px' }}>Planned</th>
-              <th style={{ padding: '6px 4px' }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {seasons.map(s => (
-              <tr key={s.id} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                <td style={{ padding: '8px 4px', fontWeight: 600 }}>{s.name}</td>
-                <td style={{ padding: '8px 4px' }}>{s.starts_on}</td>
-                <td style={{ padding: '8px 4px' }}>
-                  {editing?.id === s.id ? (
-                    <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                      <input
-                        type="number"
-                        min={1}
-                        value={editing.value}
-                        onChange={e => setEditing({ id: s.id, value: e.target.value })}
-                        style={{ width: 80 }}
-                        autoFocus
-                      />
-                      <button type="button" disabled={savingEdit} onClick={() => saveEdit(s.id)}>
-                        {savingEdit ? '…' : 'Save'}
-                      </button>
-                      <button type="button" onClick={cancelEdit}>Cancel</button>
+        <ul className="as-list" aria-label="Seasons">
+          {sortedSeasons.map((s) => {
+            const status = statusLabel(s)
+            const canDelete = s.matchday_count === 0
+            return (
+              <li key={s.id} className={`as-row as-row--${status.tone}`}>
+                <div className="as-row-main">
+                  <div className="as-row-name-line">
+                    <span className="as-row-name">{s.name}</span>
+                    <span className={`as-fmt-chip as-fmt-chip--${s.default_format}`}>{s.default_format.toUpperCase()}</span>
+                    <span className={`as-status as-status--${status.tone}`}>{status.label}</span>
+                  </div>
+                  <div className="as-row-meta">
+                    <span className="as-meta-item">
+                      <span className="as-meta-label">Start</span>
+                      <span className="as-meta-val">{fmtDate(s.starts_on)}</span>
                     </span>
+                    <span className="as-meta-sep" aria-hidden>·</span>
+                    <span className="as-meta-item">
+                      <span className="as-meta-label">End</span>
+                      <span className="as-meta-val">{fmtDate(s.ends_on)}</span>
+                    </span>
+                    <span className="as-meta-sep" aria-hidden>·</span>
+                    <span className="as-meta-item">
+                      <span className="as-meta-label">Games</span>
+                      <span className="as-meta-val">{s.planned_games ?? '—'}</span>
+                    </span>
+                    <span className="as-meta-sep" aria-hidden>·</span>
+                    <span className="as-meta-item">
+                      <span className="as-meta-label">Matchdays</span>
+                      <span className="as-meta-val">{s.matchday_count}</span>
+                    </span>
+                  </div>
+                </div>
+                <div className="as-row-actions">
+                  <button type="button" className="as-icon-btn" aria-label={`Edit ${s.name}`} title="Edit" onClick={() => openEdit(s)}>✎</button>
+                  {canDelete ? (
+                    <button type="button" className="as-icon-btn as-icon-btn--danger" aria-label={`Delete ${s.name}`} title="Delete (no matchdays yet)" onClick={() => setDeleting(s)}>🗑</button>
                   ) : (
-                    <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                      <span>{s.planned_games ?? '—'}</span>
-                      {!s.ended_at && (
-                        <button type="button" onClick={() => beginEdit(s)} style={{ fontSize: 11 }}>Edit</button>
-                      )}
-                    </span>
+                    <span className="as-icon-btn as-icon-btn--disabled" aria-hidden title={`Cannot delete — ${s.matchday_count} matchday${s.matchday_count === 1 ? '' : 's'} exist`}>🗑</span>
                   )}
-                </td>
-                <td style={{ padding: '8px 4px' }}>{statusLabel(s)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
       )}
+
+      {sheet && (
+        <SeasonSheet
+          mode={sheet.mode}
+          form={form}
+          onChange={setForm}
+          err={err}
+          saving={saving}
+          onCancel={closeSheet}
+          onSubmit={onSubmit}
+        />
+      )}
+
+      {deleting && (
+        <DeleteConfirm
+          name={deleting.name}
+          inFlight={deleteInFlight}
+          err={err}
+          onCancel={() => { if (!deleteInFlight) { setDeleting(null); setErr(null) } }}
+          onConfirm={onDeleteConfirm}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Sub-components ─────────────────────────────────────────────
+
+function SeasonSheet({
+  mode, form, onChange, err, saving, onCancel, onSubmit,
+}: {
+  mode: 'create' | 'edit'
+  form: FormState
+  onChange: (next: FormState) => void
+  err: string | null
+  saving: boolean
+  onCancel: () => void
+  onSubmit: (e: React.FormEvent) => void
+}) {
+  const title = mode === 'create' ? 'New season' : 'Edit season'
+  const submitLabel = mode === 'create' ? (saving ? 'Creating…' : 'Create season') : (saving ? 'Saving…' : 'Save changes')
+
+  return (
+    <div className="as-scrim" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}>
+      <form className="as-sheet" onSubmit={onSubmit}>
+        <div className="as-sheet-handle" aria-hidden />
+        <div className="as-sheet-title">{title}</div>
+
+        <label className="as-field">
+          <span className="as-field-label">Name</span>
+          <input
+            type="text"
+            value={form.name}
+            onChange={(e) => onChange({ ...form, name: e.target.value })}
+            placeholder="Season 12"
+            required
+            autoFocus
+          />
+        </label>
+
+        <div className="as-field-row">
+          <label className="as-field">
+            <span className="as-field-label">First match date</span>
+            <input
+              type="date"
+              value={form.starts_on}
+              onChange={(e) => onChange({ ...form, starts_on: e.target.value })}
+              required
+            />
+          </label>
+          {mode === 'edit' && (
+            <label className="as-field">
+              <span className="as-field-label">End date</span>
+              <input
+                type="date"
+                value={form.ends_on}
+                onChange={(e) => onChange({ ...form, ends_on: e.target.value })}
+              />
+            </label>
+          )}
+        </div>
+
+        <label className="as-field">
+          <span className="as-field-label">Planned games</span>
+          <input
+            type="number"
+            min={1}
+            value={form.planned_games}
+            onChange={(e) => onChange({ ...form, planned_games: e.target.value })}
+            placeholder="e.g. 40"
+            required
+          />
+        </label>
+
+        <div className="as-field-row">
+          <div className="as-field">
+            <span className="as-field-label">Format</span>
+            <div className="as-chip-group" role="radiogroup" aria-label="Format">
+              {(['7v7', '5v5'] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  role="radio"
+                  aria-checked={form.default_format === f}
+                  className={`as-chip${form.default_format === f ? ' as-chip--on' : ''}`}
+                  onClick={() => onChange({ ...form, default_format: f })}
+                >
+                  {f.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="as-field">
+          <span className="as-field-label">Roster policy</span>
+          <div className="as-chip-col" role="radiogroup" aria-label="Roster policy">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={form.roster_policy === 'carry_forward'}
+              className={`as-chip as-chip--wide${form.roster_policy === 'carry_forward' ? ' as-chip--on' : ''}`}
+              onClick={() => onChange({ ...form, roster_policy: 'carry_forward' })}
+            >
+              <span className="as-chip-title">Carry forward</span>
+              <span className="as-chip-help">Same players as previous season</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={form.roster_policy === 'fresh'}
+              className={`as-chip as-chip--wide${form.roster_policy === 'fresh' ? ' as-chip--on' : ''}`}
+              onClick={() => onChange({ ...form, roster_policy: 'fresh' })}
+            >
+              <span className="as-chip-title">Fresh</span>
+              <span className="as-chip-help">Empty roster; players re-apply</span>
+            </button>
+          </div>
+        </div>
+
+        {err && <div className="as-error" role="alert">{err}</div>}
+
+        <div className="as-sheet-actions">
+          <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel} disabled={saving}>
+            Cancel
+          </button>
+          <button type="submit" className="auth-btn auth-btn--approve" disabled={saving}>
+            {submitLabel}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function DeleteConfirm({
+  name, inFlight, err, onCancel, onConfirm,
+}: {
+  name: string
+  inFlight: boolean
+  err: string | null
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div className="as-scrim" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget && !inFlight) onCancel() }}>
+      <div className="as-sheet as-sheet--warn">
+        <div className="as-sheet-handle" aria-hidden />
+        <div className="as-sheet-title">Delete season</div>
+        <div className="as-sheet-warn-body">
+          Delete <strong>{name}</strong>? This removes the season row. It's only possible because no matchdays exist on it.
+        </div>
+        {err && <div className="as-error" role="alert">{err}</div>}
+        <div className="as-sheet-actions">
+          <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel} disabled={inFlight}>
+            Cancel
+          </button>
+          <button type="button" className="auth-btn auth-btn--danger" onClick={onConfirm} disabled={inFlight}>
+            {inFlight ? 'Deleting…' : 'Delete'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

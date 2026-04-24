@@ -1486,7 +1486,7 @@ export type Database = {
         Args: {
           p_default_format?: Database["public"]["Enums"]["match_format"]
           p_name: string
-          p_planned_games?: number
+          p_planned_games: number
           p_roster_policy?: Database["public"]["Enums"]["roster_policy"]
           p_starts_on: string
         }
@@ -1497,6 +1497,7 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      delete_season: { Args: { p_season_id: string }; Returns: undefined }
       demote_admin: { Args: { p_profile_id: string }; Returns: undefined }
       dismiss_friendly_flag: {
         Args: { p_matchday_id: string }
@@ -1702,6 +1703,19 @@ export type Database = {
           p_profile_id: string
           p_role?: Database["public"]["Enums"]["user_role"]
           p_secondary_position: Database["public"]["Enums"]["player_position"]
+        }
+        Returns: undefined
+      }
+      update_season: {
+        Args: {
+          p_clear_ends_on?: boolean
+          p_default_format?: Database["public"]["Enums"]["match_format"]
+          p_ends_on?: string
+          p_name?: string
+          p_planned_games?: number
+          p_roster_policy?: Database["public"]["Enums"]["roster_policy"]
+          p_season_id: string
+          p_starts_on?: string
         }
         Returns: undefined
       }

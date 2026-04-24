@@ -1,31 +1,33 @@
 # FFC Todo
 
-## NEXT SESSION — S034
+## NEXT SESSION — S035
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S033 commit on `main` (post-`830405b`). Push status verified at session close.
-- Migrations on live DB: **24** (unchanged, 0001 → 0024). S033 was CSS + data-only.
-- Live DB state: season row renamed `Season 1` → `Season 11` with `planned_games=40`.
+- Expected tip: S034 commit on `main` (post-`578e03a`). Push at session close.
+- Migrations on live DB: **25** (0001 → 0025_seasons_admin_rpcs). S034 added 0025.
 
-**S034 agenda:**
+**S035 agenda:**
 
-1. **Live acceptance (compound)** on https://ffc-gilt.vercel.app. Hard-refresh once before testing (PWA SW cache).
-   - **S033 palette re-theme** — open `/matchday/:id/captains` on a locked matchday: verify cream text on dark navy, red Use-this-pair + Roll buttons, gold pair-card highlight, gold Locked chip, gold (not cyan) concurrent-admin toast. Rest of app (Leaderboard, Poll, Profile, Admin) should still look blue/slate (unchanged).
-   - **S033 data** — `/matches` flashcard banner should now read `GAME N / 40` (was `GAME N / 35`). `/admin/seasons` should list "Season 11" (was "Season 1").
-   - **S032 Slice C** — triplet click-to-expand on candidate rows + concurrent-admin toast (needs 2 admin browsers).
-   - **S031 21-item checklist** still in flight: S030/S029/S028/S026 scope ([sessions/S031/acceptance-checklist.md](../sessions/S031/acceptance-checklist.md)).
+1. **Live acceptance of S034 on https://ffc-gilt.vercel.app** — hard-refresh first (SW cache).
+   - **Admin IA restructure.** Bottom nav must show 5 tabs only (Home · Table · Matches · Profile · Settings) — no 6th 🛠 tab. Settings screen scroll to bottom: **admins** see red-tinted `🛠 Admin platform` pill after League Rules; non-admins do not. Tap → `/admin`.
+   - **Admin hub.** Three big cards: Season management · Player management · Matches management. Back button → Settings. Non-admin access shows access-gated state.
+   - **AdminSeasons redesign.** Rows show Season 11 / 7V7 / ACTIVE with dense meta `Start DD/MMM/YYYY · End — · Games 40 · Matchdays 3`. Delete icon should be visually disabled (dashed-border) because matchdays exist; hover/title explains why.
+   - **Create new season.** Red `+ New season` pill top-right → sheet. Submit blocks on empty planned games (server `FFC_SEASON_PLANNED_REQUIRED`). Creates — appears at top of list.
+   - **Edit season.** Click ✎ → sheet pre-filled, can change name/planned/format/policy + set End date. Save. If End date is in past, row status pill flips to ENDED.
+   - **Delete empty season.** Create throwaway with future date, delete it — confirm sheet → row disappears.
 
-2. **Propagate brand palette to other screens** if S033 feels right. Next candidates:
-   - **Poll** (`/poll`) — most-trafficked player screen.
-   - **Leaderboard** (`/leaderboard`) — season-wide visual anchor.
-   - Pattern: declare brand tokens on the screen's root, point every `rgba()` through `var(--*)` — same approach as S033's `.ch-root` block.
+2. **Carry-over from prior sessions** still pending live acceptance:
+   - S033 palette re-theme of CaptainHelper.
+   - S032 Slice C (triplet click-to-expand + concurrent-admin toast).
+   - S031 21-item checklist (S030+S029+S028+S026 scope).
 
-3. **Captain reroll modal** (S010 subagent-B spec, archived) — still blocked on `dropout_after_lock` notification flow.
+3. **Propagate brand palette** (S033 playbook) to Poll/Leaderboard if user greenlights.
 
-4. **Backburner (unchanged):**
-   - Vector FFC crest SVG (blocked on user export from Illustrator/Figma).
-   - Global palette re-align (red+navy → khaki-gold + cream, app-wide).
+4. **Backburner unchanged:**
+   - Vector FFC crest SVG (blocked on user export).
+   - Global palette re-align (app-wide).
+   - Captain reroll modal (blocked on `dropout_after_lock` notification flow).
 
 **Known gotchas (unchanged + additions from S026):**
 - **Session-start sync protocol** mandatory on cross-PC resume.
@@ -57,6 +59,25 @@
 - **NEW (S028): `starting_gk_profile_id` FKs profiles** — guests cannot be starting GK. UI excludes guests from the GK pool; rotation_number sequence skips them entirely.
 
 ---
+
+## Completed in S034 (24/APR/2026, Work PC)
+
+- [x] Cold-start sync clean — HEAD at `578e03a`, origin/main aligned.
+- [x] **Migration 0025** `update_season` (full edit with `COALESCE`/NULL optional semantics + `p_clear_ends_on` signal + auto-stamp `ended_at` on past `ends_on`), `delete_season` (guarded by `FFC_SEASON_HAS_MATCHDAYS`, audits before DELETE), `create_season` DROP+CREATE with `planned_games` now required (was optional). All SECURITY DEFINER + `is_admin()` + GRANT EXECUTE.
+- [x] Migration applied live via `supabase db push --linked`. Types regenerated (1916 → 1960 lines).
+- [x] **Admin IA restructure** — `RoleLayout.tsx` drops conditional 5th Admin tab; `Settings.tsx` gains role-gated `🛠 Admin platform` red pill at bottom; `AdminHome.tsx` rebuilt from stub → 3-card hub (Season / Player / Matches).
+- [x] **§3 AdminSeasons.tsx** full rewrite (~380 LOC) — topbar with back + title + red `+ New season` pill · bottom sheet for create AND edit (shared `SeasonSheet`) · row layout with format chip + status pill + labelled meta `Start / End / Games / Matchdays` (DD/MMM/YYYY dates via inline `fmtDate` string-split) · edit + delete icon buttons per row · delete disabled when `matchday_count > 0`.
+- [x] CSS: ~180 LOC under `.as-*` (AdminSeasons) + `.ah-*` (AdminHome hub) + `.st-admin-link` (Settings red pill).
+- [x] `tsc -b --force` EXIT=0; `vite build` EXIT=0 (PWA 10 entries / 2539 KB precache).
+- [x] Dev-server smoke: `/admin/seasons` + `/admin` both render; 5 tabs in bottom nav; no console errors.
+
+## S034 gotchas / lessons (additive)
+
+- **`CREATE OR REPLACE FUNCTION` cannot change default-arg position.** Making `p_planned_games` required in `create_season` required DROP + CREATE (same class as S030's `upsert_formation` 7-arg rebuild). Re-GRANT EXECUTE after CREATE.
+- **DATE columns need string-split, not `new Date(iso)`** — `new Date('2026-04-21')` parses as UTC midnight, which renders as 20/APR on any negative-offset timezone. Inline helper `fmtDate(iso)` splits the `YYYY-MM-DD` and uses component parts directly.
+- **"Leave alone vs explicitly clear" is a fundamentally 3-state signal for nullable DB columns.** Added `p_clear_ends_on boolean` alongside `p_ends_on date DEFAULT NULL`. NULL = leave alone; non-NULL = set; `clear_ends_on=true` = erase. Alternative sentinel patterns (e.g. `'1970-01-01'::date`) are hacks; explicit boolean is cleaner and the TS client side matches cleanly via conditional spread.
+- **Audit BEFORE DELETE.** `log_admin_action` writes to `admin_audit_log` which has an FK to `profiles(admin_profile_id)` only, NOT to the target entity — so the row survives even after the target is gone. But the `target_id` column still holds the UUID of the deleted row. Useful postmortem trail.
+- **Access gates at component level in admin-gated routes** — `AdminSeasons` / `AdminHome` both check `useApp().role` and return an access-denied panel if non-admin. Belt-and-braces; router-level protection would be cleaner but this is the pattern we've used throughout Phase 1.
 
 ## Completed in S033 (24/APR/2026, Work PC)
 
