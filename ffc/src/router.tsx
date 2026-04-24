@@ -21,6 +21,7 @@ import { AdminHome } from './pages/admin/AdminHome'
 import { AdminPlayers } from './pages/admin/AdminPlayers'
 import { AdminMatches } from './pages/admin/AdminMatches'
 import { AdminSeasons } from './pages/admin/AdminSeasons'
+import { CaptainHelper } from './pages/admin/CaptainHelper' // §3.1-v2
 import { FormationPlanner } from './pages/FormationPlanner' // §3.19
 
 /* Root route dispatcher — decides where a session lands based on auth state.
@@ -58,6 +59,7 @@ export const router = createBrowserRouter([
       { path: 'profile/:id', element: <Profile /> },
       { path: 'match/:id', element: <MatchDetail /> },
       { path: 'match/:id/formation', element: <FormationPlanner /> },
+      { path: 'matchday/:id/captains', element: <CaptainHelper /> },
       { path: 'settings', element: <Settings /> },
       { path: 'settings/rules', element: <Rules /> },
       { path: 'admin', element: <AdminHome /> },

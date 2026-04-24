@@ -314,6 +314,7 @@ export function AdminMatches() {
               onDraftForceComplete={() => setSheet({ kind: 'draft_force_complete', md })}
               onDraftAbandon={() => setSheet({ kind: 'draft_abandon', md })}
               onFormation={() => md.match && navigate(`/match/${md.match.id}/formation`)}
+              onPickCaptains={() => navigate(`/matchday/${md.id}/captains`)}
             />
           ))}
         </ul>
@@ -465,7 +466,7 @@ export function AdminMatches() {
 // ─── Matchday card ─────────────────────────────────────────────
 
 function MatchdayCard({
-  md, onEdit, onLock, onEnterResult, onEditResult, onDraftForceComplete, onDraftAbandon, onFormation,
+  md, onEdit, onLock, onEnterResult, onEditResult, onDraftForceComplete, onDraftAbandon, onFormation, onPickCaptains,
 }: {
   md: MatchdayWithMatch
   onEdit: () => void
@@ -475,6 +476,7 @@ function MatchdayCard({
   onDraftForceComplete: () => void
   onDraftAbandon: () => void
   onFormation: () => void
+  onPickCaptains: () => void
 }) {
   const phase = phaseLabel(md)
   const hasResult = !!md.match
@@ -548,6 +550,12 @@ function MatchdayCard({
         {md.match && (
           <button type="button" className="auth-btn auth-btn--sheet-cancel admin-md-btn" onClick={onFormation}>
             🧩 Formation
+          </button>
+        )}
+        {/* §3.1-v2 Slice A — Pick captains. Available once roster is locked. */}
+        {locked && md.match && (
+          <button type="button" className="auth-btn auth-btn--sheet-cancel admin-md-btn" onClick={onPickCaptains}>
+            👔 Pick captains
           </button>
         )}
       </div>
