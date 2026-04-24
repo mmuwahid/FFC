@@ -15,11 +15,17 @@
  *   - Pair-confirmation sheet auto-applies White=weaker (higher rank number)
  *     and calls set_matchday_captains.
  *
- * Deferred to Slice B:
- *   - Guests-on-roster subsection with S007 stats (read-only).
- *   - Rank-gap > 5 "Proceed anyway?" sub-modal.
- *   - Criteria-triplet tooltip expansion.
- *   - Concurrent-admin toast.
+ * Slice B (this pass):
+ *   - Guests-on-roster subsection with S007 stats (read-only, not tappable).
+ *     Active guests only (cancelled_at IS NULL). Pills · ⭐ rating · stamina /
+ *     accuracy chips · expandable description.
+ *   - Rank-gap > 5 advisory "Proceed anyway?" sub-modal. Does not hard-block
+ *     per spec — admin can still commit with an explicit second action.
+ *
+ * Deferred to Slice C:
+ *   - Criteria-triplet tooltip expansion (raw values click-to-show).
+ *   - Concurrent-admin toast ("Captains were picked by X Ns ago") — Phase 1
+ *     keeps last-write-wins.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -29,6 +35,8 @@ import { supabase } from '../../lib/supabase'
 import type { Database } from '../../lib/database.types'
 
 type PlayerPosition = Database['public']['Enums']['player_position']
+type GuestTrait = Database['public']['Enums']['guest_trait']
+type GuestRating = Database['public']['Enums']['guest_rating']
 
 interface MatchdayLite {
   id: string
@@ -67,10 +75,27 @@ interface SuggestedPair {
   score: number
 }
 
+interface Guest {
+  id: string
+  display_name: string
+  primary_position: PlayerPosition | null
+  secondary_position: PlayerPosition | null
+  stamina: GuestTrait | null
+  accuracy: GuestTrait | null
+  rating: GuestRating | null
+  description: string | null
+}
+
 interface ConfirmSheetState {
   white_id: string
   black_id: string
   source: 'suggested' | 'manual' | 'random'
+}
+
+interface GapWarningState {
+  white_id: string
+  black_id: string
+  gap: number
 }
 
 function initials(name: string): string {
@@ -106,12 +131,14 @@ export function CaptainHelper() {
   const [matchday, setMatchday] = useState<MatchdayLite | null>(null)
   const [match, setMatch] = useState<MatchLite | null>(null)
   const [candidates, setCandidates] = useState<Candidate[]>([])
+  const [guests, setGuests] = useState<Guest[]>([])
   const [seasonApprovedCount, setSeasonApprovedCount] = useState(0)
   const [mode, setMode] = useState<'formula' | 'randomizer'>('formula')
   const [userToggledMode, setUserToggledMode] = useState(false)
   const [suggestedPairs, setSuggestedPairs] = useState<SuggestedPair[]>([])
   const [rolling, setRolling] = useState(false)
   const [confirmSheet, setConfirmSheet] = useState<ConfirmSheetState | null>(null)
+  const [gapWarning, setGapWarning] = useState<GapWarningState | null>(null)
   const [saving, setSaving] = useState(false)
 
   const isAdmin = role === 'admin' || role === 'super_admin'
@@ -145,9 +172,19 @@ export function CaptainHelper() {
 
       if (!md.roster_locked_at || !matchRow) {
         setCandidates([])
+        setGuests([])
         setLoading(false)
         return
       }
+
+      const { data: guestRows, error: guestErr } = await supabase
+        .from('match_guests')
+        .select('id, display_name, primary_position, secondary_position, stamina, accuracy, rating, description')
+        .eq('matchday_id', md.id)
+        .is('cancelled_at', null)
+        .order('display_name', { ascending: true })
+      if (guestErr) throw guestErr
+      setGuests((guestRows ?? []) as Guest[])
 
       const { data: rosterRows, error: rosterErr } = await supabase
         .from('match_players')
@@ -329,25 +366,43 @@ export function CaptainHelper() {
     [candidateById]
   )
 
-  const onConfirm = useCallback(async () => {
-    if (!matchday || !confirmSheet) return
-    setSaving(true)
-    setError(null)
-    try {
-      const { error: confErr } = await supabase.rpc('set_matchday_captains', {
-        p_matchday_id: matchday.id,
-        p_white_profile_id: confirmSheet.white_id,
-        p_black_profile_id: confirmSheet.black_id,
-      })
-      if (confErr) throw confErr
-      setConfirmSheet(null)
-      navigate('/admin/matches')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save captains.')
-    } finally {
-      setSaving(false)
+  const commitPair = useCallback(
+    async (white_id: string, black_id: string) => {
+      if (!matchday) return
+      setSaving(true)
+      setError(null)
+      try {
+        const { error: confErr } = await supabase.rpc('set_matchday_captains', {
+          p_matchday_id: matchday.id,
+          p_white_profile_id: white_id,
+          p_black_profile_id: black_id,
+        })
+        if (confErr) throw confErr
+        setConfirmSheet(null)
+        setGapWarning(null)
+        navigate('/admin/matches')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to save captains.')
+      } finally {
+        setSaving(false)
+      }
+    },
+    [matchday, navigate]
+  )
+
+  const onConfirm = useCallback(() => {
+    if (!confirmSheet) return
+    const w = candidateById[confirmSheet.white_id]
+    const b = candidateById[confirmSheet.black_id]
+    const gap = w?.rank && b?.rank ? Math.abs(w.rank - b.rank) : null
+    if (gap !== null && gap > 5) {
+      // Spec §3.1-v2: rank-gap > 5 is an advisory warning, not a hard block —
+      // surface a Proceed-anyway sub-modal before committing.
+      setGapWarning({ white_id: confirmSheet.white_id, black_id: confirmSheet.black_id, gap })
+      return
     }
-  }, [matchday, confirmSheet, navigate])
+    void commitPair(confirmSheet.white_id, confirmSheet.black_id)
+  }, [confirmSheet, candidateById, commitPair])
 
   if (!isAdmin) {
     return (
@@ -500,6 +555,16 @@ export function CaptainHelper() {
         </>
       )}
 
+      {guests.length > 0 && (
+        <>
+          <div className="ch-cand-group-head ch-cand-group-head--guests">🎁 Guests on roster · {guests.length} · not eligible to captain</div>
+          <div className="ch-guest-note">Guests can't captain — but their stats help balance the pair.</div>
+          <ul className="ch-guest-list">
+            {guests.map((g) => <GuestRow key={g.id} g={g} />)}
+          </ul>
+        </>
+      )}
+
       {confirmSheet && (
         <ConfirmSheet
           white={candidateById[confirmSheet.white_id]}
@@ -508,8 +573,17 @@ export function CaptainHelper() {
           saving={saving}
           error={error}
           onCancel={() => setConfirmSheet(null)}
-          onConfirm={() => void onConfirm()}
+          onConfirm={onConfirm}
           onReRoll={mode === 'randomizer' ? () => { setConfirmSheet(null); void onRoll() } : undefined}
+        />
+      )}
+
+      {gapWarning && (
+        <GapWarningModal
+          gap={gapWarning.gap}
+          saving={saving}
+          onCancel={() => setGapWarning(null)}
+          onProceed={() => void commitPair(gapWarning.white_id, gapWarning.black_id)}
         />
       )}
     </div>
@@ -619,6 +693,68 @@ function Triplet({ c }: { c: Candidate }) {
       <span className={c.meets_attendance ? 'ch-triplet-y' : 'ch-triplet-n'}>{c.meets_attendance ? '✓' : '✗'}</span>
       <span className={c.cooldown_ok ? 'ch-triplet-y' : 'ch-triplet-n'}>{c.cooldown_ok ? '✓' : '✗'}</span>
     </span>
+  )
+}
+
+function GuestRow({ g }: { g: Guest }) {
+  const [expanded, setExpanded] = useState(false)
+  const hasDesc = g.description && g.description.trim().length > 0
+  const ratingTone = g.rating === 'strong' ? 'strong' : g.rating === 'weak' ? 'weak' : g.rating === 'average' ? 'avg' : null
+  return (
+    <li className="ch-guest-row">
+      <div className="ch-guest-row-top">
+        <span className="ch-guest-glyph" aria-hidden>+1</span>
+        <span className="ch-guest-name">{g.display_name}</span>
+        <PositionPills primary={g.primary_position} secondary={g.secondary_position} />
+        {ratingTone && (
+          <span className={`ch-guest-rating ch-guest-rating--${ratingTone}`}>
+            ⭐ {g.rating ? g.rating.toUpperCase() : ''}
+          </span>
+        )}
+      </div>
+      {(g.stamina || g.accuracy || hasDesc) && (
+        <div className="ch-guest-meta">
+          {g.stamina && <span className="ch-guest-chip">stamina: {g.stamina}</span>}
+          {g.accuracy && <span className="ch-guest-chip">accuracy: {g.accuracy}</span>}
+          {hasDesc && (
+            <button
+              type="button"
+              className="ch-guest-desc-btn"
+              onClick={() => setExpanded((v) => !v)}
+              aria-expanded={expanded}
+            >
+              {expanded ? 'hide note' : 'note…'}
+            </button>
+          )}
+        </div>
+      )}
+      {expanded && hasDesc && <div className="ch-guest-desc">{g.description}</div>}
+    </li>
+  )
+}
+
+function GapWarningModal({
+  gap, saving, onCancel, onProceed,
+}: {
+  gap: number
+  saving: boolean
+  onCancel: () => void
+  onProceed: () => void
+}) {
+  return (
+    <div className="ch-sheet-scrim" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget && !saving) onCancel() }}>
+      <div className="ch-sheet ch-sheet--warn">
+        <div className="ch-sheet-handle" aria-hidden />
+        <div className="ch-sheet-title">⚠ Rank gap exceeds 5</div>
+        <div className="ch-sheet-warn-body">
+          This pair has a rank gap of <strong>{gap}</strong>, over the 5-position balance rule. Phase 1 allows this as an advisory — you can proceed, but the teams may be lopsided.
+        </div>
+        <div className="ch-sheet-actions">
+          <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel} disabled={saving}>Pick a closer pair</button>
+          <button type="button" className="auth-btn auth-btn--approve" onClick={onProceed} disabled={saving}>{saving ? 'Saving…' : 'Proceed anyway'}</button>
+        </div>
+      </div>
+    </div>
   )
 }
 
