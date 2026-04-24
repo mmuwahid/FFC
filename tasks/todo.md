@@ -1,33 +1,47 @@
 # FFC Todo
 
-## NEXT SESSION — S035
+## NEXT SESSION — S036
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S034 commit on `main` (post-`578e03a`). Push at session close.
-- Migrations on live DB: **25** (0001 → 0025_seasons_admin_rpcs). S034 added 0025.
+- Expected tip: S035 commit on `main`. Push at session close.
+- Migrations on live DB: **25** (unchanged — S035 was CSS-only).
 
-**S035 agenda:**
+**S036 agenda:**
 
-1. **Live acceptance of S034 on https://ffc-gilt.vercel.app** — hard-refresh first (SW cache).
-   - **Admin IA restructure.** Bottom nav must show 5 tabs only (Home · Table · Matches · Profile · Settings) — no 6th 🛠 tab. Settings screen scroll to bottom: **admins** see red-tinted `🛠 Admin platform` pill after League Rules; non-admins do not. Tap → `/admin`.
-   - **Admin hub.** Three big cards: Season management · Player management · Matches management. Back button → Settings. Non-admin access shows access-gated state.
-   - **AdminSeasons redesign.** Rows show Season 11 / 7V7 / ACTIVE with dense meta `Start DD/MMM/YYYY · End — · Games 40 · Matchdays 3`. Delete icon should be visually disabled (dashed-border) because matchdays exist; hover/title explains why.
-   - **Create new season.** Red `+ New season` pill top-right → sheet. Submit blocks on empty planned games (server `FFC_SEASON_PLANNED_REQUIRED`). Creates — appears at top of list.
-   - **Edit season.** Click ✎ → sheet pre-filled, can change name/planned/format/policy + set End date. Save. If End date is in past, row status pill flips to ENDED.
-   - **Delete empty season.** Create throwaway with future date, delete it — confirm sheet → row disappears.
+1. **Live acceptance of S035 Poll re-theme on https://ffc-gilt.vercel.app.** Hard-refresh first (SW cache). Open `/poll`: verify cream text on brand navy paper, gold accents (me-tag, guest-rating strong, self-avatar ring, novote border left-edge, team-header-active shadow), red danger strips (locked, error), red CTAs. Semi-transparent hero + status cards should blend nicely with the navy bg. Rest of app (Leaderboard, Profile, Matches, Admin) should look unchanged.
 
-2. **Carry-over from prior sessions** still pending live acceptance:
-   - S033 palette re-theme of CaptainHelper.
-   - S032 Slice C (triplet click-to-expand + concurrent-admin toast).
-   - S031 21-item checklist (S030+S029+S028+S026 scope).
+2. **Continue palette propagation** via S033 tokenisation playbook if user likes the Poll result:
+   - **Leaderboard** (`/leaderboard`) — `.lb-screen` root, similar token surface.
+   - **Profile** (`/profile`) — `.pf-*` namespace.
+   - **Matches** (`/matches`) — `.ms-*` or `.mx-*` namespace.
 
-3. **Propagate brand palette** (S033 playbook) to Poll/Leaderboard if user greenlights.
+3. **Carry-over acceptance** (still in flight):
+   - S034: admin IA + AdminSeasons (dates DD/MMM/YYYY, pill CTA, edit/delete flow).
+   - S033: CaptainHelper palette.
+   - S032: Slice C (triplet click-to-expand + concurrent-admin toast).
+   - S031 21-item checklist.
 
-4. **Backburner unchanged:**
+4. **Backburner (unchanged):**
    - Vector FFC crest SVG (blocked on user export).
-   - Global palette re-align (app-wide).
    - Captain reroll modal (blocked on `dropout_after_lock` notification flow).
+   - Global palette re-align (app-wide — may not be needed once screen-by-screen propagation is done).
+
+## Completed in S035 (24/APR/2026, Work PC)
+
+- [x] Poll `.po-screen` brand tokenisation — 10-line scope-override at top of Poll CSS block.
+- [x] Semantic-intent fix: Poll `--accent` overridden to gold `#e5ba5b` (was red via root), restoring original design intent for me-tag / avatar-self / guest-rating-strong / novote border / team-header-active.
+- [x] `--warn` alias added (root has `--warning`, Poll uses `--warn`).
+- [x] `.po-screen` root explicitly sets `background: var(--bg); color: var(--text);` to anchor the page colour.
+- [x] `tsc -b --force` EXIT=0; `vite build` EXIT=0 (PWA 2539 KB).
+- [x] Preview smoke: `.po-screen` computed `bg: rgb(14,24,38)` / `color: rgb(242,234,214)` — tokens resolving correctly. No console errors.
+
+## S035 gotchas / lessons (additive)
+
+- **Tokenisation playbook scales cleanly across screens** when the existing CSS is already var()-driven. Poll was a ~95-rule / 220-line surface; S035 touched 10 lines at the top of that block to flip the whole thing. This is a 20× better ROI than CaptainHelper's re-theme, which had to touch every rule.
+- **Root `--accent` vs per-screen `--accent` intent diverged.** Root sets `--accent: #e63349` (red) which wins at every `var(--accent)` lookup. Poll's fallback `#c49a4b` (gold) suggested the original design wanted gold-for-accent. For Poll, overriding accent to gold inside `.po-screen` restored the intended semantic. Lesson: when root tokens and per-screen fallback hints disagree, trust the local fallback and override at the screen scope.
+- **`--warn` vs `--warning` naming mismatch** — Poll uses `--warn` with fallbacks throughout; root defines `--warning`. Without explicit aliasing the fallback would fire. Worth normalising app-wide eventually but scope-local alias is fine.
+
 
 **Known gotchas (unchanged + additions from S026):**
 - **Session-start sync protocol** mandatory on cross-PC resume.
