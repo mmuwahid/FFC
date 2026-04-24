@@ -1,40 +1,56 @@
 # FFC Todo
 
-## NEXT SESSION — S037
+## NEXT SESSION — S038
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S036 commit on `main`. Push at session close.
-- Migrations on live DB: **25** (unchanged — S036 was CSS-only).
+- Expected tip: `0198450` or later. Push at session close.
+- Migrations on live DB: **27** (0001 → 0027_season11_roster_import).
 
-**S037 agenda:**
+**S038 agenda:**
 
-1. **Live whole-app acceptance on https://ffc-gilt.vercel.app** — hard-refresh first (SW cache). All 10 in-app screens now on brand palette. Walk every tab and sub-page:
-   - Home → Poll (gold accents, red CTAs)
-   - Table → Leaderboard (cream ink on navy, gold medals)
-   - Matches (cream flashcards)
-   - Profile (cream hero band, gold achievement tiles)
-   - Settings (cream rows, red Admin platform pill at bottom for admins)
-   - Settings → Rules (cream tables)
-   - Admin platform → Season management (Seasons list + create/edit sheet all on brand)
-   - Admin platform → Player management
-   - Admin platform → Matches management
-   - Captain helper `/matchday/:id/captains` (already on brand since S033)
-   - Formation planner `/match/:id/formation`
-   Everything should feel like the same app.
+1. **Ghost-profile claim flow** — Signup.tsx Stage 2 needs a ghost-profile picker so that when Firas/Mostafa/Anas etc. sign up, they can select their existing ghost row and inherit Season 11 stats + future match history. Server-side:
+   - New RPC `claim_ghost_profile(p_ghost_id uuid) → void` — requires authenticated session, checks `profiles.auth_user_id IS NULL` (not already claimed), checks `role IN ('player','admin')` (not rejected), sets `auth_user_id = auth.uid()`, sets `email = auth.email()`, stamps `claimed_at timestamptz`. Audited via `log_admin_action('profiles', ghost_id, 'ghost_claimed', payload)`.
+   - New table column `profiles.claimed_at timestamptz` (nullable; records when claim happened).
+   - Signup.tsx Stage 2: after email confirm, offer "Which player are you?" list — show all ghost profiles sorted by display_name with rough stats (MP / goals from v_season_standings) for disambiguation. Alphabetical + searchable.
+   - Post-claim: replace current "3-stage signup" Stage 2 (self-data form) with the ghost link. If user isn't in the list, a "I'm a new player" option falls back to old flow creating a fresh profile.
 
-2. **Micro-polish pass** expected — whole-app consistency will surface specific tints, chart shades, chip variants that didn't stand out in piecemeal screens. Fix as user spots them.
+2. **Live acceptance** of S037 on prod — hard-refresh, walk every tab:
+   - Leaderboard shows 39 players with correct points ordering (Karim 44 top).
+   - Matches card says "Season 11 · Matchday 1 of 40" (first matchday will be MD31 equivalent from user's perspective, but in-app this is the season's first scheduled matchday).
+   - New logo visible in install prompt + Apple home-screen + OG preview when sharing link.
+   - Admin-platform pill visible in Settings for Mohammed + the 4 ghost-admins (once claimed).
 
-3. **Carry-over acceptance** (still in flight):
+3. **Captain reroll live test** — **deferred** until MD31 runs in-app. Needs a real post-lock cancel + admin `promote_from_waitlist` call. Code is live and ready; no manual testing possible without real poll votes.
+
+4. **Carry-over live acceptance** (still in flight):
    - S035: Poll re-theme.
-   - S034: admin IA + AdminSeasons redesign (dates DD/MMM/YYYY, pill CTA).
+   - S034: admin IA + AdminSeasons redesign.
    - S033: CaptainHelper palette.
-   - S032: Slice C (triplet click-to-expand + concurrent-admin toast).
+   - S032: Slice C.
    - S031 21-item checklist.
 
-4. **Backburner (unchanged):**
-   - Vector FFC crest SVG (blocked on user export).
-   - Captain reroll modal (blocked on `dropout_after_lock` notification flow).
+5. **Backburner:** all prior blockers resolved in S037. None remaining. New items will surface from live acceptance.
+
+## Completed in S037 (24/APR/2026, Work PC)
+
+- [x] **Migration 0026** `season_seed_stats` table + `v_season_standings` `CREATE OR REPLACE VIEW` rewrite UNIONing live aggregates with seeds. `CREATE OR REPLACE` (not DROP) required because `v_captain_eligibility` depends on the view.
+- [x] **Migration 0027** — archived Test Player (role=rejected), `TRUNCATE ... RESTART IDENTITY CASCADE` across 15 transactional tables, inserted 39 ghost profiles (auth_user_id NULL) + 4 admins, inserted 40 Season 11 seed rows from user's external sheet.
+- [x] Types regen 1916→1993 lines.
+- [x] Verified live DB: 35 player + 4 admin + 1 super_admin + 2 rejected; top-15 leaderboard matches source sheet exactly.
+- [x] **§3.15 Captain reroll modal** — Poll.tsx dropout card for captains in State 8 + confirmation sub-sheet + RPC wiring for `accept_substitute` + `request_reroll`; gold-tinted (S033 "attention" register). CSS under `.po-dropout-card` / `.po-dropout-sheet`.
+- [x] **Logo rollout** — regenerated all PWA icons from `shared/FFC Logo Transparent Background.png`: `ffc-logo-32/180/192/512.png` + `ffc-logo-maskable-512.png` (60% safe zone) + Apple touch opaque with inset + generic `ffc-logo.png` + NEW `og-image.png` 1200×630 for WhatsApp/iMessage/Slack previews + OG + Twitter card meta tags in index.html.
+- [x] Build clean: `tsc -b --force` + `vite build` (PWA 11 entries / 1340 KB, size dropped from 2541 KB).
+- [x] 2 commits pushed (`53afc0e` + `0198450`); Vercel deploy green.
+
+## S037 gotchas / lessons (additive)
+
+- **Seed-aggregate table + UNION view pattern (new reusable)** — when backfilling historical totals without fabricating per-event rows: add a seed table keyed on (scope_id, entity_id) with the same aggregate columns the view sums, then in the view build a `combined` CTE UNIONing live CTE with seed table, LEFT JOIN both, COALESCE-sum each column. Preserves view signature → zero downstream TS changes.
+- **`CREATE OR REPLACE VIEW` when dependents exist** — `DROP VIEW` failed because `v_captain_eligibility` depends. `CREATE OR REPLACE` works iff the column signature is unchanged (we summed into existing aliases, didn't add exposed columns).
+- **Notifications payload filter client-side, not `.contains()`** — PostgREST's jsonb-contains filter is unreliable across Supabase JS client versions. Fetch a small bounded result (`.limit(5)`) and filter in JS.
+- **TRUNCATE ... CASCADE across 15 tables** — single statement; CASCADE resolved child FKs. Order inside statement didn't matter. Atomic rollback on error preserved.
+- **Apple touch + maskable PWA icon opacity pattern** — iOS masks to squircle, Android to circle. Transparent icon = hole in corners. Use opaque brand-bg + ~78% logo inset for Apple touch, ~60% inset for Android maskable (PWA "safe zone" spec). Regular `any` purpose icons stay transparent.
+- **Ghost profiles as first-class entities** — `auth_user_id IS NULL` profiles are leaderboard-visible + rosterable but can't log in. Claim flow in S038 will merge auth into ghost row in-place (preserves stats + future history).
 
 ## Completed in S036 (24/APR/2026, Work PC)
 

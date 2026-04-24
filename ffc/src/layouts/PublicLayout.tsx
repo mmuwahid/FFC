@@ -6,7 +6,17 @@ export function PublicLayout() {
     <div className="app-shell">
       <header className="app-topbar">
         <div className="app-topbar-inner">
-          <span style={{ fontWeight: 700, letterSpacing: '0.12em' }}>FFC</span>
+          <div className="app-topbar-brand">
+            <img
+              className="app-topbar-logo"
+              src="/ffc-logo-192.png"
+              alt=""
+              aria-hidden
+              width="28"
+              height="28"
+            />
+            <span className="app-topbar-title">FFC</span>
+          </div>
         </div>
       </header>
       <main className="app-main">
