@@ -1,77 +1,65 @@
 # FFC Todo
 
-## NEXT SESSION — S038
+## NEXT SESSION — S039
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: `e73fbc3` or later. Push at session close.
-- Migrations on live DB: **27** (0001 → 0027_season11_roster_import).
+- Expected tip: `4de4b05` or later (S038 P2). Push at session close.
+- Migrations on live DB: **27** (unchanged from S037).
 
-**🔴 LIVE BUG (S038 inbound):** Admin **Barhoum** attempted to sign in (Google OAuth or email). After auth completes → blank screen → cannot proceed. Diagnosis: his ghost row in `profiles` has `auth_user_id IS NULL`, so `AppContext.tsx:85-90` profile lookup returns 0 rows → `role = null`. `Login.tsx` likely redirects to `/poll` directly (inside `<RoleLayout />` which has no `session && !role` fallback like `HomeRoute` does), so he lands on a route that renders nothing. Even if the route fell through to `<PendingApproval />`, the "Waiting for approval" copy is wrong UX for ghost-claimers — they need to **claim**, not be approved. Affects all 39 ghost players + 4 ghost admins. **P2 below is the structural fix.**
+**S039 agenda:**
 
-**S038 priority order (decided 25/APR/2026):**
-1. **P1 logo + share-preview polish (FIRST per user)** — cosmetic, low-risk warm-up.
-2. **P2 ghost-claim flow (best practice = admin-approval gate + email-match auto-bind escape hatch)** — unblocks Barhoum + all 39 players.
-3. **P3** live acceptance walk.
-4. **P4** captain reroll live test (deferred until MD31).
-5. **P5** carry-over checklists (S031–S035).
+1. **Live verification of Barhoom OAuth flow** (parallel to other work — user-driven on Barhoom's phone):
+   1. Hard-refresh https://ffc-gilt.vercel.app on his phone.
+   2. Login → "Continue with Google" → sign in with `ahmed.abdallahh@hotmail.com`.
+   3. Should land on `/signup` Stage 2 ghost-picker (HomeRoute fix from S038 P2).
+   4. Pick "Barhoom" → Submit → "Waiting for approval".
+   5. Mohammed: `/admin/players` → Pending → Approve (green ✓ banner expected).
+   6. Barhoom hard-refreshes → role=`admin` → `/poll` opens with admin chrome. Season 11 stats preserved on his profile.
+2. **Same verification for Abood / Ahmed Saleh / Rawad** when they next try.
+3. **WhatsApp / iOS acceptance** — share live URL to a chat → cream OG card with full crest + "The official Home of the FFC."; iOS Safari → Share → Add to Home Screen → cream Apple touch icon (not navy).
+4. **Carry-over backlog** still pending acceptance: S031 21-item checklist, S032 Slice C, S033 CaptainHelper palette, S034 admin IA + AdminSeasons, S035 Poll re-theme.
+5. **Captain reroll live test** — deferred until MD31 runs in-app (real post-lock cancel + admin `promote_from_waitlist` call).
+6. **Optional** — seed `profiles.email` for the remaining 35 player ghost rows so the AdminPlayers email-match banner fires for them too. Pattern same as S038: `DO $$ BEGIN UPDATE profiles SET email = ... WHERE id = ...; ... END $$;`.
 
-**S038 agenda:**
+**Backburner:** empty.
 
-1. **Logo + share-preview polish pass (FIRST TASK — user flagged at S037 close)**
-   - **WhatsApp/OG share preview** — current preview shows logo on **dark blue** background in a small landscape letterbox with description "FFC — weekly 7-a-side with the same crew."
-     - Regenerate `ffc/public/og-image.png` (1200×630) with **cream background** (`#f2ead6`), full logo centred at a size where the shield is fully visible (not cropped to a narrow band).
-     - Update `og:description` + `twitter:description` meta tags in `ffc/index.html` to: **"The official Home of the FFC."** (remove the weekly 7-a-side line).
-     - Verify WhatsApp's scrape cache refreshes — may need `?v=2` cache-buster on the og image URL so WhatsApp re-fetches.
-   - **PWA home-screen icon** — same issue: currently rendering on blue background when added to iOS/Android home screens. The Apple-touch + maskable icons in S037 were set to brand-navy opaque background; switch them to **cream** to match the brand direction the user now wants.
-     - Regenerate `ffc-logo-180.png` (Apple touch, opaque) with cream bg + logo inset.
-     - Regenerate `ffc-logo-maskable-512.png` with cream bg + 60% safe-zone logo inset.
-     - Keep the transparent `any` purpose icons (`ffc-logo-32/192/512.png`) as-is — those layer over OS backgrounds.
-   - **Strip topbar logo/wordmark from Login + Signup screens** — both already show the big centre FFC logo, so the header crest + "FFC" wordmark added in `3573761` is redundant on these two screens. Keep topbar header on all authed screens as-is. Likely means conditional render in whatever layout component (or `Login.tsx` / `Signup.tsx` / `PendingApproval.tsx`) renders the topbar for auth routes.
-   - Commit + deploy + verify WhatsApp re-preview + iOS "Add to Home Screen" both show cream.
+## Completed in S038 (25/APR/2026, Work PC)
 
-2. **Ghost-profile claim flow — REVISED P2 (existing infra is 80% there)**
+### P1 — Cream-bg PWA + share-preview polish (`a44f1fb`)
 
-   Discovery during S038 P2 design: `pending_signups.claim_profile_hint` + `approve_signup(p_pending_id, p_claim_profile_id)` (migration 0008) + `Signup.tsx` Stage 2 ghost-picker UI all already exist. Mohammed's normal signup-approval flow already handles ghost-binding. The reason Barhoom was stuck is purely a routing bug: Login.tsx Google OAuth lands on `/`, HomeRoute renders `<PendingApproval />` for `session && !role`, but PendingApproval has no path forward AND no `pending_signups` row exists for OAuth users — so admins never see them in the queue.
+- [x] Generator script `_wip/gen_cream_assets_s038.py` (PIL 12.2; bbox + LANCZOS pattern; gitignored).
+- [x] `og-image.png` 1200×630 cream `#f2ead6` bg + 80% inset full FFC crest. Was dark navy with cropped shield.
+- [x] `ffc-logo-180.png` Apple touch — cream bg + 78% inset (was brand navy).
+- [x] `ffc-logo-maskable-512.png` Android adaptive — cream bg + 60% safe-zone inset.
+- [x] `index.html` meta updates: `og:description` + `twitter:description` → "The official Home of the FFC." + `?v=2` cache-buster on og:image (forces WhatsApp scrape refresh) + added `<meta name="twitter:description">`.
+- [x] `PublicLayout.tsx` topbar stripped — auth screens already render own crest; topbar from `3573761` was redundant on Login/Signup/PendingApproval.
+- [x] Transparent `any`-purpose icons (`ffc-logo-32/192/512.png` + `ffc-logo.png`) untouched, as planned.
+- [x] Build clean: tsc -b EXIT 0 + vite build EXIT 0 (PWA 11 entries / 1483 KiB).
+- [x] Vercel deploy `dpl_13J5zwtKekvJaQBmUQsr6fd4NxkW` READY ~17s.
 
-   **Tiny fix (no migration needed):**
-   - `router.tsx` HomeRoute: `session && !role` → `<Navigate to="/signup" replace />` (was `<PendingApproval />`). Signup.tsx self-derives stage 'who' (ghost-picker) when no pending_signups row exists, or stage 'waiting' when one does — covers both the fresh OAuth landing and the post-submit polling.
-   - `RoleLayout`: defensive `session && !role || !session` → `<Navigate to="/" replace />` so any direct URL hit on /poll/etc. bounces through HomeRoute properly instead of rendering blank.
-   - PendingApproval.tsx: now dead code (file kept, import removed).
-   - **Email-seed sanity check** — UPDATE `profiles.email` on the 4 admin ghost rows so AdminPlayers ApproveSheet can flag email-match (✓) or mismatch (⚠) when the admin reviews the claim. Lookup uses ghost ID via `claim_profile_hint` → already in scope; just surface ghost.email next to row.email in the sheet.
+### P2 — Ghost-claim routing fix for Barhoom (`4de4b05`)
 
-   **Pre-claim seed (executed in S038):**
-   - `UPDATE profiles SET email = 'ahmed.abdallahh@hotmail.com' WHERE id = '0cc871e8-...';  -- Barhoom`
-   - `UPDATE profiles SET email = 'amakkawi89@gmail.com' WHERE id = '8dc6d6ba-...';         -- Abood`
-   - `UPDATE profiles SET email = 'ahmed_msaleh@hotmail.com' WHERE id = 'fc2b7ea6-...';     -- Ahmed Saleh`
-   - `UPDATE profiles SET email = 'rawadbn@gmail.com' WHERE id = 'c984bdce-...';            -- Rawad`
+- [x] **Diagnosis during code-read** revealed full claim infra ALREADY EXISTED (`Signup.tsx` Stage 2 ghost-picker + `pending_signups.claim_profile_hint` + migration 0008 `approve_signup(p_pending_id, p_claim_profile_id)`). Initial planned 7-step rebuild → reduced to 3-line routing fix.
+- [x] `router.tsx` HomeRoute: `session && !role` → `<Navigate to="/signup" replace />` instead of `<PendingApproval />`. PendingApproval import removed.
+- [x] `RoleLayout.tsx` defensive role-gate: `loading || profileLoading` → splash; `!session || !role` → `<Navigate to="/" replace />`. Prevents direct URL hits on `/poll`/etc. from rendering blank.
+- [x] `AdminPlayers.tsx` ApproveSheet: green ✓ "Email matches" / amber ⚠ "Expected X, got Y" sanity banner when `ghost.email` is populated. Case-insensitive comparison.
+- [x] **Pre-claim email seed via `DO $$ BEGIN ... END $$` block** (CLI rejects raw multi-statement query):
+  - Barhoom (`0cc871e8…`) → `ahmed.abdallahh@hotmail.com`
+  - Abood (`8dc6d6ba…`) → `amakkawi89@gmail.com`
+  - Ahmed Saleh (`fc2b7ea6…`) → `ahmed_msaleh@hotmail.com`
+  - Rawad (`c984bdce…`) → `rawadbn@gmail.com`
+- [x] PendingApproval.tsx kept on disk but dead code (no import).
+- [x] Build clean: tsc -b EXIT 0 + vite build EXIT 0 (PWA 1484 KiB).
+- [x] Vercel deploy `dpl_Ge8bwT6Thc7kKbHgv2XJ67jDWeKX` READY ~22s.
 
-   **Acceptance test for Barhoom:**
-   1. Sign in via Google with `ahmed.abdallahh@hotmail.com` → lands on /
-   2. HomeRoute → /signup → Signup Stage 2 ghost-picker visible
-   3. Tap "Barhoom" row → tap Submit
-   4. Pending_signups row created with `claim_profile_hint = barhoom.id` → Stage 'waiting'
-   5. Mohammed sees Barhoom in AdminPlayers Pending tab with "claim" chip + "Wants to claim: Barhoom"
-   6. Mohammed taps Approve → ApproveSheet shows green "Email matches" banner → confirm
-   7. `approve_signup(p_pending_id, p_claim_profile_id=barhoom.id)` → ghost.auth_user_id bound to Barhoom's auth.uid
-   8. Barhoom refreshes → role='admin' → /poll. Season 11 stats preserved.
+## S038 gotchas / lessons (additive)
 
-2. **Live acceptance** of S037 on prod — hard-refresh, walk every tab:
-   - Leaderboard shows 39 players with correct points ordering (Karim 44 top).
-   - Matches card says "Season 11 · Matchday 1 of 40" (first matchday will be MD31 equivalent from user's perspective, but in-app this is the season's first scheduled matchday).
-   - New logo visible in install prompt + Apple home-screen + OG preview when sharing link.
-   - Admin-platform pill visible in Settings for Mohammed + the 4 ghost-admins (once claimed).
-
-3. **Captain reroll live test** — **deferred** until MD31 runs in-app. Needs a real post-lock cancel + admin `promote_from_waitlist` call. Code is live and ready; no manual testing possible without real poll votes.
-
-4. **Carry-over live acceptance** (still in flight):
-   - S035: Poll re-theme.
-   - S034: admin IA + AdminSeasons redesign.
-   - S033: CaptainHelper palette.
-   - S032: Slice C.
-   - S031 21-item checklist.
-
-5. **Backburner:** all prior blockers resolved in S037. None remaining. New items will surface from live acceptance.
+- **"Read existing code before designing the fix"** — initial P2 plan was a full feature build with new migration + new `claim_requests` table + 3 RPCs + new `Claim.tsx` page + AdminPlayers tab augmentation. Reading `Signup.tsx` (S019) + `AdminPlayers.tsx` (S025) revealed the entire flow was already 80% built. Final fix was 3 routing edits + 4-row UPDATE. Re-usable rule: when a user reports a bug in code you haven't touched in days, read relevant files end-to-end BEFORE designing the fix.
+- **Multi-statement SQL via Supabase CLI requires DO block** — `npx supabase db query --linked "UPDATE ...; UPDATE ...;"` errors out with `String must contain at least 1 character(s)`. Wrap in `DO $$ BEGIN ... END $$` (single PL/pgSQL statement).
+- **PIL bbox+LANCZOS asset-regen pattern** — `getbbox()` first to trim transparent padding, then scale preserving aspect, then centre on canvas. Inset percentages stay meaningful regardless of source padding. Re-usable for future PWA icon refreshes.
+- **OG image cache-buster `?v=N`** is the safest way to force WhatsApp's scraper to re-fetch. WhatsApp aggressively caches by URL — old preview can stick for hours/days even after redeploy.
+- **ApproveSheet email-match sanity banner pattern** — when admin UI confirms a destructive bind between two identity sources (auth email vs ghost expected email), surface both with colour-coded match indicator (✓ green / ⚠ amber). Cheap to implement, prevents wrong-claim binding which is permanent.
 
 ## Completed in S037 (24/APR/2026, Work PC)
 
