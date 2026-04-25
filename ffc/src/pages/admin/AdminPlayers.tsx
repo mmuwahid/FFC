@@ -477,6 +477,13 @@ function ApproveSheet({
     if (error) { onError(error.message); return }
     await onDone()
   }
+  /* S038 sanity check: when a ghost row was pre-seeded with an expected email
+   * (e.g. the 4 admin ghosts), surface a match-or-mismatch banner so the admin
+   * can verify identity before binding. Case-insensitive comparison. */
+  const expectedEmail = ghost?.email?.trim().toLowerCase() ?? null
+  const incomingEmail = row.email.trim().toLowerCase()
+  const emailMatch = expectedEmail !== null && expectedEmail === incomingEmail
+  const emailMismatch = expectedEmail !== null && expectedEmail !== incomingEmail
   return (
     <>
       <h3>{ghost ? 'Approve claim?' : 'Approve new player?'}</h3>
@@ -487,6 +494,20 @@ function ApproveSheet({
           <>Create a new profile for <strong>{row.display_name}</strong> (<code>{row.email}</code>).</>
         )}
       </p>
+      {emailMatch && (
+        <div className="auth-banner auth-banner--success" role="status">
+          <span className="auth-banner-icon" aria-hidden>✓</span>
+          <div>Email matches the seeded address for {ghost!.display_name}.</div>
+        </div>
+      )}
+      {emailMismatch && (
+        <div className="auth-banner auth-banner--warn" role="alert">
+          <span className="auth-banner-icon" aria-hidden>!</span>
+          <div>
+            Expected <strong>{ghost!.email}</strong> for {ghost!.display_name}, but request came from <strong>{row.email}</strong>. Verify identity before approving.
+          </div>
+        </div>
+      )}
       <div className="sheet-actions">
         <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel} disabled={busy}>Cancel</button>
         <button type="button" className="auth-btn auth-btn--approve" onClick={confirm} disabled={busy}>

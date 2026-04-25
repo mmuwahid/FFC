@@ -30,27 +30,31 @@
    - **Strip topbar logo/wordmark from Login + Signup screens** — both already show the big centre FFC logo, so the header crest + "FFC" wordmark added in `3573761` is redundant on these two screens. Keep topbar header on all authed screens as-is. Likely means conditional render in whatever layout component (or `Login.tsx` / `Signup.tsx` / `PendingApproval.tsx`) renders the topbar for auth routes.
    - Commit + deploy + verify WhatsApp re-preview + iOS "Add to Home Screen" both show cream.
 
-2. **Ghost-profile claim flow (best practice — admin-approval gate + email-match auto-bind escape hatch)**
+2. **Ghost-profile claim flow — REVISED P2 (existing infra is 80% there)**
 
-   **Migration 0028:**
-   - `profiles.claimed_at timestamptz` (nullable) — stamped on successful bind.
-   - `profiles.expected_email citext` (nullable) — if set, only an auth user whose email matches this can claim the ghost. Used to pre-allowlist the 4 admins (Barhoum etc.) so they auto-bind on first login. NULL for player ghosts → admin approval required.
-   - New table `claim_requests` — `id uuid pk, profile_id uuid (ghost being claimed), requester_auth_id uuid, requester_email citext, requested_at timestamptz default now(), decided_by uuid, decided_at timestamptz, decision text check (decision IN ('approved','rejected')), reject_reason text`.
-   - RPC `request_claim(p_ghost_id uuid)` — caller must be authenticated. Checks ghost is unclaimed (`auth_user_id IS NULL`), not already-rejected role, and that no other auth user has claimed it. **If `expected_email` matches `auth.email()`** → bind in-place (set `auth_user_id`, `email`, `claimed_at`), audit, return `{ status: 'bound' }`. **Else** → insert into `claim_requests` (one open request per requester per ghost), audit, return `{ status: 'pending', request_id }`. Raises `FFC_GHOST_ALREADY_CLAIMED`, `FFC_CLAIM_ALREADY_PENDING`, `FFC_GHOST_NOT_FOUND`.
-   - RPC `approve_claim(p_request_id uuid)` — admin/super_admin only. Binds the ghost (sets `auth_user_id`, `email`, `claimed_at`), marks request `decision='approved' decided_by=current_profile_id() decided_at=now()`, audits, returns void. Raises `FFC_CLAIM_NOT_PENDING`.
-   - RPC `reject_claim(p_request_id uuid, p_reason text)` — admin/super_admin only. Marks `decision='rejected'`, stores reason, audits.
+   Discovery during S038 P2 design: `pending_signups.claim_profile_hint` + `approve_signup(p_pending_id, p_claim_profile_id)` (migration 0008) + `Signup.tsx` Stage 2 ghost-picker UI all already exist. Mohammed's normal signup-approval flow already handles ghost-binding. The reason Barhoom was stuck is purely a routing bug: Login.tsx Google OAuth lands on `/`, HomeRoute renders `<PendingApproval />` for `session && !role`, but PendingApproval has no path forward AND no `pending_signups` row exists for OAuth users — so admins never see them in the queue.
 
-   **Frontend:**
-   - New page `Claim.tsx` (route `/claim`) — alphabetical ghost-picker with searchbox + each entry shows display_name, position chip, and (MP/goals) badge from `v_season_standings`. Tap → confirm sheet → calls `request_claim` → on `bound` redirects to `/poll`, on `pending` shows "Waiting for admin approval" stub with sign-out fallback. "I'm a new player" link at bottom → routes to existing Signup Stage 2 (fresh profile creation).
-   - `HomeRoute` change: `session && !role` → check for own pending claim_request → if pending render the waiting screen, else `<Navigate to="/claim" />`.
-   - `Login.tsx` post-success redirect → currently goes to `/poll`; change to `/` so HomeRoute dispatch logic always runs.
-   - `RoleLayout` defensive fallback: `session && !role` → `<Navigate to="/" replace />` (so any direct URL hit on a role-gated route bounces back through HomeRoute instead of rendering blank).
+   **Tiny fix (no migration needed):**
+   - `router.tsx` HomeRoute: `session && !role` → `<Navigate to="/signup" replace />` (was `<PendingApproval />`). Signup.tsx self-derives stage 'who' (ghost-picker) when no pending_signups row exists, or stage 'waiting' when one does — covers both the fresh OAuth landing and the post-submit polling.
+   - `RoleLayout`: defensive `session && !role || !session` → `<Navigate to="/" replace />` so any direct URL hit on /poll/etc. bounces through HomeRoute properly instead of rendering blank.
+   - PendingApproval.tsx: now dead code (file kept, import removed).
+   - **Email-seed sanity check** — UPDATE `profiles.email` on the 4 admin ghost rows so AdminPlayers ApproveSheet can flag email-match (✓) or mismatch (⚠) when the admin reviews the claim. Lookup uses ghost ID via `claim_profile_hint` → already in scope; just surface ghost.email next to row.email in the sheet.
 
-   **Admin UX:**
-   - `AdminPlayers` Pending tab — list `claim_requests WHERE decision IS NULL` alongside fresh signups, distinguished by a "🔗 Claim" chip vs "🆕 New". Approve button on a claim row → `approve_claim(request_id)`. Reject opens existing reject-reason sheet → `reject_claim`.
+   **Pre-claim seed (executed in S038):**
+   - `UPDATE profiles SET email = 'ahmed.abdallahh@hotmail.com' WHERE id = '0cc871e8-...';  -- Barhoom`
+   - `UPDATE profiles SET email = 'amakkawi89@gmail.com' WHERE id = '8dc6d6ba-...';         -- Abood`
+   - `UPDATE profiles SET email = 'ahmed_msaleh@hotmail.com' WHERE id = 'fc2b7ea6-...';     -- Ahmed Saleh`
+   - `UPDATE profiles SET email = 'rawadbn@gmail.com' WHERE id = 'c984bdce-...';            -- Rawad`
 
-   **Pre-claim seed (manual SQL via Supabase CLI before P2 ship):**
-   - `UPDATE profiles SET expected_email = '<their gmail>' WHERE display_name IN ('Barhoum', '<3 other admins>')` — use whatever Mohammed has on file. If unknown for some, leave NULL — those default to admin-approval path (Mohammed approves once).
+   **Acceptance test for Barhoom:**
+   1. Sign in via Google with `ahmed.abdallahh@hotmail.com` → lands on /
+   2. HomeRoute → /signup → Signup Stage 2 ghost-picker visible
+   3. Tap "Barhoom" row → tap Submit
+   4. Pending_signups row created with `claim_profile_hint = barhoom.id` → Stage 'waiting'
+   5. Mohammed sees Barhoom in AdminPlayers Pending tab with "claim" chip + "Wants to claim: Barhoom"
+   6. Mohammed taps Approve → ApproveSheet shows green "Email matches" banner → confirm
+   7. `approve_signup(p_pending_id, p_claim_profile_id=barhoom.id)` → ghost.auth_user_id bound to Barhoom's auth.uid
+   8. Barhoom refreshes → role='admin' → /poll. Season 11 stats preserved.
 
 2. **Live acceptance** of S037 on prod — hard-refresh, walk every tab:
    - Leaderboard shows 39 players with correct points ordering (Karim 44 top).

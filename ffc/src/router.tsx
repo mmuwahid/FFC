@@ -7,7 +7,6 @@ import { RefLayout } from './layouts/RefLayout'
 
 import { Login } from './pages/Login'
 import { Signup } from './pages/Signup'
-import { PendingApproval } from './pages/PendingApproval'
 import { Poll } from './pages/Poll'
 import { Leaderboard } from './pages/Leaderboard'
 import { Matches } from './pages/Matches'
@@ -25,14 +24,24 @@ import { CaptainHelper } from './pages/admin/CaptainHelper' // §3.1-v2
 import { FormationPlanner } from './pages/FormationPlanner' // §3.19
 
 /* Root route dispatcher — decides where a session lands based on auth state.
- *   No session         → /login (Login is the app entry)
+ *   No session         → /login
  *   Session + role     → /poll
- *   Session + no role  → <PendingApproval /> (awaiting admin, or rejected fallthrough) */
+ *   Session + no role  → /signup  (Signup.tsx self-derives the right stage:
+ *                                   stage 'who' = ghost-picker if no pending row
+ *                                   stage 'waiting' = if pending row exists)
+ *
+ * S038 fix: previously rendered <PendingApproval /> here, which left
+ * Google-OAuth ghost-claimers (e.g. Barhoom) with no path forward — they
+ * had a session but no profile AND no pending_signups row, so admins never
+ * saw them in the queue. Routing through /signup reuses Signup.tsx Stage 2,
+ * which inserts the pending_signups row and surfaces the claim hint to
+ * admin via approve_signup(p_claim_profile_id). PendingApproval.tsx is
+ * now dead code (file kept for git-history simplicity, not imported). */
 function HomeRoute() {
   const { session, role, loading, profileLoading } = useApp()
   if (loading || profileLoading) return <div className="app-loading">Loading&hellip;</div>
   if (!session) return <Navigate to="/login" replace />
-  if (!role) return <PendingApproval />
+  if (!role) return <Navigate to="/signup" replace />
   return <Navigate to="/poll" replace />
 }
 
