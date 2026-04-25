@@ -4,16 +4,53 @@
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: `0198450` or later. Push at session close.
+- Expected tip: `e73fbc3` or later. Push at session close.
 - Migrations on live DB: **27** (0001 → 0027_season11_roster_import).
+
+**🔴 LIVE BUG (S038 inbound):** Admin **Barhoum** attempted to sign in (Google OAuth or email). After auth completes → blank screen → cannot proceed. Diagnosis: his ghost row in `profiles` has `auth_user_id IS NULL`, so `AppContext.tsx:85-90` profile lookup returns 0 rows → `role = null`. `Login.tsx` likely redirects to `/poll` directly (inside `<RoleLayout />` which has no `session && !role` fallback like `HomeRoute` does), so he lands on a route that renders nothing. Even if the route fell through to `<PendingApproval />`, the "Waiting for approval" copy is wrong UX for ghost-claimers — they need to **claim**, not be approved. Affects all 39 ghost players + 4 ghost admins. **P2 below is the structural fix.**
+
+**S038 priority order (decided 25/APR/2026):**
+1. **P1 logo + share-preview polish (FIRST per user)** — cosmetic, low-risk warm-up.
+2. **P2 ghost-claim flow (best practice = admin-approval gate + email-match auto-bind escape hatch)** — unblocks Barhoum + all 39 players.
+3. **P3** live acceptance walk.
+4. **P4** captain reroll live test (deferred until MD31).
+5. **P5** carry-over checklists (S031–S035).
 
 **S038 agenda:**
 
-1. **Ghost-profile claim flow** — Signup.tsx Stage 2 needs a ghost-profile picker so that when Firas/Mostafa/Anas etc. sign up, they can select their existing ghost row and inherit Season 11 stats + future match history. Server-side:
-   - New RPC `claim_ghost_profile(p_ghost_id uuid) → void` — requires authenticated session, checks `profiles.auth_user_id IS NULL` (not already claimed), checks `role IN ('player','admin')` (not rejected), sets `auth_user_id = auth.uid()`, sets `email = auth.email()`, stamps `claimed_at timestamptz`. Audited via `log_admin_action('profiles', ghost_id, 'ghost_claimed', payload)`.
-   - New table column `profiles.claimed_at timestamptz` (nullable; records when claim happened).
-   - Signup.tsx Stage 2: after email confirm, offer "Which player are you?" list — show all ghost profiles sorted by display_name with rough stats (MP / goals from v_season_standings) for disambiguation. Alphabetical + searchable.
-   - Post-claim: replace current "3-stage signup" Stage 2 (self-data form) with the ghost link. If user isn't in the list, a "I'm a new player" option falls back to old flow creating a fresh profile.
+1. **Logo + share-preview polish pass (FIRST TASK — user flagged at S037 close)**
+   - **WhatsApp/OG share preview** — current preview shows logo on **dark blue** background in a small landscape letterbox with description "FFC — weekly 7-a-side with the same crew."
+     - Regenerate `ffc/public/og-image.png` (1200×630) with **cream background** (`#f2ead6`), full logo centred at a size where the shield is fully visible (not cropped to a narrow band).
+     - Update `og:description` + `twitter:description` meta tags in `ffc/index.html` to: **"The official Home of the FFC."** (remove the weekly 7-a-side line).
+     - Verify WhatsApp's scrape cache refreshes — may need `?v=2` cache-buster on the og image URL so WhatsApp re-fetches.
+   - **PWA home-screen icon** — same issue: currently rendering on blue background when added to iOS/Android home screens. The Apple-touch + maskable icons in S037 were set to brand-navy opaque background; switch them to **cream** to match the brand direction the user now wants.
+     - Regenerate `ffc-logo-180.png` (Apple touch, opaque) with cream bg + logo inset.
+     - Regenerate `ffc-logo-maskable-512.png` with cream bg + 60% safe-zone logo inset.
+     - Keep the transparent `any` purpose icons (`ffc-logo-32/192/512.png`) as-is — those layer over OS backgrounds.
+   - **Strip topbar logo/wordmark from Login + Signup screens** — both already show the big centre FFC logo, so the header crest + "FFC" wordmark added in `3573761` is redundant on these two screens. Keep topbar header on all authed screens as-is. Likely means conditional render in whatever layout component (or `Login.tsx` / `Signup.tsx` / `PendingApproval.tsx`) renders the topbar for auth routes.
+   - Commit + deploy + verify WhatsApp re-preview + iOS "Add to Home Screen" both show cream.
+
+2. **Ghost-profile claim flow (best practice — admin-approval gate + email-match auto-bind escape hatch)**
+
+   **Migration 0028:**
+   - `profiles.claimed_at timestamptz` (nullable) — stamped on successful bind.
+   - `profiles.expected_email citext` (nullable) — if set, only an auth user whose email matches this can claim the ghost. Used to pre-allowlist the 4 admins (Barhoum etc.) so they auto-bind on first login. NULL for player ghosts → admin approval required.
+   - New table `claim_requests` — `id uuid pk, profile_id uuid (ghost being claimed), requester_auth_id uuid, requester_email citext, requested_at timestamptz default now(), decided_by uuid, decided_at timestamptz, decision text check (decision IN ('approved','rejected')), reject_reason text`.
+   - RPC `request_claim(p_ghost_id uuid)` — caller must be authenticated. Checks ghost is unclaimed (`auth_user_id IS NULL`), not already-rejected role, and that no other auth user has claimed it. **If `expected_email` matches `auth.email()`** → bind in-place (set `auth_user_id`, `email`, `claimed_at`), audit, return `{ status: 'bound' }`. **Else** → insert into `claim_requests` (one open request per requester per ghost), audit, return `{ status: 'pending', request_id }`. Raises `FFC_GHOST_ALREADY_CLAIMED`, `FFC_CLAIM_ALREADY_PENDING`, `FFC_GHOST_NOT_FOUND`.
+   - RPC `approve_claim(p_request_id uuid)` — admin/super_admin only. Binds the ghost (sets `auth_user_id`, `email`, `claimed_at`), marks request `decision='approved' decided_by=current_profile_id() decided_at=now()`, audits, returns void. Raises `FFC_CLAIM_NOT_PENDING`.
+   - RPC `reject_claim(p_request_id uuid, p_reason text)` — admin/super_admin only. Marks `decision='rejected'`, stores reason, audits.
+
+   **Frontend:**
+   - New page `Claim.tsx` (route `/claim`) — alphabetical ghost-picker with searchbox + each entry shows display_name, position chip, and (MP/goals) badge from `v_season_standings`. Tap → confirm sheet → calls `request_claim` → on `bound` redirects to `/poll`, on `pending` shows "Waiting for admin approval" stub with sign-out fallback. "I'm a new player" link at bottom → routes to existing Signup Stage 2 (fresh profile creation).
+   - `HomeRoute` change: `session && !role` → check for own pending claim_request → if pending render the waiting screen, else `<Navigate to="/claim" />`.
+   - `Login.tsx` post-success redirect → currently goes to `/poll`; change to `/` so HomeRoute dispatch logic always runs.
+   - `RoleLayout` defensive fallback: `session && !role` → `<Navigate to="/" replace />` (so any direct URL hit on a role-gated route bounces back through HomeRoute instead of rendering blank).
+
+   **Admin UX:**
+   - `AdminPlayers` Pending tab — list `claim_requests WHERE decision IS NULL` alongside fresh signups, distinguished by a "🔗 Claim" chip vs "🆕 New". Approve button on a claim row → `approve_claim(request_id)`. Reject opens existing reject-reason sheet → `reject_claim`.
+
+   **Pre-claim seed (manual SQL via Supabase CLI before P2 ship):**
+   - `UPDATE profiles SET expected_email = '<their gmail>' WHERE display_name IN ('Barhoum', '<3 other admins>')` — use whatever Mohammed has on file. If unknown for some, leave NULL — those default to admin-approval path (Mohammed approves once).
 
 2. **Live acceptance** of S037 on prod — hard-refresh, walk every tab:
    - Leaderboard shows 39 players with correct points ordering (Karim 44 top).

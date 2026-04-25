@@ -14,18 +14,20 @@
     <meta name="apple-mobile-web-app-title" content="FFC" />
     <meta name="theme-color" content="#0e1826" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#e63349" media="(prefers-color-scheme: light)" />
-    <meta name="description" content="FFC — weekly 7-a-side with the same crew." />
+    <meta name="description" content="The official Home of the FFC." />
 
     <!-- Open Graph (WhatsApp / iMessage / Slack link previews) -->
+    <!-- ?v=2 cache-buster on og:image so WhatsApp's scrape cache re-fetches the cream-bg refresh (S038). -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="FFC" />
-    <meta property="og:description" content="FFC — weekly 7-a-side with the same crew." />
-    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:description" content="The official Home of the FFC." />
+    <meta property="og:image" content="/og-image.png?v=2" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:site_name" content="FFC" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="/og-image.png" />
+    <meta name="twitter:description" content="The official Home of the FFC." />
+    <meta name="twitter:image" content="/og-image.png?v=2" />
 
     <!-- Inline splash: painted immediately, hidden once React mounts.
          Kills the cold-start white flash on cold loads. -->
