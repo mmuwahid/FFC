@@ -1,22 +1,50 @@
 # FFC Todo
 
-## NEXT SESSION — S044
+## NEXT SESSION — S045
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: `<S043 hotfix>` or later (S043 close commit).
-- Migrations on live DB: **31** (Phase 2B foundation + ref-matchday + pgcrypto hotfix + is_admin NULL safety).
+- Expected tip: S044 close commit on `main`.
+- Migrations on live DB: **31** (unchanged from S043 — slice 2B-D was client-only).
 
-**S044 agenda:**
+**S045 agenda:**
 
-1. **Slice 2B-D** — RefEntry live mode. Match clock (35-5-35 minutes, configurable per format), large white/black score blocks (tap to open scorer picker), pause/resume button (auto-stoppage), card actions, MOTM picker, event log persisted to React state with 15s undo window. Client-side authoritative timer (no server clock) using `performance.now()` + persisted start-timestamp in localStorage.
-2. **Carry-over:** acceptance tests for slices 2B-B, 2B-C on real device.
-3. Captain reroll live test — deferred until MD31 runs in-app.
-4. **Defense-in-depth follow-up (S043 spawn):** REVOKE EXECUTE FROM PUBLIC on admin RPCs; explicit GRANT TO authenticated. Tightens blast-radius even if a future helper bug recurs.
+1. **Slice 2B-E** — Post-match summary + submit. Add a sixth mode (`'review'`) between `'live'` and `'post'` that fires when ref taps END MATCH (currently a disabled stub). Render final-score row, MOTM row, full event log with edit affordances ("✎ Edit event log" → editable list view that lets ref correct typos before submit), and SUBMIT TO ADMIN button. Wire `submit_ref_entry` RPC call (already extended in 0028 to accept `events[]` + `timing` payload). On success: burn the token (`consumed_at = now()` is server-side), transition to `'post'` mode, show "thanks, admin notified" copy. Out of scope this slice: Web Push notification to admin (Phase 2A), admin review screen (slice 2B-F).
+2. **Slice 2B-F** — Admin review screen `/admin/match-entries/:id`. Pre-fills approve flow with submitted timing + events. Per-player grid editable. Approve → `approve_match_entry` (already extended in 0028). Reject → `reject_match_entry` deletes pending rows + event log, ref must regenerate token.
+3. **Carry-over** — live device acceptance for slices 2B-B / 2B-C / 2B-D (real Thursday matchday). Captain reroll live test (deferred until MD31 runs in-app).
+4. **Defense-in-depth follow-up (S043 spawn):** REVOKE EXECUTE FROM PUBLIC on admin RPCs; explicit GRANT TO authenticated.
 
 **Backburner:**
 
 - **Email notification on approve/reject** — when admin approves or rejects a signup, send a transactional email to the player so they know to open the app (or that their application was declined). Implementation path: Supabase Edge Function (`notify-signup-outcome`) triggered by a database webhook on `pending_signups.resolution` changing from `pending` → `approved`/`rejected`. Email provider: [Resend](https://resend.com) free tier (100 emails/day, no card). Approved email: "Welcome to FFC — you're in, open the app and start voting." Rejected email: "Your FFC signup wasn't approved — contact an admin." Edge Function needs `RESEND_API_KEY` env var in Supabase project settings.
+
+## Completed in S044 (27/APR/2026, Home PC)
+
+### Slice 2B-D — RefEntry live match console
+
+**No migration this slice.** All client-side: hook + UI + state machine + persistence.
+
+- [x] **`refConsoleConstants.ts`** — 5 named tunables (`REGULATION_HALF_MINUTES` 7v7=35 / 5v5=25, `HALFTIME_BREAK_SECONDS=300`, `MAX_STOPPAGE_SOFT_LIMIT_SECONDS=180`, `UNDO_WINDOW_MS=15000`, `HALFTIME_ADD_MIN_SECONDS=60`). Hard-coded for now; deferred `app_settings` plumbing until a second league configures differently.
+- [x] **`useMatchClock.ts`** (~545 LOC) — client-authoritative match clock + event log + score + MOTM. State machine: `1 | 'break' | 2`. Pure helpers exported (`computeHalfElapsedMs`, `formatMSS`, `formatStoppage`, `computeMatchStamp`) plus a `stampFromState(state, regulationHalfMinutes, pausedAtOverride?)` internal helper that DRYs out the four event-construction sites. Persists to a sibling `localStorage` key `<sessionStorageKey>:clock` (sha256-keyed for cross-device safety). Hydration via async-aware effect because the parent's storage key resolves async (Web Crypto digest). 1 Hz tick via `setInterval` drives display re-renders. `Date.now()` reads inside `useMemo` bodies with `tick` in deps + scoped `eslint-disable react-hooks/purity` comments documenting intent. `MatchEvent` carries `half: 1 | 2` so the formatter can disambiguate 1st-half stoppage from 2nd-half regulation. `undoLast()` returns void (the boolean-return version had a setState-async race; callers use `canUndo` for button-disabled state). `resume` guards `'break'` symmetrically with `pause`. 8 mutators (`addGoal`, `addCard`, `pause`, `resume`, `endHalf`, `startSecondHalf`, `addBreakMin`, `setMotm`).
+- [x] **`useMatchSession` extension** — exposes `sessionStorageKey: storageKey` so LiveConsole can wire its useMatchClock to the same browser-storage scope. Also retrofitted the same `eslint-disable react-hooks/set-state-in-effect` pattern + intent comment that we used in useMatchClock for the async-arrival hydration setState.
+- [x] **`RefEntry.tsx` LiveConsole shell** — replaces `mode === 'live'` placeholder with real component. LiveHeader (LIVE/BREAK chip with red-pulse / accent-static dot), HalfStrip (1ST/2ND HALF + progress bar 0..100% + stoppage chip with red-alarm pulse when over 180s soft limit), big M:SS clock display (paused→amber), Score block (tap-to-add-goal cells, disabled when paused), 3-row action grid (Pause/Resume + Card · Undo + MOTM · End Half + End Match), EventStrip (most-recent-first, max 8 visible, M' / M+S' notation, per-event-type icons + descriptions), and HalftimeView (break countdown + Skip Break + Add Min). All sub-components private to RefEntry.tsx; LiveConsole owns one hook call + one `scorerTeam` state and four picker-open booleans + `cardStage` two-stage state.
+- [x] **`RefEntryPickers.tsx`** (~293 LOC) — sibling file housing the 5 bottom-sheet picker components: `ScorerPicker` (Goal / Own Goal toggle + roster grid; own-goal flips displayed roster to OPPOSITE team, credit goes to scoring team), `PauseReasonPicker` (Foul / Injury / Ref decision / Other / Pause without reason), `CardPlayerPicker` (both teams sub-headed) → `CardKindPicker` (Yellow accent-tinted / Red danger-tinted), `MotmPicker` (combined roster, isCurrent highlight, Clear MOTM affordance). All have `role="dialog"` + `aria-modal="true"`. Plus `truncateName` helper + `PAUSE_REASONS` const tuple. Extracted from RefEntry.tsx after Task 5 hit 828 LOC (over the 800-line global rule); both files now well within typical (RefEntry 555 / Pickers 293).
+- [x] **`ref-entry.css`** — 4 new brand tokens added to `.ref-entry` root (`--rf-success`, `--rf-warn`, `--rf-pause`, `--rf-danger`); ~292 LOC of live-mode rules appended (live header, half strip, big clock, score block, action row, event strip, halftime banner, picker sheets — backdrop blur + slide-up animation + grabber).
+- [x] **8 commits, all pushed at close.** Plan commit (`9a30297`) + Task 2 (`50b026c` + `07c8595` half-routing fix + `cd91483` quality pass) + Task 3 (`f4c85ca` shell + `df189c2` MatchEvent half field) + Task 4 (`fef1a0a` scorer picker) + Task 5 (`a840476` pause/card/MOTM/undo + `9d93527` extract pickers).
+
+### S044 gotchas / lessons (additive)
+
+- **`Date.now()` at render scope defeats `useMemo`** — if a memo reads `Date.now()` directly at render scope and includes it in deps, every render recomputes the memo (Date.now() changes every ms). Move the call INSIDE the memo body, depend on a `tick` counter instead, and add `// eslint-disable-next-line react-hooks/exhaustive-deps -- tick drives the per-second refresh; Date.now() is read inside the body so it's not a dep.` Caught by ESLint's `react-hooks/purity` rule. The same fix applies any time you have a `setInterval`-driven re-render that reads wall-clock state.
+- **`setState` in `useEffect` for async-arrival hydration is a real lint error but unavoidable when the dep is async.** Hydrating `useMatchSession.storageKey` requires `crypto.subtle.digest` to resolve before we can read localStorage — that's an async path. The lazy initializer can't see future async values. The fix is `// eslint-disable-next-line react-hooks/set-state-in-effect -- intentional async hydration` with an intent comment. Used in both useMatchSession and useMatchClock.
+- **`undoLast(): boolean` was a race trap** — setting a `popped` flag inside a `setState((prev) => ...)` updater and reading it after the function returns produces unreliable values because React may defer the updater. The `setState` is async; the function returns synchronously before the closure runs. Fix: change the signature to `() => void`. Callers needing "is the button enabled" use the `canUndo` derived boolean (which reads the events array at render time).
+- **Sibling-key persistence pattern** — when one hook owns a localStorage key, a downstream hook can write to a sibling key (`<parent>:clock`) instead of forcing the parent to know about clock-state shape. Keeps responsibilities clean and hydration races local.
+- **MatchEvent needs a `half` discriminator** — without it, the formatter can't tell 1st-half-stoppage (match_minute=36, render `35+1'`) from 2nd-half-regulation (match_minute=36, render `36'`). Adding `half: 1 | 2` at every event-construction site is the cheap fix; Pickers and the future submit RPC inherit the right semantics for free.
+- **Pause + score-cell disable invariant** — disabling the score buttons while paused prevents the ref from logging a goal at a stale match-minute (the clock is frozen, so the stamp would be wrong). UX nudge: resume first, then score. CARD also disables for the same reason; PAUSE/RESUME stays enabled because the only way out of pause is to resume.
+- **Two-stage card flow > one-shot grid** — picking the player then the colour is two sheets back-to-back. Avoids cramming an 8-row × 2-team × 2-colour grid into one view. Conditional render: `cardPickerOpen && !cardStage` for player picker, `cardStage` truthy for kind picker — mutually exclusive.
+- **Own-goal flips the displayed roster** — picker title flips to "Own goal — who put it in their own net?" and the underlying roster array swaps. Goal credit goes to the OPPOSITE team via `clock.addGoal(team, participant, isOwnGoal=true)` where `team` is the SCORING team, NOT the rendered roster's team. Critical correctness invariant: the prop `team` on ScorerPicker tracks the SCORING team independently of which roster is shown.
+- **Soft-limit stoppage alarm** — when stoppage_h1/h2_seconds exceeds `MAX_STOPPAGE_SOFT_LIMIT_SECONDS` (180 s), the chip turns red and pulses. Doesn't auto-end the half; just nudges. Driven from the same hook display-memo so it's per-tick fresh.
+- **800-line file rule is a guardrail, not a target.** Slice 2B-D's first finished implementation hit 828 LOC in RefEntry.tsx. Extracted the 5 picker components + helpers into `RefEntryPickers.tsx` as a single refactor commit before close-out. Both files dropped well into typical range (555 / 293). Doing the extraction at slice-close (rather than after slice 2B-E grows it further) was lower-friction.
+- **YAGNI > over-engineering for tunables.** `REGULATION_HALF_MINUTES` etc. ship as TS constants. The Phase 2 design spec called for `app_settings` plumbing, but until a second league configures differently it'd just add round-trip cost + migration churn. Plan calls for the move when a real second league appears.
 
 ## Completed in S043 (27/APR/2026, Home PC)
 

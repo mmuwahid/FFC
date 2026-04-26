@@ -85,9 +85,13 @@ export function useMatchSession(token: string | undefined) {
   const [storageKey, setStorageKey] = useState<string | null>(null)
   const [kickoffAt, setKickoffAt] = useState<string | null>(null)
 
-  // Resolve storage key from token (async because Web Crypto is async).
+  // Resolve storage key from token (async because Web Crypto is async). The
+  // setState calls inside this and the next effect are intentional async-arrival
+  // hydration — token / Web Crypto digest / matchday RPC all resolve later, so
+  // a lazy initializer can't be used. Cascading second renders are unavoidable.
   useEffect(() => {
     if (!token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional invalid-token transition
       setMode('invalid')
       return
     }
