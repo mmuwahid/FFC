@@ -482,10 +482,10 @@ State persists to `localStorage[`ffc_ref_${token}`]` on every state change. On m
 - "✎ Edit event log" → opens an editable list view; ref can correct typos before submit.
 - SUBMIT TO ADMIN — calls extended `submit_ref_entry`.
 
-### B.3 — Migration 0029
+### B.3 — Migration 0028
 
 ```sql
--- 0029_phase2b_match_events.sql
+-- 0028_phase2b_match_events.sql
 
 -- 1. notification_kind extension
 ALTER TYPE notification_kind ADD VALUE 'ref_submitted';
