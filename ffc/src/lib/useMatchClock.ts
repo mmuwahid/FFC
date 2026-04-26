@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   HALFTIME_ADD_MIN_SECONDS,
   HALFTIME_BREAK_SECONDS,
+  MAX_STOPPAGE_SOFT_LIMIT_SECONDS,
   REGULATION_HALF_MINUTES,
   UNDO_WINDOW_MS,
 } from './refConsoleConstants'
@@ -267,7 +268,7 @@ export function useMatchClock(args: {
       stoppageLabel: formatStoppage(stoppageSec),
       breakRemainingLabel: '0:00',
       breakComplete: false,
-      stoppageOverSoftLimit: stoppageSec > 180, // MAX_STOPPAGE_SOFT_LIMIT_SECONDS
+      stoppageOverSoftLimit: stoppageSec > MAX_STOPPAGE_SOFT_LIMIT_SECONDS,
     }
   }, [state, regulationHalfMinutes, now])
 
@@ -481,9 +482,9 @@ export function useMatchClock(args: {
         pausedAt = pauseEvt
           ? new Date(Date.parse(pauseEvt.committed_at) + 0).toISOString() // approximate — pause ts ≈ commit ts
           : new Date(Date.now() - dur * 1000).toISOString()
-        if (last.match_minute < REGULATION_HALF_MINUTES['7v7'] || prev.half === 1) {
+        if (prev.half === 1) {
           h1 = Math.max(0, h1 - dur)
-        } else {
+        } else if (prev.half === 2) {
           h2 = Math.max(0, h2 - dur)
         }
       }
