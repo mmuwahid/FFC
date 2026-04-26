@@ -21,6 +21,12 @@ import {
 
 export type MatchHalf = 1 | 2 | 'break'
 
+/**
+ * Event types — mirror DB enum match_event_type.
+ * `fulltime` is declared for type-completeness; the corresponding `endMatch`
+ * action lands in slice 2B-E (post-match summary + submit). For now no in-hook
+ * mutator emits it.
+ */
 export type EventType =
   | 'goal'
   | 'own_goal'
@@ -99,8 +105,8 @@ interface UseMatchClockReturn {
   addBreakMin: () => void
   /** Set MOTM (overwrites prior selection). */
   setMotm: (selection: MotmSelection | null) => void
-  /** Undo the most recent event (within UNDO_WINDOW_MS). Returns true if popped. */
-  undoLast: () => boolean
+  /** Undo the most recent event (within UNDO_WINDOW_MS). No-op if no event or outside the undo window. */
+  undoLast: () => void
   /** True if the most recent event is still within the undo window. */
   canUndo: boolean
 }
@@ -175,6 +181,37 @@ export function computeMatchStamp(args: {
   return { match_minute: baseOffset + minIntoHalf, match_second: secOfMin }
 }
 
+/**
+ * Stamp the current match minute + second from a ClockState snapshot.
+ * Returns regulation-half-minute / 0-second for break state (rare). For
+ * pause events, pass `pausedAtOverride: null` to compute the stamp at
+ * "right now" rather than from the existing paused_at.
+ */
+function stampFromState(
+  state: ClockState,
+  regulationHalfMinutes: number,
+  pausedAtOverride: string | null | undefined = undefined,
+): { match_minute: number; match_second: number } {
+  if (state.half === 'break') {
+    return { match_minute: regulationHalfMinutes, match_second: 0 }
+  }
+  const halfStartIso = state.half === 1
+    ? state.kickoff_at
+    : (state.second_half_kickoff_at ?? state.kickoff_at)
+  const stoppageSec = state.half === 1 ? state.stoppage_h1_seconds : state.stoppage_h2_seconds
+  const elapsedMs = computeHalfElapsedMs({
+    now: Date.now(),
+    halfStartIso,
+    stoppageSeconds: stoppageSec,
+    pausedAtIso: pausedAtOverride === undefined ? state.paused_at : pausedAtOverride,
+  })
+  return computeMatchStamp({
+    half: state.half,
+    halfElapsedMs: elapsedMs,
+    regulationHalfMinutes,
+  })
+}
+
 function emptyClockState(kickoffIso: string): ClockState {
   return {
     kickoff_at: kickoffIso,
@@ -208,9 +245,13 @@ export function useMatchClock(args: {
 
   // Hydrate from storage exactly once when key becomes available.
   useEffect(() => {
+    // sessionStorageKey resolves async (Web Crypto digest), so we can't hydrate
+    // in the lazy initializer — must use an effect. The cascading second render
+    // on key arrival is unavoidable and intentional here.
     if (!clockKey || hydratedRef.current) return
     const stored = readClockState(clockKey)
     if (stored) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional hydration
       setState(stored)
     } else if (kickoffIso) {
       setState(emptyClockState(kickoffIso))
@@ -224,19 +265,15 @@ export function useMatchClock(args: {
     writeClockState(clockKey, state)
   }, [clockKey, state])
 
-  // 1 Hz tick to drive the live clock display.
+  // 1 Hz tick to drive the live clock display (and halftime countdown).
   useEffect(() => {
-    if (state.half === 'break') {
-      // Still tick during break for the countdown.
-    }
     const id = window.setInterval(() => setTick((t) => t + 1), 1000)
     return () => window.clearInterval(id)
   }, [state.half])
 
-  const now = Date.now()
-  void tick // referenced so React knows to re-render each tick
-
   const display = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity -- intentional: tick in deps drives the per-second refresh of this clock value.
+    const now = Date.now()
     const regSec = regulationHalfMinutes * 60
     if (state.half === 'break' && state.halftime_at) {
       const breakElapsedMs = now - Date.parse(state.halftime_at)
@@ -270,7 +307,8 @@ export function useMatchClock(args: {
       breakComplete: false,
       stoppageOverSoftLimit: stoppageSec > MAX_STOPPAGE_SOFT_LIMIT_SECONDS,
     }
-  }, [state, regulationHalfMinutes, now])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tick drives the per-second refresh; Date.now() is read inside the body so it's not a dep.
+  }, [state, regulationHalfMinutes, tick])
 
   const nextOrdinal = useCallback((events: MatchEvent[]): number => {
     return events.length === 0 ? 1 : events[events.length - 1].ordinal + 1
@@ -278,15 +316,7 @@ export function useMatchClock(args: {
 
   const addGoal: UseMatchClockReturn['addGoal'] = useCallback((team, participant, isOwnGoal = false) => {
     setState((prev) => {
-      const stamp = (() => {
-        if (prev.half === 'break') return { match_minute: regulationHalfMinutes, match_second: 0 }
-        const halfStartIso = prev.half === 1 ? prev.kickoff_at : (prev.second_half_kickoff_at ?? prev.kickoff_at)
-        const stoppageSec = prev.half === 1 ? prev.stoppage_h1_seconds : prev.stoppage_h2_seconds
-        const elapsedMs = computeHalfElapsedMs({
-          now: Date.now(), halfStartIso, stoppageSeconds: stoppageSec, pausedAtIso: prev.paused_at,
-        })
-        return computeMatchStamp({ half: prev.half as 1 | 2, halfElapsedMs: elapsedMs, regulationHalfMinutes })
-      })()
+      const stamp = stampFromState(prev, regulationHalfMinutes)
       const event: MatchEvent = {
         ordinal: nextOrdinal(prev.events),
         event_type: isOwnGoal ? 'own_goal' : 'goal',
@@ -311,15 +341,7 @@ export function useMatchClock(args: {
 
   const addCard: UseMatchClockReturn['addCard'] = useCallback((kind, team, participant) => {
     setState((prev) => {
-      const stamp = (() => {
-        if (prev.half === 'break') return { match_minute: regulationHalfMinutes, match_second: 0 }
-        const halfStartIso = prev.half === 1 ? prev.kickoff_at : (prev.second_half_kickoff_at ?? prev.kickoff_at)
-        const stoppageSec = prev.half === 1 ? prev.stoppage_h1_seconds : prev.stoppage_h2_seconds
-        const elapsedMs = computeHalfElapsedMs({
-          now: Date.now(), halfStartIso, stoppageSeconds: stoppageSec, pausedAtIso: prev.paused_at,
-        })
-        return computeMatchStamp({ half: prev.half as 1 | 2, halfElapsedMs: elapsedMs, regulationHalfMinutes })
-      })()
+      const stamp = stampFromState(prev, regulationHalfMinutes)
       const event: MatchEvent = {
         ordinal: nextOrdinal(prev.events),
         event_type: kind === 'yellow' ? 'yellow_card' : 'red_card',
@@ -339,14 +361,7 @@ export function useMatchClock(args: {
     setState((prev) => {
       if (prev.paused_at) return prev // already paused
       if (prev.half === 'break') return prev
-      const stamp = (() => {
-        const halfStartIso = prev.half === 1 ? prev.kickoff_at : (prev.second_half_kickoff_at ?? prev.kickoff_at)
-        const stoppageSec = prev.half === 1 ? prev.stoppage_h1_seconds : prev.stoppage_h2_seconds
-        const elapsedMs = computeHalfElapsedMs({
-          now: Date.now(), halfStartIso, stoppageSeconds: stoppageSec, pausedAtIso: null,
-        })
-        return computeMatchStamp({ half: prev.half as 1 | 2, halfElapsedMs: elapsedMs, regulationHalfMinutes })
-      })()
+      const stamp = stampFromState(prev, regulationHalfMinutes, null)
       const event: MatchEvent = {
         ordinal: nextOrdinal(prev.events),
         event_type: 'pause',
@@ -365,18 +380,16 @@ export function useMatchClock(args: {
   const resume: UseMatchClockReturn['resume'] = useCallback(() => {
     setState((prev) => {
       if (!prev.paused_at) return prev
+      if (prev.half === 'break') return prev
       const pauseDurationSec = Math.floor((Date.now() - Date.parse(prev.paused_at)) / 1000)
       const isFirstHalf = prev.half === 1
       const newH1 = isFirstHalf ? prev.stoppage_h1_seconds + pauseDurationSec : prev.stoppage_h1_seconds
       const newH2 = !isFirstHalf && prev.half === 2 ? prev.stoppage_h2_seconds + pauseDurationSec : prev.stoppage_h2_seconds
-      const stamp = (() => {
-        const halfStartIso = isFirstHalf ? prev.kickoff_at : (prev.second_half_kickoff_at ?? prev.kickoff_at)
-        const stoppageSec = isFirstHalf ? newH1 : newH2
-        const elapsedMs = computeHalfElapsedMs({
-          now: Date.now(), halfStartIso, stoppageSeconds: stoppageSec, pausedAtIso: null,
-        })
-        return computeMatchStamp({ half: prev.half as 1 | 2, halfElapsedMs: elapsedMs, regulationHalfMinutes })
-      })()
+      // Build a hypothetical post-resume state to stamp from.
+      const stamp = stampFromState(
+        { ...prev, paused_at: null, stoppage_h1_seconds: newH1, stoppage_h2_seconds: newH2 },
+        regulationHalfMinutes,
+      )
       const event: MatchEvent = {
         ordinal: nextOrdinal(prev.events),
         event_type: 'resume',
@@ -450,7 +463,6 @@ export function useMatchClock(args: {
   }, [])
 
   const undoLast: UseMatchClockReturn['undoLast'] = useCallback(() => {
-    let popped = false
     setState((prev) => {
       const last = prev.events[prev.events.length - 1]
       if (!last) return prev
@@ -480,7 +492,7 @@ export function useMatchClock(args: {
         // Find the matching pause event to recover its commit time as paused_at.
         const pauseEvt = [...prev.events].reverse().find((e) => e.event_type === 'pause' && e.ordinal < last.ordinal)
         pausedAt = pauseEvt
-          ? new Date(Date.parse(pauseEvt.committed_at) + 0).toISOString() // approximate — pause ts ≈ commit ts
+          ? pauseEvt.committed_at
           : new Date(Date.now() - dur * 1000).toISOString()
         if (prev.half === 1) {
           h1 = Math.max(0, h1 - dur)
@@ -488,7 +500,6 @@ export function useMatchClock(args: {
           h2 = Math.max(0, h2 - dur)
         }
       }
-      popped = true
       return {
         ...prev,
         events: prev.events.slice(0, -1),
@@ -499,14 +510,15 @@ export function useMatchClock(args: {
         stoppage_h2_seconds: h2,
       }
     })
-    return popped
   }, [])
 
   const canUndo = useMemo(() => {
     const last = state.events[state.events.length - 1]
     if (!last) return false
+    // eslint-disable-next-line react-hooks/purity -- intentional: tick in deps drives the per-second refresh as the undo window expires.
     return Date.now() - Date.parse(last.committed_at) <= UNDO_WINDOW_MS
-  }, [state.events, tick]) // tick keeps this fresh as the window expires
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tick drives the per-second refresh as the undo window expires.
+  }, [state.events, tick])
 
   return {
     state,
