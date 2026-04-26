@@ -46,10 +46,15 @@ interface DraftInfo {
   captain_name: string | null
 }
 
+type ActiveTokenInfo = {
+  expires_at: string  // ISO timestamp
+}
+
 interface MatchdayWithMatch extends MatchdayRow {
   match?: MatchRow | null
   effective_format: MatchFormat
   draft?: DraftInfo | null
+  activeToken?: ActiveTokenInfo  // present iff a non-consumed, non-expired ref_tokens row exists
 }
 
 type Segment = 'this_week' | 'upcoming' | 'past'
@@ -165,17 +170,24 @@ export function AdminMatches() {
   const loadAll = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const [mdRes, matchesRes, seasonsRes, draftsRes] = await Promise.all([
+    const [mdRes, matchesRes, seasonsRes, draftsRes, tokensRes] = await Promise.all([
       supabase.from('matchdays').select('*').order('kickoff_at', { ascending: false }).limit(60),
       supabase.from('matches').select('id, matchday_id, score_white, score_black, result, motm_user_id, motm_guest_id, approved_at, notes'),
       supabase.from('seasons').select('id, default_format, ended_at').is('ended_at', null).order('starts_on', { ascending: false }).limit(1),
       supabase.from('draft_sessions').select('id, matchday_id, status, current_picker_team, reason, started_at, triggered_by_profile_id').in('status', ['in_progress']),
+      supabase.from('ref_tokens').select('matchday_id, expires_at').is('consumed_at', null).gt('expires_at', new Date().toISOString()),
     ])
     if (mdRes.error) setError(mdRes.error.message)
     if (matchesRes.error) setError(matchesRes.error.message)
 
     const matchByMd = new Map<string, MatchRow>()
     for (const m of (matchesRes.data ?? []) as MatchRow[]) matchByMd.set(m.matchday_id, m)
+
+    // Active ref tokens per matchday (non-consumed, not yet expired)
+    const tokensByMd = new Map<string, ActiveTokenInfo>()
+    for (const t of (tokensRes.data ?? []) as { matchday_id: string; expires_at: string }[]) {
+      tokensByMd.set(t.matchday_id, { expires_at: t.expires_at })
+    }
 
     // Draft info per matchday (in-progress only)
     const draftByMd = new Map<string, DraftInfo>()
@@ -216,6 +228,7 @@ export function AdminMatches() {
       match: matchByMd.get(md.id) ?? null,
       effective_format: md.format ?? (season?.default_format as MatchFormat) ?? '7v7',
       draft: draftByMd.get(md.id) ?? null,
+      activeToken: tokensByMd.get(md.id),
     }))
     setMatchdays(enriched)
     setLoading(false)
