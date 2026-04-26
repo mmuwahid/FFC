@@ -1,21 +1,53 @@
 # FFC Todo
 
-## NEXT SESSION — S043
+## NEXT SESSION — S044
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: `<S042 close commit>` or later (S042 slice 2B-C close).
-- Migrations on live DB: **30** (Phase 2B foundation + ref-matchday + pgcrypto hotfix).
+- Expected tip: `<S043 hotfix>` or later (S043 close commit).
+- Migrations on live DB: **31** (Phase 2B foundation + ref-matchday + pgcrypto hotfix + is_admin NULL safety).
 
-**S043 agenda:**
+**S044 agenda:**
 
 1. **Slice 2B-D** — RefEntry live mode. Match clock (35-5-35 minutes, configurable per format), large white/black score blocks (tap to open scorer picker), pause/resume button (auto-stoppage), card actions, MOTM picker, event log persisted to React state with 15s undo window. Client-side authoritative timer (no server clock) using `performance.now()` + persisted start-timestamp in localStorage.
-2. **Carry-over:** acceptance tests for slices 2B-B, 2B-C on real device. The `is_admin()` investigation may surface as a hotfix slice.
+2. **Carry-over:** acceptance tests for slices 2B-B, 2B-C on real device.
 3. Captain reroll live test — deferred until MD31 runs in-app.
+4. **Defense-in-depth follow-up (S043 spawn):** REVOKE EXECUTE FROM PUBLIC on admin RPCs; explicit GRANT TO authenticated. Tightens blast-radius even if a future helper bug recurs.
 
 **Backburner:**
 
 - **Email notification on approve/reject** — when admin approves or rejects a signup, send a transactional email to the player so they know to open the app (or that their application was declined). Implementation path: Supabase Edge Function (`notify-signup-outcome`) triggered by a database webhook on `pending_signups.resolution` changing from `pending` → `approved`/`rejected`. Email provider: [Resend](https://resend.com) free tier (100 emails/day, no card). Approved email: "Welcome to FFC — you're in, open the app and start voting." Rejected email: "Your FFC signup wasn't approved — contact an admin." Edge Function needs `RESEND_API_KEY` env var in Supabase project settings.
+
+## Completed in S043 (27/APR/2026, Home PC)
+
+### Critical security hotfix — is_admin()/is_super_admin() NULL-3VL bug
+
+**Production security vulnerability confirmed and patched on the same day it was discovered.**
+
+- [x] **Investigation** confirmed the vulnerability: `is_admin()` returned NULL (not false) for anon callers, and PL/pgSQL's `IF NOT NULL THEN RAISE` silently skipped the RAISE. Anon-key curl POST against `regenerate_ref_token` and `reject_signup` both reached past the `IF NOT is_admin() THEN RAISE 'Admin role required'` guard, errored on the second-line existence check instead.
+- [x] **Migration 0031 `0031_is_admin_null_safety.sql`** authored & applied — wraps both helpers' bodies with `COALESCE(..., false)` so they return strictly true/false. Bodies become:
+  - `is_admin()`: `SELECT COALESCE(current_user_role() IN ('admin','super_admin'), false);`
+  - `is_super_admin()`: `SELECT COALESCE(current_user_role() = 'super_admin', false);`
+- [x] **Verified end-to-end via anon-key curl POST** on three admin RPCs after fix:
+  - `regenerate_ref_token` → `42501 Admin role required` ✓ (was `22023 Matchday not found`)
+  - `reject_signup` → `42501 Admin role required` ✓ (was `22023 Pending signup not found`)
+  - `approve_signup` → `42501 Admin role required` ✓
+  - `get_ref_matchday` (anon-callable by design, NOT admin-gated) → `22023 Invalid or expired ref token` ✓ (still working as intended)
+- [x] **No code or types changes** — function body change only, no schema delta. tsc -b EXIT 0 (sanity-checked types regen produced 2184-line file unchanged from S042).
+- [x] **RLS policies unaffected** — RLS treated NULL and FALSE identically already (row excluded in USING, violation in WITH CHECK). The COALESCE only affects the PL/pgSQL `IF NOT helper()` callers that were buggy.
+- [x] **Migrations on live DB: 31 (0001 → 0031).**
+
+### S043 gotchas / lessons (additive)
+
+- **PL/pgSQL `IF NOT NULL THEN ...` silently skips the THEN branch.** 3-valued logic: `NOT NULL` evaluates to NULL, and `IF NULL` is treated as FALSE. Boolean SECURITY DEFINER helpers MUST COALESCE to false to avoid this trap. Pattern for any future helper:
+  ```sql
+  SELECT COALESCE(<bool-expression>, false);
+  ```
+- **`db query --linked` hides the bug.** It runs as the `postgres` login role, which has a profile row in the test environment, so `current_user_role()` returns a non-NULL value and `is_admin()` returns TRUE for the test runner. End-to-end verification of SECURITY DEFINER + auth-derived state requires anon-key + authenticated-key curl POST against `/rest/v1/rpc/<name>`.
+- **Anon-key curl is the only honest verification for admin RPCs.** `db query` has too much privilege; the actual API surface needs to be tested with the role the attacker has access to.
+- **The bug shipped in S016/17 (migration 0007) and was invisible for 26 sessions.** Phase 1 admin testing went through the authenticated UI, where the bug doesn't manifest. The first anon-key curl in slice 2B-C was the moment of discovery — and only because that slice's testing protocol was tightened in response to the pgcrypto search_path bug found minutes earlier (migration 0030).
+- **Cascading discoveries are a good signal.** S042's pgcrypto search_path lesson ("don't trust db query verification") directly led to the testing approach that uncovered S043's is_admin bug. Tighten verification protocols when one bug is found — others often hide nearby.
+- **Defense-in-depth follow-up: REVOKE EXECUTE FROM PUBLIC on admin RPCs.** Postgres grants EXECUTE on user-defined functions to PUBLIC by default. Combined with the is_admin bug, this meant anon could reach the function body at all. After the COALESCE fix, anon still reaches the function body but is correctly rejected at the admin guard. A future slice should REVOKE FROM PUBLIC and explicit GRANT TO authenticated for tighter blast-radius even if a future helper bug recurs.
 
 ## Completed in S042 (26/APR/2026, Home PC)
 
