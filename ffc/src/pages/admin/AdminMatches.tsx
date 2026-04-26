@@ -178,6 +178,7 @@ export function AdminMatches() {
   const [seasonFormat, setSeasonFormat] = useState<MatchFormat>('7v7')
   const [toast, setToast] = useState<string | null>(null)
   const [refSheet, setRefSheet] = useState<{ matchday: MatchdayWithMatch; rawToken: string } | null>(null)
+  const [mintBusy, setMintBusy] = useState<string | null>(null)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
@@ -260,19 +261,25 @@ export function AdminMatches() {
   }, [matchdays])
 
   const handleMintRefLink = async (md: MatchdayWithMatch) => {
+    if (mintBusy) return
     setError(null)
-    const { data, error } = await supabase.rpc('regenerate_ref_token', { p_matchday_id: md.id })
-    if (error) {
-      setError(error.message)
-      return
+    setMintBusy(md.id)
+    try {
+      const { data, error } = await supabase.rpc('regenerate_ref_token', { p_matchday_id: md.id })
+      if (error) {
+        setError(error.message)
+        return
+      }
+      if (typeof data !== 'string' || data.length === 0) {
+        setError('Unexpected empty token from regenerate_ref_token')
+        return
+      }
+      setRefSheet({ matchday: md, rawToken: data })
+      // Refresh activeToken view so the card chip flips to "expires in 6h 0m" once sheet closes.
+      await loadAll()
+    } finally {
+      setMintBusy(null)
     }
-    if (typeof data !== 'string' || data.length === 0) {
-      setError('Unexpected empty token from regenerate_ref_token')
-      return
-    }
-    setRefSheet({ matchday: md, rawToken: data })
-    // Refresh activeToken view so the card chip flips to "expires in 6h 0m" once sheet closes.
-    await loadAll()
   }
 
   return (
@@ -357,6 +364,7 @@ export function AdminMatches() {
               onFormation={() => md.match && navigate(`/match/${md.match.id}/formation`)}
               onPickCaptains={() => navigate(`/matchday/${md.id}/captains`)}
               onMintRefLink={() => { void handleMintRefLink(md) }}
+              mintBusy={mintBusy === md.id}
             />
           ))}
         </ul>
@@ -520,7 +528,7 @@ export function AdminMatches() {
 // ─── Matchday card ─────────────────────────────────────────────
 
 function MatchdayCard({
-  md, onEdit, onLock, onEnterResult, onEditResult, onDraftForceComplete, onDraftAbandon, onFormation, onPickCaptains, onMintRefLink,
+  md, onEdit, onLock, onEnterResult, onEditResult, onDraftForceComplete, onDraftAbandon, onFormation, onPickCaptains, onMintRefLink, mintBusy,
 }: {
   md: MatchdayWithMatch
   onEdit: () => void
@@ -532,6 +540,7 @@ function MatchdayCard({
   onFormation: () => void
   onPickCaptains: () => void
   onMintRefLink: () => void
+  mintBusy: boolean
 }) {
   const phase = phaseLabel(md)
   const hasResult = !!md.match
@@ -623,6 +632,7 @@ function MatchdayCard({
               type="button"
               className="admin-ref-link-active"
               onClick={onMintRefLink}
+              disabled={mintBusy}
               title="Regenerate ref link (burns the previous one)"
             >
               <span className="admin-ref-link-label">Ref link</span>
@@ -634,6 +644,7 @@ function MatchdayCard({
               type="button"
               className="admin-ref-link-generate"
               onClick={onMintRefLink}
+              disabled={mintBusy}
             >
               + Generate ref link
             </button>
