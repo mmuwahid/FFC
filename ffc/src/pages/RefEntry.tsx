@@ -1,5 +1,8 @@
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useMatchSession } from '../lib/useMatchSession'
+import { useMatchSession, type RefMatchdayPayload } from '../lib/useMatchSession'
+import { useMatchClock, type MatchEvent } from '../lib/useMatchClock'
+import { REGULATION_HALF_MINUTES, MAX_STOPPAGE_SOFT_LIMIT_SECONDS } from '../lib/refConsoleConstants'
 import '../styles/ref-entry.css'
 
 /* §3.4-v2 Slice 2B-C — RefEntry pre-match mode.
@@ -15,7 +18,7 @@ import '../styles/ref-entry.css'
 
 export function RefEntry() {
   const { token } = useParams()
-  const { mode, payload, error, startMatch } = useMatchSession(token)
+  const { mode, payload, error, kickoffAt, startMatch, sessionStorageKey } = useMatchSession(token)
 
   if (mode === 'loading') {
     return (
@@ -40,14 +43,13 @@ export function RefEntry() {
   }
 
   if (mode === 'live') {
+    if (!payload) return null
     return (
-      <section className="ref-entry ref-entry--center">
-        <h1 className="ref-entry-title">Live console</h1>
-        <p className="ref-entry-copy">
-          Live mode wires up in slice 2B-D. The match clock, score blocks, and
-          event log come next.
-        </p>
-      </section>
+      <LiveConsole
+        payload={payload}
+        kickoffAt={kickoffAt}
+        sessionStorageKey={sessionStorageKey}
+      />
     )
   }
 
@@ -155,4 +157,303 @@ function formatKickoff(iso: string): string {
   const hh = d.getHours().toString().padStart(2, '0')
   const mm = d.getMinutes().toString().padStart(2, '0')
   return `${dow} ${day}/${mon}/${year} · ${hh}:${mm}`
+}
+
+/* ─── §3.4-v2 Slice 2B-D — Live console ───────────────────────────────────── */
+
+interface LiveConsoleProps {
+  payload: RefMatchdayPayload
+  kickoffAt: string | null
+  sessionStorageKey: string | null
+}
+
+function LiveConsole({ payload, kickoffAt, sessionStorageKey }: LiveConsoleProps) {
+  const clock = useMatchClock({
+    sessionStorageKey,
+    kickoffIso: kickoffAt,
+    format: payload.matchday.effective_format,
+  })
+
+  // Picker state — Tasks 4 & 5 add more pickers (pause-reason, card,
+  // MOTM); Task 3 only needs the scorer trigger so the score-cell handlers
+  // compile. The own-goal toggle is a local useState INSIDE ScorerPicker.
+  const [scorerTeam, setScorerTeam] = useState<'white' | 'black' | null>(null)
+
+  if (clock.state.half === 'break') {
+    return (
+      <section className="ref-entry">
+        <LiveHeader half="break" />
+        <div className="ref-live">
+          <HalftimeView clock={clock} />
+          <ScoreReadOnly clock={clock} />
+          <EventStrip events={clock.state.events} format={payload.matchday.effective_format} />
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section className="ref-entry">
+      <LiveHeader half={clock.state.half} />
+      <div className="ref-live">
+        <HalfStrip clock={clock} format={payload.matchday.effective_format} />
+        <div className="ref-clock-display">
+          <div
+            className={
+              'ref-clock-min' +
+              (clock.state.paused_at ? ' ref-clock-min--paused' : '')
+            }
+          >
+            {clock.display.clockLabel}
+          </div>
+        </div>
+        <div className="ref-score-block">
+          <button
+            type="button"
+            className="ref-score-cell ref-score-cell--white"
+            onClick={() => setScorerTeam('white')}
+            disabled={clock.state.paused_at !== null}
+          >
+            <div className="ref-score-label">WHITE</div>
+            <div className="ref-score-number">{clock.state.score_white}</div>
+            <div className="ref-score-tap-hint">tap to add goal</div>
+          </button>
+          <div className="ref-score-divider">:</div>
+          <button
+            type="button"
+            className="ref-score-cell ref-score-cell--black"
+            onClick={() => setScorerTeam('black')}
+            disabled={clock.state.paused_at !== null}
+          >
+            <div className="ref-score-label">BLACK</div>
+            <div className="ref-score-number">{clock.state.score_black}</div>
+            <div className="ref-score-tap-hint">tap to add goal</div>
+          </button>
+        </div>
+        {/* Action rows are wired in Tasks 4 + 5. For Task 3 keep a minimal action row. */}
+        <div className="ref-action-row">
+          <button
+            type="button"
+            className={
+              'ref-action-btn ' +
+              (clock.state.paused_at ? 'ref-action-btn--resume' : 'ref-action-btn--pause')
+            }
+            onClick={() => (clock.state.paused_at ? clock.resume() : clock.pause())}
+          >
+            <span className="ref-action-btn-ico">{clock.state.paused_at ? '▶' : '⏸'}</span>
+            {clock.state.paused_at ? 'RESUME' : 'PAUSE'}
+          </button>
+          <button
+            type="button"
+            className="ref-action-btn ref-action-btn--end"
+            onClick={() => clock.endHalf()}
+            disabled={clock.state.half !== 1}
+          >
+            <span className="ref-action-btn-ico">⏭</span>
+            END HALF
+          </button>
+        </div>
+        <EventStrip events={clock.state.events} format={payload.matchday.effective_format} />
+      </div>
+      {/* Scorer picker placeholder — wired fully in Task 4. */}
+      {scorerTeam && (
+        <ScorerPickerStub
+          team={scorerTeam}
+          onClose={() => setScorerTeam(null)}
+        />
+      )}
+    </section>
+  )
+}
+
+function LiveHeader({ half }: { half: 1 | 2 | 'break' }) {
+  const halfLabel =
+    half === 'break' ? 'Halftime · swap sides' :
+    half === 1 ? '1st half' : '2nd half'
+  return (
+    <header className="ref-live-header">
+      <div className="ref-live-header-block">
+        <span className="ref-live-md-label">Matchday</span>
+        <span className="ref-live-half-label">{halfLabel}</span>
+      </div>
+      <span className={'ref-live-dot' + (half === 'break' ? ' ref-live-dot--break' : '')}>
+        {half === 'break' ? 'BREAK' : 'LIVE'}
+      </span>
+    </header>
+  )
+}
+
+interface HalfStripProps {
+  clock: ReturnType<typeof useMatchClock>
+  format: '7v7' | '5v5'
+}
+
+function HalfStrip({ clock, format }: HalfStripProps) {
+  const halfMinutes = REGULATION_HALF_MINUTES[format]
+  const halfStartIso = clock.state.half === 1
+    ? clock.state.kickoff_at
+    : (clock.state.second_half_kickoff_at ?? clock.state.kickoff_at)
+  const halfStart = Date.parse(halfStartIso)
+  const stoppageSec = clock.state.half === 1 ? clock.state.stoppage_h1_seconds : clock.state.stoppage_h2_seconds
+  // eslint-disable-next-line react-hooks/purity -- intentional: parent re-renders on each clock tick, so Date.now() drives the per-second progress-bar refresh.
+  const now = Date.now()
+  const elapsedMs = Math.max(0, now - halfStart - stoppageSec * 1000 - (clock.state.paused_at ? now - Date.parse(clock.state.paused_at) : 0))
+  const pct = Math.min(100, (elapsedMs / (halfMinutes * 60_000)) * 100)
+  const stoppageOver = clock.state.half !== 'break' && stoppageSec > MAX_STOPPAGE_SOFT_LIMIT_SECONDS
+
+  return (
+    <div className="ref-half-strip">
+      <span className="ref-half-name">{clock.state.half === 1 ? '1ST HALF' : '2ND HALF'}</span>
+      <div className="ref-half-progress">
+        <div className="ref-half-bar" style={{ width: `${pct.toFixed(1)}%` }} />
+      </div>
+      {clock.display.stoppageLabel && (
+        <span className={'ref-stoppage-chip' + (stoppageOver ? ' ref-stoppage-chip--alarm' : '')}>
+          {clock.display.stoppageLabel}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function ScoreReadOnly({ clock }: { clock: ReturnType<typeof useMatchClock> }) {
+  return (
+    <div className="ref-score-block" style={{ opacity: 0.85 }}>
+      <div className="ref-score-cell ref-score-cell--white">
+        <div className="ref-score-label">WHITE</div>
+        <div className="ref-score-number">{clock.state.score_white}</div>
+      </div>
+      <div className="ref-score-divider">:</div>
+      <div className="ref-score-cell ref-score-cell--black">
+        <div className="ref-score-label">BLACK</div>
+        <div className="ref-score-number">{clock.state.score_black}</div>
+      </div>
+    </div>
+  )
+}
+
+function HalftimeView({ clock }: { clock: ReturnType<typeof useMatchClock> }) {
+  return (
+    <div className="ref-halftime-banner">
+      <div className="ref-ht-label">
+        HALFTIME · {clock.display.breakRemainingLabel} LEFT
+      </div>
+      <div className="ref-ht-clock">{clock.display.breakRemainingLabel}</div>
+      <div className="ref-ht-hint">
+        2nd half starts when ready. Tap below to skip break or add a minute.
+      </div>
+      <div className="ref-action-row" style={{ marginTop: 12 }}>
+        <button
+          type="button"
+          className="ref-action-btn"
+          onClick={() => clock.startSecondHalf()}
+        >
+          <span className="ref-action-btn-ico">⏭</span> SKIP BREAK
+        </button>
+        <button
+          type="button"
+          className="ref-action-btn"
+          onClick={() => clock.addBreakMin()}
+        >
+          <span className="ref-action-btn-ico">+</span> ADD MIN
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function EventStrip({ events, format }: { events: MatchEvent[]; format: '7v7' | '5v5' }) {
+  if (events.length === 0) {
+    return (
+      <div className="ref-event-strip">
+        <div className="ref-event-strip-empty">No events yet.</div>
+      </div>
+    )
+  }
+  // Show most recent first, max 8 in the strip.
+  const recent = [...events].reverse().slice(0, 8)
+  const halfMinutes = REGULATION_HALF_MINUTES[format]
+  return (
+    <div className="ref-event-strip">
+      {recent.map((e) => (
+        <div
+          key={e.ordinal}
+          className={'ref-event-row' + (e.event_type === 'pause' || e.event_type === 'resume' ? ' ref-event-row--paused' : '')}
+        >
+          <span className="ref-event-min">{formatEventMinute(e, halfMinutes)}</span>
+          <span className="ref-event-ico">{eventIcon(e.event_type)}</span>
+          <span className="ref-event-desc">{eventDescription(e)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function formatEventMinute(e: MatchEvent, regulationHalfMinutes: number): string {
+  const baseHalfStart = e.match_minute < regulationHalfMinutes ? 0 : regulationHalfMinutes
+  const minutesIntoHalf = e.match_minute - baseHalfStart
+  const isStoppage = minutesIntoHalf >= regulationHalfMinutes
+  if (isStoppage) {
+    const stoppageMin = minutesIntoHalf - regulationHalfMinutes
+    return `${regulationHalfMinutes}+${stoppageMin}'`
+  }
+  return `${e.match_minute}'`
+}
+
+function eventIcon(t: MatchEvent['event_type']): string {
+  switch (t) {
+    case 'goal': return '⚽'
+    case 'own_goal': return '🥅'
+    case 'yellow_card': return '🟨'
+    case 'red_card': return '🟥'
+    case 'pause': return '⏸'
+    case 'resume': return '▶'
+    case 'halftime': return '🟫'
+    case 'fulltime': return '✓'
+    default: return '•'
+  }
+}
+
+function eventDescription(e: MatchEvent): string {
+  const teamLabel = e.team ? `(${e.team[0].toUpperCase()})` : ''
+  switch (e.event_type) {
+    case 'goal':
+    case 'own_goal':
+      return `Goal ${teamLabel}${e.event_type === 'own_goal' ? ' · OG' : ''}`
+    case 'yellow_card':
+      return `Yellow ${teamLabel}`
+    case 'red_card':
+      return `Red ${teamLabel}`
+    case 'pause': {
+      const meta = e.meta as { pause_reason?: string }
+      return meta.pause_reason ? `Pause · ${meta.pause_reason}` : 'Pause'
+    }
+    case 'resume': {
+      const meta = e.meta as { pause_duration_seconds?: number }
+      return meta.pause_duration_seconds
+        ? `Resume · +${meta.pause_duration_seconds}s stoppage`
+        : 'Resume'
+    }
+    case 'halftime': return 'Halftime'
+    case 'fulltime': return 'Full time'
+    default: return ''
+  }
+}
+
+/* Stub picker — replaced in Task 4. Just allows the score cells to compile
+ * with an onClick handler. */
+function ScorerPickerStub({ team, onClose }: { team: 'white' | 'black'; onClose: () => void }) {
+  return (
+    <>
+      <div className="ref-picker-backdrop" onClick={onClose} />
+      <div className="ref-picker-sheet">
+        <div className="ref-picker-grabber" />
+        <h3 className="ref-picker-title">Who scored for {team === 'white' ? 'White' : 'Black'}?</h3>
+        <p className="ref-picker-sub">Picker UI lands in Task 4.</p>
+        <button type="button" className="ref-picker-cancel" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </>
+  )
 }

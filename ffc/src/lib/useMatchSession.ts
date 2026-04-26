@@ -156,5 +156,5 @@ export function useMatchSession(token: string | undefined) {
     }
   }
 
-  return { mode, payload, error, kickoffAt, startMatch }
+  return { mode, payload, error, kickoffAt, startMatch, sessionStorageKey: storageKey }
 }
