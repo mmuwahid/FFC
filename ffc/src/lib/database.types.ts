@@ -276,6 +276,77 @@ export type Database = {
           },
         ]
       }
+      match_events: {
+        Row: {
+          created_at: string
+          event_type: Database["public"]["Enums"]["match_event_type"]
+          guest_id: string | null
+          id: string
+          match_id: string
+          match_minute: number
+          match_second: number
+          meta: Json
+          ordinal: number
+          profile_id: string | null
+          team: Database["public"]["Enums"]["team_color"] | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: Database["public"]["Enums"]["match_event_type"]
+          guest_id?: string | null
+          id?: string
+          match_id: string
+          match_minute: number
+          match_second?: number
+          meta?: Json
+          ordinal: number
+          profile_id?: string | null
+          team?: Database["public"]["Enums"]["team_color"] | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: Database["public"]["Enums"]["match_event_type"]
+          guest_id?: string | null
+          id?: string
+          match_id?: string
+          match_minute?: number
+          match_second?: number
+          meta?: Json
+          ordinal?: number
+          profile_id?: string | null
+          team?: Database["public"]["Enums"]["team_color"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_events_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "match_guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_events_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_events_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "v_player_last5"
+            referencedColumns: ["match_id"]
+          },
+          {
+            foreignKeyName: "match_events_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_guests: {
         Row: {
           accuracy: Database["public"]["Enums"]["guest_trait"] | null
@@ -530,7 +601,10 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           created_at: string
+          fulltime_at: string | null
+          halftime_at: string | null
           id: string
+          kickoff_at: string | null
           matchday_id: string
           motm_guest_id: string | null
           motm_user_id: string | null
@@ -539,6 +613,8 @@ export type Database = {
           score_black: number | null
           score_white: number | null
           season_id: string
+          stoppage_h1_seconds: number | null
+          stoppage_h2_seconds: number | null
           updated_at: string
           updated_by: string | null
         }
@@ -546,7 +622,10 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
+          fulltime_at?: string | null
+          halftime_at?: string | null
           id?: string
+          kickoff_at?: string | null
           matchday_id: string
           motm_guest_id?: string | null
           motm_user_id?: string | null
@@ -555,6 +634,8 @@ export type Database = {
           score_black?: number | null
           score_white?: number | null
           season_id: string
+          stoppage_h1_seconds?: number | null
+          stoppage_h2_seconds?: number | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -562,7 +643,10 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
+          fulltime_at?: string | null
+          halftime_at?: string | null
           id?: string
+          kickoff_at?: string | null
           matchday_id?: string
           motm_guest_id?: string | null
           motm_user_id?: string | null
@@ -571,6 +655,8 @@ export type Database = {
           score_black?: number | null
           score_white?: number | null
           season_id?: string
+          stoppage_h1_seconds?: number | null
+          stoppage_h2_seconds?: number | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -670,7 +756,10 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          fulltime_at: string | null
+          halftime_at: string | null
           id: string
+          kickoff_at: string | null
           matchday_id: string
           notes: string | null
           rejected_at: string | null
@@ -680,13 +769,18 @@ export type Database = {
           score_black: number
           score_white: number
           status: Database["public"]["Enums"]["pending_match_status"]
+          stoppage_h1_seconds: number
+          stoppage_h2_seconds: number
           submitted_at: string
           submitted_by_token_id: string
         }
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          fulltime_at?: string | null
+          halftime_at?: string | null
           id?: string
+          kickoff_at?: string | null
           matchday_id: string
           notes?: string | null
           rejected_at?: string | null
@@ -696,13 +790,18 @@ export type Database = {
           score_black: number
           score_white: number
           status?: Database["public"]["Enums"]["pending_match_status"]
+          stoppage_h1_seconds?: number
+          stoppage_h2_seconds?: number
           submitted_at?: string
           submitted_by_token_id: string
         }
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          fulltime_at?: string | null
+          halftime_at?: string | null
           id?: string
+          kickoff_at?: string | null
           matchday_id?: string
           notes?: string | null
           rejected_at?: string | null
@@ -712,6 +811,8 @@ export type Database = {
           score_black?: number
           score_white?: number
           status?: Database["public"]["Enums"]["pending_match_status"]
+          stoppage_h1_seconds?: number
+          stoppage_h2_seconds?: number
           submitted_at?: string
           submitted_by_token_id?: string
         }
@@ -797,6 +898,70 @@ export type Database = {
           },
           {
             foreignKeyName: "pending_match_entry_players_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pending_match_events: {
+        Row: {
+          created_at: string
+          event_type: Database["public"]["Enums"]["match_event_type"]
+          guest_id: string | null
+          id: string
+          match_minute: number
+          match_second: number
+          meta: Json
+          ordinal: number
+          pending_entry_id: string
+          profile_id: string | null
+          team: Database["public"]["Enums"]["team_color"] | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: Database["public"]["Enums"]["match_event_type"]
+          guest_id?: string | null
+          id?: string
+          match_minute: number
+          match_second?: number
+          meta?: Json
+          ordinal: number
+          pending_entry_id: string
+          profile_id?: string | null
+          team?: Database["public"]["Enums"]["team_color"] | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: Database["public"]["Enums"]["match_event_type"]
+          guest_id?: string | null
+          id?: string
+          match_minute?: number
+          match_second?: number
+          meta?: Json
+          ordinal?: number
+          pending_entry_id?: string
+          profile_id?: string | null
+          team?: Database["public"]["Enums"]["team_color"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_match_events_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "match_guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_match_events_pending_entry_id_fkey"
+            columns: ["pending_entry_id"]
+            isOneToOne: false
+            referencedRelation: "pending_match_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_match_events_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -1546,7 +1711,10 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           created_at: string
+          fulltime_at: string | null
+          halftime_at: string | null
           id: string
+          kickoff_at: string | null
           matchday_id: string
           motm_guest_id: string | null
           motm_user_id: string | null
@@ -1555,6 +1723,8 @@ export type Database = {
           score_black: number | null
           score_white: number | null
           season_id: string
+          stoppage_h1_seconds: number | null
+          stoppage_h2_seconds: number | null
           updated_at: string
           updated_by: string | null
         }
@@ -1615,6 +1785,7 @@ export type Database = {
         Args: { p_match_id: string; p_profile_ids: string[] }
         Returns: undefined
       }
+      regenerate_ref_token: { Args: { p_matchday_id: string }; Returns: string }
       reinstate_rejected: { Args: { p_profile_id: string }; Returns: undefined }
       reject_match_entry: {
         Args: { p_pending_id: string; p_reason: string }
@@ -1775,6 +1946,15 @@ export type Database = {
       guest_rating: "weak" | "average" | "strong"
       guest_trait: "low" | "medium" | "high"
       leaderboard_sort: "points" | "goals" | "motm" | "wins" | "last5_form"
+      match_event_type:
+        | "goal"
+        | "own_goal"
+        | "yellow_card"
+        | "red_card"
+        | "halftime"
+        | "fulltime"
+        | "pause"
+        | "resume"
       match_format: "7v7" | "5v5"
       match_result: "win_white" | "win_black" | "draw"
       notification_kind:
@@ -1948,6 +2128,16 @@ export const Constants = {
       guest_rating: ["weak", "average", "strong"],
       guest_trait: ["low", "medium", "high"],
       leaderboard_sort: ["points", "goals", "motm", "wins", "last5_form"],
+      match_event_type: [
+        "goal",
+        "own_goal",
+        "yellow_card",
+        "red_card",
+        "halftime",
+        "fulltime",
+        "pause",
+        "resume",
+      ],
       match_format: ["7v7", "5v5"],
       match_result: ["win_white", "win_black", "draw"],
       notification_kind: [

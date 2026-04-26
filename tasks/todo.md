@@ -1,30 +1,50 @@
 # FFC Todo
 
-## NEXT SESSION — S039
+## NEXT SESSION — S041
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: `677b1ed` (S039 signup/login fixes). Push at session close.
-- Migrations on live DB: **27** (unchanged from S037).
+- Expected tip: `<S040 close commit>` or later (S040 slice 2B-A close).
+- Migrations on live DB: **28** (Phase 2B foundation landed).
 
-**S039 agenda:**
+**S041 agenda:**
 
-1. **Live verification of Barhoom OAuth flow** (parallel to other work — user-driven on Barhoom's phone):
-   1. Hard-refresh https://ffc-gilt.vercel.app on his phone.
-   2. Login → "Continue with Google" → sign in with `ahmed.abdallahh@hotmail.com`.
-   3. Should land on `/signup` Stage 2 ghost-picker (HomeRoute fix from S038 P2).
-   4. Pick "Barhoom" → Submit → "Waiting for approval".
-   5. Mohammed: `/admin/players` → Pending → Approve (green ✓ banner expected).
-   6. Barhoom hard-refreshes → role=`admin` → `/poll` opens with admin chrome. Season 11 stats preserved on his profile.
-2. **Same verification for Abood / Ahmed Saleh / Rawad** when they next try.
-3. **WhatsApp / iOS acceptance** — share live URL to a chat → cream OG card with full crest + "The official Home of the FFC."; iOS Safari → Share → Add to Home Screen → cream Apple touch icon (not navy).
-4. **Carry-over backlog** still pending acceptance: S031 21-item checklist, S032 Slice C, S033 CaptainHelper palette, S034 admin IA + AdminSeasons, S035 Poll re-theme.
-5. **Captain reroll live test** — deferred until MD31 runs in-app (real post-lock cancel + admin `promote_from_waitlist` call).
-6. **Optional** — seed `profiles.email` for the remaining 35 player ghost rows so the AdminPlayers email-match banner fires for them too. Pattern same as S038: `DO $$ BEGIN UPDATE profiles SET email = ... WHERE id = ...; ... END $$;`.
+1. **Slice 2B-B** — admin "Generate ref link" button on AdminMatches matchday cards. Wire to `regenerate_ref_token` RPC; show URL once with copy-to-clipboard + WhatsApp share-intent button + 🔄 regenerate button. Token-expires-in countdown chip.
+2. Carry-over backlog still pending acceptance: S031 21-item checklist, S032/33/34/35 acceptance items.
+3. Captain reroll live test — deferred until MD31 runs in-app.
+4. **Backburner unchanged.**
 
 **Backburner:**
 
 - **Email notification on approve/reject** — when admin approves or rejects a signup, send a transactional email to the player so they know to open the app (or that their application was declined). Implementation path: Supabase Edge Function (`notify-signup-outcome`) triggered by a database webhook on `pending_signups.resolution` changing from `pending` → `approved`/`rejected`. Email provider: [Resend](https://resend.com) free tier (100 emails/day, no card). Approved email: "Welcome to FFC — you're in, open the app and start voting." Rejected email: "Your FFC signup wasn't approved — contact an admin." Edge Function needs `RESEND_API_KEY` env var in Supabase project settings.
+
+## Completed in S040 (26/APR/2026, Home PC)
+
+### Slice 2B-A — Live Match Console backend foundation
+
+- [x] **Migration 0028 `0028_phase2b_match_events.sql`** authored, code-review fixed, applied to live DB.
+  - `match_event_type` enum (8 values: goal · own_goal · yellow_card · red_card · halftime · fulltime · pause · resume).
+  - `pending_match_events` + `match_events` tables with participant XOR + minute non-negative checks, ordinal index.
+  - 5 timing columns added to `pending_match_entries` + `matches` (nullable on matches; default 0 stoppage on pending).
+  - RLS: pending events admin-select; permanent events authenticated-select (USING true).
+  - `regenerate_ref_token(matchday_id)` admin RPC — burns active tokens (advisory-locked), mints fresh 6h, returns raw base64url string.
+  - `submit_ref_entry` rewritten (DROP+CREATE) to read `events` + `timing` payload keys (backwards-compatible).
+  - `approve_match_entry` rewritten with sentinel-guarded timing copy + event-log promotion.
+- [x] **Code review fixes** (`08ddfbf`) on top of authoring commit `a8c23b5`:
+  - `approve_match_entry` timing-overwrite guard (CASE WHEN v_pme.kickoff_at IS NOT NULL) prevents nulling matches.* timing on admin-direct approval.
+  - `regenerate_ref_token` advisory lock (`pg_advisory_xact_lock(hashtext('regenerate_ref_token:' || p_matchday_id::text))`) prevents dual-token mint under concurrent admin calls.
+- [x] Types regenerated: `ffc/src/lib/database.types.ts` (2183 lines, was 1916).
+- [x] Build clean: tsc -b EXIT 0 + vite build EXIT 0.
+- [x] No UI changes — `RefEntry.tsx` still stub (slice 2B-B opens that work).
+- [x] **Migrations on live DB: 28 (0001 → 0028).**
+
+### S040 gotchas / lessons (additive)
+
+- **Migration number renumber pattern.** Phase 2 design spec hardcoded "0029" for Track 2B because it was authored before build-order locked. Build-order locked Track 2B FIRST (concrete, single screen, soak-test on real matchdays), so 2B's migration claimed 0028 instead. Resolved with one-line spec patch in the same commit as the migration. Pattern: when a spec hardcodes a migration number, confirm build-order before applying.
+- **`gen_random_bytes` → base64url for tokens.** Postgres `encode(..., 'base64')` produces base64 with `+`, `/`, `=` chars. Three `replace()` calls turn it into URL-safe base64url. (`gen_random_uuid()` is simpler but produces 36 chars including hyphens; 24 random bytes → ~32 base64url chars feels more "token-like".)
+- **Two-statement burn-then-mint needs an advisory lock.** Under snapshot isolation, two simultaneous calls to `regenerate_ref_token` could both see the same unconsumed row, both UPDATE it (idempotent), both INSERT a new row → two active tokens. `pg_advisory_xact_lock` per-matchday-per-transaction serialises the pair. Caught by code review before going live.
+- **Approve-path timing copy needs a sentinel.** Admin-direct match submissions don't carry timing; the `approve_match_entry` rewrite was unconditionally writing pending's NULL timing into matches.*, nulling out any existing values. Fix: `CASE WHEN v_pme.kickoff_at IS NOT NULL` as sentinel — copy all 5 timing cols if pending has timing data, otherwise leave matches.* alone. Caught by code review before applying.
+- **`DROP FUNCTION IF EXISTS` before `CREATE OR REPLACE` for rewrites.** Even when signature is unchanged, dropping first ensures no shadow function sticks around if param defaults change in a future revision. Costs a microsecond at apply time, removes a class of bugs.
 
 ## Completed in S038 (25/APR/2026, Work PC)
 
