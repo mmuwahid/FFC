@@ -1744,6 +1744,7 @@ export type Database = {
         Args: { p_reminder_id: string }
         Returns: undefined
       }
+      get_ref_matchday: { Args: { p_token: string }; Returns: Json }
       invite_guest: {
         Args: {
           p_accuracy: Database["public"]["Enums"]["guest_trait"]
