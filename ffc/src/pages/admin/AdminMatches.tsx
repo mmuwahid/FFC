@@ -675,10 +675,10 @@ function RefLinkSheet({
   }
 
   return createPortal(
-    <div className="admin-sheet-scrim" onClick={onClose}>
-      <div className="admin-sheet admin-ref-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="admin-sheet-grabber" aria-hidden />
-        <h3 className="admin-sheet-title">Ref link ready</h3>
+    <div className="sheet-overlay" onClick={onClose}>
+      <div className="sheet admin-ref-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" aria-hidden />
+        <h3>Ref link ready</h3>
         <p className="admin-ref-sheet-copy">
           Share this link with the ref. It works for one submission and expires in 6&nbsp;h.
           <br />

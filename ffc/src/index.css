@@ -4636,38 +4636,7 @@ textarea.auth-input {
   font-size: 16px;
 }
 
-/* Ref link sheet (portal) */
-.admin-sheet-scrim {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  z-index: 1000;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-.admin-sheet {
-  width: 100%;
-  max-width: 520px;
-  background: var(--surface, #142234);
-  border-top-left-radius: 16px;
-  border-top-right-radius: 16px;
-  padding: 18px;
-  color: var(--text, #f2ead6);
-}
-.admin-sheet-grabber {
-  width: 36px;
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(242, 234, 214, 0.25);
-  margin: 0 auto 10px;
-}
-.admin-sheet-title {
-  margin: 0 0 8px;
-  font-size: 16px;
-  font-weight: 700;
-}
-
+/* Ref link sheet (portal) — base classes (.sheet-overlay/.sheet/.sheet-handle) reused */
 .admin-ref-sheet {
   padding: 22px 18px calc(28px + env(safe-area-inset-bottom, 12px));
   display: flex;
