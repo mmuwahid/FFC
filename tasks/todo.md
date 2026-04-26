@@ -4,7 +4,7 @@
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: `4de4b05` or later (S038 P2). Push at session close.
+- Expected tip: `677b1ed` (S039 signup/login fixes). Push at session close.
 - Migrations on live DB: **27** (unchanged from S037).
 
 **S039 agenda:**
@@ -22,7 +22,9 @@
 5. **Captain reroll live test** — deferred until MD31 runs in-app (real post-lock cancel + admin `promote_from_waitlist` call).
 6. **Optional** — seed `profiles.email` for the remaining 35 player ghost rows so the AdminPlayers email-match banner fires for them too. Pattern same as S038: `DO $$ BEGIN UPDATE profiles SET email = ... WHERE id = ...; ... END $$;`.
 
-**Backburner:** empty.
+**Backburner:**
+
+- **Email notification on approve/reject** — when admin approves or rejects a signup, send a transactional email to the player so they know to open the app (or that their application was declined). Implementation path: Supabase Edge Function (`notify-signup-outcome`) triggered by a database webhook on `pending_signups.resolution` changing from `pending` → `approved`/`rejected`. Email provider: [Resend](https://resend.com) free tier (100 emails/day, no card). Approved email: "Welcome to FFC — you're in, open the app and start voting." Rejected email: "Your FFC signup wasn't approved — contact an admin." Edge Function needs `RESEND_API_KEY` env var in Supabase project settings.
 
 ## Completed in S038 (25/APR/2026, Work PC)
 
