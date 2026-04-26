@@ -176,6 +176,11 @@ BEGIN
     RAISE EXCEPTION 'Matchday not found' USING ERRCODE = '22023';
   END IF;
 
+  -- Serialise concurrent regenerate calls for the same matchday so two
+  -- admins can't both pass the burn step under snapshot isolation and end
+  -- up with two active tokens. Lock is per-matchday and per-transaction.
+  PERFORM pg_advisory_xact_lock(hashtext('regenerate_ref_token:' || p_matchday_id::text));
+
   v_caller_id := current_profile_id();
 
   -- Burn any active tokens for this matchday.
@@ -398,12 +403,19 @@ BEGIN
                            THEN NULLIF(p_edits->>'motm_guest_id','')::uuid
                            ELSE motm_guest_id END,
     notes         = COALESCE(p_edits->>'notes', v_pme.notes),
-    -- NEW: copy timing columns from pending entry (admin can override via p_edits later).
-    kickoff_at          = v_pme.kickoff_at,
-    halftime_at         = v_pme.halftime_at,
-    fulltime_at         = v_pme.fulltime_at,
-    stoppage_h1_seconds = v_pme.stoppage_h1_seconds,
-    stoppage_h2_seconds = v_pme.stoppage_h2_seconds,
+    -- NEW: copy timing columns from pending entry IFF pending has timing data
+    -- (kickoff_at as sentinel). Admin-direct submissions don't carry timing,
+    -- so we leave existing matches.* timing columns untouched in that case.
+    kickoff_at          = CASE WHEN v_pme.kickoff_at IS NOT NULL
+                               THEN v_pme.kickoff_at ELSE kickoff_at END,
+    halftime_at         = CASE WHEN v_pme.kickoff_at IS NOT NULL
+                               THEN v_pme.halftime_at ELSE halftime_at END,
+    fulltime_at         = CASE WHEN v_pme.kickoff_at IS NOT NULL
+                               THEN v_pme.fulltime_at ELSE fulltime_at END,
+    stoppage_h1_seconds = CASE WHEN v_pme.kickoff_at IS NOT NULL
+                               THEN v_pme.stoppage_h1_seconds ELSE stoppage_h1_seconds END,
+    stoppage_h2_seconds = CASE WHEN v_pme.kickoff_at IS NOT NULL
+                               THEN v_pme.stoppage_h2_seconds ELSE stoppage_h2_seconds END,
     approved_at = now(),
     approved_by = v_caller_id,
     updated_at  = now(),
