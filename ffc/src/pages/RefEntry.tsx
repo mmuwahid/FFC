@@ -255,10 +255,13 @@ function LiveConsole({ payload, kickoffAt, sessionStorageKey }: LiveConsoleProps
         </div>
         <EventStrip events={clock.state.events} format={payload.matchday.effective_format} />
       </div>
-      {/* Scorer picker placeholder — wired fully in Task 4. */}
       {scorerTeam && (
-        <ScorerPickerStub
+        <ScorerPicker
           team={scorerTeam}
+          payload={payload}
+          onPick={(participant, isOwnGoal) => {
+            clock.addGoal(scorerTeam, participant, isOwnGoal)
+          }}
           onClose={() => setScorerTeam(null)}
         />
       )}
@@ -446,16 +449,68 @@ function eventDescription(e: MatchEvent): string {
   }
 }
 
-/* Stub picker — replaced in Task 4. Just allows the score cells to compile
- * with an onClick handler. */
-function ScorerPickerStub({ team, onClose }: { team: 'white' | 'black'; onClose: () => void }) {
+interface ScorerPickerProps {
+  team: 'white' | 'black'
+  payload: RefMatchdayPayload
+  onPick: (participant: { profile_id: string | null; guest_id: string | null }, isOwnGoal: boolean) => void
+  onClose: () => void
+}
+
+function ScorerPicker({ team, payload, onPick, onClose }: ScorerPickerProps) {
+  const [isOwnGoal, setIsOwnGoal] = useState(false)
+  // When own-goal mode is active, show the OPPOSITE team's roster (the player
+  // who put it in their own net).
+  const rosterTeam: 'white' | 'black' = isOwnGoal ? (team === 'white' ? 'black' : 'white') : team
+  const players = rosterTeam === 'white' ? payload.white : payload.black
+  const titleTeam = team === 'white' ? 'White' : 'Black'
+
   return (
     <>
       <div className="ref-picker-backdrop" onClick={onClose} />
-      <div className="ref-picker-sheet">
+      <div className="ref-picker-sheet" role="dialog" aria-modal="true">
         <div className="ref-picker-grabber" />
-        <h3 className="ref-picker-title">Who scored for {team === 'white' ? 'White' : 'Black'}?</h3>
-        <p className="ref-picker-sub">Picker UI lands in Task 4.</p>
+        <h3 className="ref-picker-title">
+          {isOwnGoal ? `Own goal — who put it in their own net?` : `Who scored for ${titleTeam}?`}
+        </h3>
+        <p className="ref-picker-sub">
+          {isOwnGoal
+            ? `Goal credits ${titleTeam}.`
+            : `Auto-stamps the current match minute. Tap player.`}
+        </p>
+        <div className="ref-picker-toggle-row">
+          <button
+            type="button"
+            className={'ref-picker-toggle' + (!isOwnGoal ? ' ref-picker-toggle--active' : '')}
+            onClick={() => setIsOwnGoal(false)}
+          >
+            Goal
+          </button>
+          <button
+            type="button"
+            className={'ref-picker-toggle' + (isOwnGoal ? ' ref-picker-toggle--active' : '')}
+            onClick={() => setIsOwnGoal(true)}
+          >
+            Own Goal
+          </button>
+        </div>
+        <div className="ref-picker-grid">
+          {players.map((p) => (
+            <button
+              key={(p.profile_id ?? p.guest_id ?? 'p') + ':' + p.display_name}
+              type="button"
+              className="ref-picker-row"
+              onClick={() => {
+                onPick({ profile_id: p.profile_id, guest_id: p.guest_id }, isOwnGoal)
+                onClose()
+              }}
+            >
+              <span>{p.display_name}{p.is_captain ? ' (C)' : ''}</span>
+              {p.primary_position && (
+                <span className="ref-picker-pos">{p.primary_position.toUpperCase()}</span>
+              )}
+            </button>
+          ))}
+        </div>
         <button type="button" className="ref-picker-cancel" onClick={onClose}>
           Cancel
         </button>
