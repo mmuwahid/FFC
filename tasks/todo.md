@@ -1,15 +1,15 @@
 # FFC Todo
 
-## NEXT SESSION — S041
+## NEXT SESSION — S042
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: `<S040 close commit>` or later (S040 slice 2B-A close).
-- Migrations on live DB: **28** (Phase 2B foundation landed).
+- Expected tip: `<S041 close commit>` or later (S041 slice 2B-B close).
+- Migrations on live DB: **28** (unchanged from S040).
 
-**S041 agenda:**
+**S042 agenda:**
 
-1. **Slice 2B-B** — admin "Generate ref link" button on AdminMatches matchday cards. Wire to `regenerate_ref_token` RPC; show URL once with copy-to-clipboard + WhatsApp share-intent button + 🔄 regenerate button. Token-expires-in countdown chip.
+1. **Slice 2B-C** — RefEntry pre-match mode. Token URL `/ref/:token` opens to roster confirmation + KICK OFF button + screen-wake lock. Calls a new public-RPC `get_ref_matchday(token)` to fetch matchday + rosters anonymously (token validates server-side; sha256 lookup per slice 2B-A pattern). Persist start-timestamp to `localStorage[ffc_ref_<sha256>]` so refresh survives.
 2. Carry-over backlog still pending acceptance: S031 21-item checklist, S032/33/34/35 acceptance items.
 3. Captain reroll live test — deferred until MD31 runs in-app.
 4. **Backburner unchanged.**
@@ -17,6 +17,29 @@
 **Backburner:**
 
 - **Email notification on approve/reject** — when admin approves or rejects a signup, send a transactional email to the player so they know to open the app (or that their application was declined). Implementation path: Supabase Edge Function (`notify-signup-outcome`) triggered by a database webhook on `pending_signups.resolution` changing from `pending` → `approved`/`rejected`. Email provider: [Resend](https://resend.com) free tier (100 emails/day, no card). Approved email: "Welcome to FFC — you're in, open the app and start voting." Rejected email: "Your FFC signup wasn't approved — contact an admin." Edge Function needs `RESEND_API_KEY` env var in Supabase project settings.
+
+## Completed in S041 (26/APR/2026, Home PC)
+
+### Slice 2B-B — Admin "Generate ref link" UI
+
+- [x] AdminMatches data layer extended — `loadAll` now fetches `ref_tokens` (active only: `consumed_at IS NULL AND expires_at > now()`) alongside matchdays/matches/drafts; tokens merged onto each `MatchdayWithMatch` as optional `activeToken: { expires_at }` (commit `c6add71`).
+- [x] `formatExpiresIn(iso)` helper for the chip ("expires in 4h 22m" / "expires in 12m" / "expired").
+- [x] `RefLinkSection` rendered conditionally on `roster_locked_at` inside MatchdayCard. Two states (no token = dashed Generate CTA; active token = gold-tinted button with expiry chip + 🔄 icon) (commit `b2788c9`).
+- [x] `RefLinkSheet` portal opens on Generate / Regenerate. Read-only URL input + 📋 Copy (clipboard API + toast feedback) + 💬 Share to WhatsApp (`https://wa.me/?text=` deep link). Explanation copy: "Shown once — regenerate to share again."
+- [x] Single shared handler `handleMintRefLink(md)` calls `regenerate_ref_token(p_matchday_id)` RPC, captures the raw token from the response, opens the sheet with it, then re-runs `loadAll()` so the card chip shows the fresh expiry.
+- [x] CSS namespacing: brand-token-driven (gold accent for active state, dashed border for generate CTA, monospace URL field).
+- [x] **Code-review fix #1 (`2fa75b5`)** — initial implementation introduced parallel `.admin-sheet*` class names; refactored to reuse the existing `.sheet*` base classes already used by `<ConfirmSheet>` (single source of truth for portal-rendered bottom-sheet styles).
+- [x] **Code-review fix #2 (`1d22d8e`)** — added `mintBusy: string | null` per-row in-flight guard on the Generate / Regenerate button. Prevents double-tap race where a fast second tap could mint two tokens before `loadAll()` refreshed the card chip. Button disables while RPC is in flight; cleared on settle.
+- [x] Build clean: tsc -b EXIT 0; vite build EXIT 0.
+- [x] No backend changes. Migrations on live DB stay at 28.
+
+### S041 gotchas / lessons (additive)
+
+- **One-shot raw token UX pattern.** The RPC returns the plaintext base64url token only at mint; Postgres stores `sha256(token)` only. The sheet must capture the URL the moment the RPC resolves and never persist it. If the admin navigates away or the sheet closes, the URL is gone forever — they must regenerate. Pattern: keep the raw token in `useState` (not in any persistent store, not in the matchday row); the matchday row reload only fetches `expires_at` afterwards (the chip-driving fact), not the token.
+- **`loadAll` fan-out for derived per-row state.** When a card needs auxiliary data that lives in a different table (here: `ref_tokens` per matchday), fetch it as a fourth `Promise.all` branch in the same load function and merge into the row type via a Map lookup. Keeps a single source of truth for the page state and avoids per-card `useEffect` queries that would N+1.
+- **Reuse base sheet classes — don't invent parallel naming.** First pass added `.admin-sheet`/`.admin-sheet-grabber`/`.admin-sheet-title` etc. Code review caught it before push: there's already a `<ConfirmSheet>` portal in the same file using `.sheet*` classes. Two parallel naming families would drift in style over time. Fix: drop the `admin-` prefix and rely on the shared `.sheet*` foundation; only the truly-novel ref-link bits (`.admin-ref-link-*` for the section + URL input) keep custom classes.
+- **`mintBusy: string | null` per-row in-flight guard.** When a button issues a side-effecting RPC followed by a state-refreshing query, fast double-tap can race the refresh. Storing the in-flight matchday id (`null = idle | <md.id> = busy on this row`) lets the disabled-state and the click-handler short-circuit synchronously without a ref-vs-state mismatch. Cleared in `finally` so a thrown RPC doesn't permanently lock the row.
+- **WhatsApp deep link via `wa.me`.** `https://wa.me/?text=<encoded>` opens the app on mobile and Web WhatsApp on desktop. The phone number is omitted (no `?phone=`) so the user picks the recipient. `target="_blank"` + `rel="noreferrer noopener"` is the safe default.
 
 ## Completed in S040 (26/APR/2026, Home PC)
 
