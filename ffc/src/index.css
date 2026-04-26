@@ -4578,3 +4578,127 @@ textarea.auth-input {
   font-size: 22px;
   color: rgba(233, 236, 243, 0.4);
 }
+
+/* §3.4-v2 Slice 2B-B — Ref link section on matchday card */
+
+.admin-ref-link {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border, rgba(242,234,214,0.08));
+}
+
+.admin-ref-link-generate {
+  width: 100%;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px dashed var(--border, rgba(242,234,214,0.18));
+  background: transparent;
+  color: var(--text, #f2ead6);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.admin-ref-link-generate:hover { background: rgba(242,234,214,0.04); }
+
+.admin-ref-link-active {
+  width: 100%;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(229,186,91,0.35);
+  background: rgba(229,186,91,0.08);
+  color: var(--text, #f2ead6);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  cursor: pointer;
+}
+.admin-ref-link-active:hover { background: rgba(229,186,91,0.14); }
+
+.admin-ref-link-label {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: var(--accent, #e5ba5b);
+}
+
+.admin-ref-link-expiry {
+  flex: 1;
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-muted, #85929f);
+}
+
+.admin-ref-link-regen {
+  font-size: 16px;
+}
+
+/* Ref link sheet (portal) */
+.admin-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.admin-sheet {
+  width: 100%;
+  max-width: 520px;
+  background: var(--surface, #142234);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  padding: 18px;
+  color: var(--text, #f2ead6);
+}
+.admin-sheet-grabber {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(242, 234, 214, 0.25);
+  margin: 0 auto 10px;
+}
+.admin-sheet-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.admin-ref-sheet {
+  padding: 22px 18px calc(28px + env(safe-area-inset-bottom, 12px));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.admin-ref-sheet-copy {
+  font-size: 13px;
+  color: var(--text-muted, #85929f);
+  line-height: 1.55;
+  margin: 0;
+}
+.admin-ref-link-url {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border, rgba(242,234,214,0.12));
+  background: var(--surface-2, #182437);
+  color: var(--text, #f2ead6);
+  font-size: 13px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+.admin-ref-link-url:focus {
+  outline: 2px solid var(--accent, #e5ba5b);
+  outline-offset: 1px;
+}
+.admin-ref-sheet-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.admin-ref-sheet-done {
+  margin-top: 4px;
+}

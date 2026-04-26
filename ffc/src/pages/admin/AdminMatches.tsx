@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import type { Database, Json } from '../../lib/database.types'
@@ -119,6 +120,16 @@ function formatDraftElapsed(startedAt: string): string {
   return `${hrs}h ${rem}m ago`
 }
 
+function formatExpiresIn(expiresAt: string): string {
+  const ms = new Date(expiresAt).getTime() - Date.now()
+  if (ms <= 0) return 'expired'
+  const totalMin = Math.floor(ms / 60000)
+  if (totalMin < 60) return `expires in ${totalMin}m`
+  const h = Math.floor(totalMin / 60)
+  const m = totalMin % 60
+  return `expires in ${h}h ${m}m`
+}
+
 // ─── Match result × player goals sanity check (S026+) ────────────
 // A saved result must have its team score equal the sum of individual
 // player goals for that team. Example: WHITE 3-1 BLACK but only two white
@@ -166,6 +177,7 @@ export function AdminMatches() {
   const [seasonId, setSeasonId] = useState<string | null>(null)
   const [seasonFormat, setSeasonFormat] = useState<MatchFormat>('7v7')
   const [toast, setToast] = useState<string | null>(null)
+  const [refSheet, setRefSheet] = useState<{ matchday: MatchdayWithMatch; rawToken: string } | null>(null)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
@@ -246,6 +258,22 @@ export function AdminMatches() {
     for (const md of matchdays) b[bucketize(md)].push(md)
     return b
   }, [matchdays])
+
+  const handleMintRefLink = async (md: MatchdayWithMatch) => {
+    setError(null)
+    const { data, error } = await supabase.rpc('regenerate_ref_token', { p_matchday_id: md.id })
+    if (error) {
+      setError(error.message)
+      return
+    }
+    if (typeof data !== 'string' || data.length === 0) {
+      setError('Unexpected empty token from regenerate_ref_token')
+      return
+    }
+    setRefSheet({ matchday: md, rawToken: data })
+    // Refresh activeToken view so the card chip flips to "expires in 6h 0m" once sheet closes.
+    await loadAll()
+  }
 
   return (
     <section className="admin-matches">
@@ -328,6 +356,7 @@ export function AdminMatches() {
               onDraftAbandon={() => setSheet({ kind: 'draft_abandon', md })}
               onFormation={() => md.match && navigate(`/match/${md.match.id}/formation`)}
               onPickCaptains={() => navigate(`/matchday/${md.id}/captains`)}
+              onMintRefLink={() => { void handleMintRefLink(md) }}
             />
           ))}
         </ul>
@@ -472,6 +501,18 @@ export function AdminMatches() {
           </div>
         </div>
       )}
+
+      {refSheet && (
+        <RefLinkSheet
+          matchday={refSheet.matchday}
+          rawToken={refSheet.rawToken}
+          onClose={() => setRefSheet(null)}
+          onCopy={() => {
+            setToast('Link copied to clipboard')
+            // Don't close the sheet on copy — admin may want to share to WhatsApp too.
+          }}
+        />
+      )}
     </section>
   )
 }
@@ -479,7 +520,7 @@ export function AdminMatches() {
 // ─── Matchday card ─────────────────────────────────────────────
 
 function MatchdayCard({
-  md, onEdit, onLock, onEnterResult, onEditResult, onDraftForceComplete, onDraftAbandon, onFormation, onPickCaptains,
+  md, onEdit, onLock, onEnterResult, onEditResult, onDraftForceComplete, onDraftAbandon, onFormation, onPickCaptains, onMintRefLink,
 }: {
   md: MatchdayWithMatch
   onEdit: () => void
@@ -490,6 +531,7 @@ function MatchdayCard({
   onDraftAbandon: () => void
   onFormation: () => void
   onPickCaptains: () => void
+  onMintRefLink: () => void
 }) {
   const phase = phaseLabel(md)
   const hasResult = !!md.match
@@ -572,7 +614,111 @@ function MatchdayCard({
           </button>
         )}
       </div>
+
+      {/* §3.4-v2 Slice 2B-B — Ref link section. Available once roster is locked. */}
+      {locked && (
+        <div className="admin-ref-link">
+          {md.activeToken ? (
+            <button
+              type="button"
+              className="admin-ref-link-active"
+              onClick={onMintRefLink}
+              title="Regenerate ref link (burns the previous one)"
+            >
+              <span className="admin-ref-link-label">Ref link</span>
+              <span className="admin-ref-link-expiry">· {formatExpiresIn(md.activeToken.expires_at)}</span>
+              <span className="admin-ref-link-regen" aria-hidden>🔄</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="admin-ref-link-generate"
+              onClick={onMintRefLink}
+            >
+              + Generate ref link
+            </button>
+          )}
+        </div>
+      )}
     </li>
+  )
+}
+
+// ─── Ref-link sheet (Slice 2B-B) ──────────────────────────────────
+// Receives the raw token from regenerate_ref_token RPC return value.
+// The plaintext token is one-shot — Postgres only stores sha256(token).
+// Once this sheet closes, the URL is gone forever (must regenerate to share again).
+function RefLinkSheet({
+  matchday,
+  rawToken,
+  onClose,
+  onCopy,
+}: {
+  matchday: MatchdayWithMatch
+  rawToken: string
+  onClose: () => void
+  onCopy: () => void
+}) {
+  const url = `${window.location.origin}/ref/${rawToken}`
+  const matchdayLabel = `${dateLabel(matchday.kickoff_at)}`
+  const whatsappMessage = `FFC ref link for Matchday ${matchdayLabel}: ${url}  Expires in 6h.`
+  const whatsappHref = `https://wa.me/?text=${encodeURIComponent(whatsappMessage)}`
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(url)
+      onCopy()
+    } catch {
+      // Fallback: select the input so the user can long-press / Ctrl+C
+      document.getElementById('admin-ref-link-input')?.focus()
+    }
+  }
+
+  return createPortal(
+    <div className="admin-sheet-scrim" onClick={onClose}>
+      <div className="admin-sheet admin-ref-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="admin-sheet-grabber" aria-hidden />
+        <h3 className="admin-sheet-title">Ref link ready</h3>
+        <p className="admin-ref-sheet-copy">
+          Share this link with the ref. It works for one submission and expires in 6&nbsp;h.
+          <br />
+          <strong>Shown once</strong> — regenerate to share again.
+        </p>
+        <input
+          id="admin-ref-link-input"
+          className="admin-ref-link-url"
+          type="text"
+          value={url}
+          readOnly
+          onFocus={(e) => e.currentTarget.select()}
+        />
+        <div className="admin-ref-sheet-actions">
+          <button
+            type="button"
+            className="auth-btn auth-btn--approve"
+            onClick={() => { void handleCopy() }}
+          >
+            📋 Copy link
+          </button>
+          <a
+            className="auth-btn auth-btn--sheet-cancel"
+            href={whatsappHref}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            💬 Share to WhatsApp
+          </a>
+        </div>
+        <button
+          type="button"
+          className="auth-btn auth-btn--sheet-cancel admin-ref-sheet-done"
+          onClick={onClose}
+        >
+          Done
+        </button>
+      </div>
+    </div>,
+    document.body
   )
 }
 
