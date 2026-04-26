@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../lib/AppContext'
 import { PasswordInput } from '../components/PasswordInput'
@@ -28,6 +28,7 @@ type Stage = 'auth' | 'confirm_email' | 'who' | 'waiting'
 
 export function Signup() {
   const { session, signOut, role, profileLoading } = useApp()
+  const navigate = useNavigate()
   const [stage, setStage] = useState<Stage>('auth')
   const [banner, setBanner] = useState<Banner>(null)
   const [busy, setBusy] = useState(false)
@@ -47,14 +48,15 @@ export function Signup() {
   /* Derive which stage to show. */
   useEffect(() => {
     if (!session) {
-      // Preserve confirm_email stage across renders — the user is waiting on an
-      // inbox click, not on a new form interaction. Only reset to 'auth' if we
-      // were elsewhere (e.g. user signed out from 'waiting').
       setStage((prev) => (prev === 'confirm_email' ? prev : 'auth'))
       return
     }
+    // Wait for AppContext to finish the profile lookup before deriving stage.
+    // Without this guard, a refresh after approval lands on Stage 2 (ghost-picker)
+    // because the pending row is 'approved' but role is momentarily null.
+    if (profileLoading) return
     if (role) {
-      // Approved — nothing to do on this screen; AppContext will bounce via HomeRoute.
+      navigate('/poll', { replace: true })
       return
     }
     // Session but no role: check for existing pending row.
@@ -74,7 +76,26 @@ export function Signup() {
     return () => {
       cancelled = true
     }
-  }, [session, role])
+  }, [session, role, profileLoading, navigate])
+
+  /* Stage 3 — poll every 5 s for approval without requiring a manual refresh.
+   * When the profile row gets auth_user_id bound by approve_signup, this fires
+   * a full-page replace so AppContext re-initialises with the correct role. */
+  useEffect(() => {
+    if (stage !== 'waiting' || !session) return
+    const userId = session.user.id
+    const id = setInterval(async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('auth_user_id', userId)
+        .maybeSingle()
+      if (data?.role) {
+        window.location.replace('/')
+      }
+    }, 5000)
+    return () => clearInterval(id)
+  }, [stage, session])
 
   /* Load unclaimed ghost profiles when entering stage 2. */
   useEffect(() => {
@@ -418,7 +439,7 @@ export function Signup() {
         <div className="auth-waiting-icon" aria-hidden>⧗</div>
         <div className="auth-waiting-copy">
           <h2>Waiting for approval</h2>
-          <p>We've sent your request to an admin. You'll be in as soon as they tap Approve.</p>
+          <p>We've sent your request to an admin. This page checks automatically — you'll be taken straight in as soon as they approve.</p>
           {profileLoading && <p className="auth-waiting-meta">Checking status…</p>}
         </div>
         <button type="button" className="auth-signout-link" onClick={() => signOut()}>

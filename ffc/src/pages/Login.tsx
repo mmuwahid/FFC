@@ -8,7 +8,7 @@ import { PasswordInput } from '../components/PasswordInput'
  * and HomeRoute redirects. Error banner states: wrong credentials, unconfirmed email,
  * rejected account (pushed here via `?err=rejected` after AppContext signs out). */
 
-type BannerKind = 'danger' | 'warn'
+type BannerKind = 'danger' | 'warn' | 'success'
 interface Banner {
   kind: BannerKind
   title: string
@@ -64,6 +64,25 @@ export function Login() {
     }
   }, [params, setParams])
 
+  const handleForgotPassword = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (!email.trim()) {
+      setBanner({ kind: 'warn', title: 'Enter your email first.', body: 'Type your email address above, then tap Forgot password.' })
+      return
+    }
+    setBanner(null)
+    setBusy(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    setBusy(false)
+    if (error) {
+      setBanner(mapAuthError(error.message))
+      return
+    }
+    setBanner({ kind: 'success', title: 'Check your inbox.', body: `A password reset link has been sent to ${email}.` })
+  }
+
   const handleSignIn = async (e: FormEvent) => {
     e.preventDefault()
     setBanner(null)
@@ -103,7 +122,7 @@ export function Login() {
         {banner && (
           <div className={`auth-banner auth-banner--${banner.kind}`} role="alert">
             <span className="auth-banner-icon" aria-hidden>
-              {banner.kind === 'danger' ? '!' : 'i'}
+              {banner.kind === 'danger' ? '!' : banner.kind === 'success' ? '✓' : 'i'}
             </span>
             <div>
               <strong>{banner.title}</strong>
@@ -139,8 +158,7 @@ export function Login() {
         </label>
 
         <div className="auth-row-right">
-          {/* Forgot password is a stub for Step 3 — Supabase default recovery, wired in a later session. */}
-          <a className="auth-link" href="#" onClick={(e) => e.preventDefault()}>
+          <a className="auth-link" href="#" onClick={handleForgotPassword}>
             Forgot password?
           </a>
         </div>

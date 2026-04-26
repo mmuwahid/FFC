@@ -15,6 +15,7 @@ import { MatchDetail } from './pages/MatchDetail'
 import { Settings } from './pages/Settings'
 import { Rules } from './pages/Rules'
 import { RefEntry } from './pages/RefEntry'
+import { ResetPassword } from './pages/ResetPassword'
 import { NotFound } from './pages/NotFound'
 import { AdminHome } from './pages/admin/AdminHome'
 import { AdminPlayers } from './pages/admin/AdminPlayers'
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
       { index: true, element: <HomeRoute /> },
       { path: 'login', element: <Login /> },
       { path: 'signup', element: <Signup /> },
+      { path: 'reset-password', element: <ResetPassword /> },
     ],
   },
   {
