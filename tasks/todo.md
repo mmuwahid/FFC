@@ -1,22 +1,45 @@
 # FFC Todo
 
-## NEXT SESSION — S042
+## NEXT SESSION — S043
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: `<S041 close commit>` or later (S041 slice 2B-B close).
-- Migrations on live DB: **28** (unchanged from S040).
+- Expected tip: `<S042 close commit>` or later (S042 slice 2B-C close).
+- Migrations on live DB: **30** (Phase 2B foundation + ref-matchday + pgcrypto hotfix).
 
-**S042 agenda:**
+**S043 agenda:**
 
-1. **Slice 2B-C** — RefEntry pre-match mode. Token URL `/ref/:token` opens to roster confirmation + KICK OFF button + screen-wake lock. Calls a new public-RPC `get_ref_matchday(token)` to fetch matchday + rosters anonymously (token validates server-side; sha256 lookup per slice 2B-A pattern). Persist start-timestamp to `localStorage[ffc_ref_<sha256>]` so refresh survives.
-2. Carry-over backlog still pending acceptance: S031 21-item checklist, S032/33/34/35 acceptance items.
+1. **Slice 2B-D** — RefEntry live mode. Match clock (35-5-35 minutes, configurable per format), large white/black score blocks (tap to open scorer picker), pause/resume button (auto-stoppage), card actions, MOTM picker, event log persisted to React state with 15s undo window. Client-side authoritative timer (no server clock) using `performance.now()` + persisted start-timestamp in localStorage.
+2. **Carry-over:** acceptance tests for slices 2B-B, 2B-C on real device. The `is_admin()` investigation may surface as a hotfix slice.
 3. Captain reroll live test — deferred until MD31 runs in-app.
-4. **Backburner unchanged.**
 
 **Backburner:**
 
 - **Email notification on approve/reject** — when admin approves or rejects a signup, send a transactional email to the player so they know to open the app (or that their application was declined). Implementation path: Supabase Edge Function (`notify-signup-outcome`) triggered by a database webhook on `pending_signups.resolution` changing from `pending` → `approved`/`rejected`. Email provider: [Resend](https://resend.com) free tier (100 emails/day, no card). Approved email: "Welcome to FFC — you're in, open the app and start voting." Rejected email: "Your FFC signup wasn't approved — contact an admin." Edge Function needs `RESEND_API_KEY` env var in Supabase project settings.
+
+## Completed in S042 (26/APR/2026, Home PC)
+
+### Slice 2B-C — RefEntry pre-match mode
+
+- [x] **Migration 0029 `0029_get_ref_matchday.sql`** authored & applied — anonymous-callable `get_ref_matchday(p_token text) returns jsonb` RPC. Validates raw token via sha256 against `ref_tokens`, returns matchday header + white roster + black roster + token expiry as a JSONB envelope. GRANT TO anon, authenticated. Function shipped with a latent search_path bug (see 0030 below).
+- [x] **Migration 0030 `0030_pgcrypto_search_path_fix.sql`** authored & applied — schema-qualifies `digest()` and `gen_random_bytes()` calls in three SECURITY DEFINER RPCs (`get_ref_matchday`, `submit_ref_entry`, `regenerate_ref_token`). The shipped 0028/0029 versions had `SET search_path = public` but pgcrypto lives in `extensions` on Supabase, so unqualified calls fail at runtime via PostgREST (anon or authenticated). Bug was hidden because `db query --linked` runs as the postgres role with a wider default search_path. Verified end-to-end via anon-key curl POST to all three RPCs — each returns the expected business-logic error from inside its function body, NOT a "function digest does not exist" error.
+- [x] **`useMatchSession` hook** (`ffc/src/lib/useMatchSession.ts`, ~160 LOC) — state machine `loading | invalid | pre | live | post`, localStorage-persisted state per token (key = `ffc_ref_<sha256(token)[0:32]>` for cross-device safety), wake-lock request on `startMatch()`. Uses Web Crypto API for sha256 (available in all modern browsers).
+- [x] **RefEntry.tsx rewrite** (~158 LOC, was 11) — 5-mode render: loading spinner / invalid token / pre-match / live placeholder / post placeholder. Pre-match shows matchday header (kickoff label + format + venue) + white & black roster cards (captain marker, position pills) + bottom-anchored gold KICK OFF button.
+- [x] **`ref-entry.css`** (~173 LOC) — standalone scope-root with `--rf-*` brand tokens. RefEntry loads outside the authenticated app shell, so brand tokens are declared locally on `.ref-entry`.
+- [x] Types regenerated (2183 → 2184 lines) — `get_ref_matchday` RPC + nothing else (table/column shapes unchanged).
+- [x] Build clean: tsc -b EXIT 0; vite build EXIT 0; PWA 1498.39 KiB.
+- [x] **Migrations on live DB: 30 (0001 → 0030).**
+- [x] Spawned follow-up task: investigate `is_admin()` behavior under anon callers. During curl-testing migration 0030, an anon-key call to `regenerate_ref_token` reached the "Matchday not found" error path past the `IF NOT is_admin() THEN RAISE` check. Either `is_admin()` returns true for anon (production security bug), OR the test mistakenly used an authenticated key. Resolution deferred to a fresh investigation session.
+
+### S042 gotchas / lessons (additive)
+
+- **`pgcrypto` lives in `extensions` on Supabase, not `public`.** Any SECURITY DEFINER function calling `digest()`, `gen_random_bytes()`, etc. MUST schema-qualify the call (`extensions.digest(...)`) OR include `extensions` in the function's `SET search_path`. Unqualified calls fail at runtime when invoked via PostgREST because the anon/authenticated roles don't have `extensions` in their default search_path.
+- **`db query --linked` is INSUFFICIENT for verifying SECURITY DEFINER functions.** It runs as the `postgres` login role with a wider default search_path that includes `extensions`. Real verification requires either (a) `curl -X POST /rest/v1/rpc/<name>` with the anon key, OR (b) calling the RPC from within an authenticated client (`supabase.rpc(...)` from the browser). Slice 2B-A's verification approach (just confirming the function exists in `pg_proc`) was insufficient and let the bug ship.
+- **Hotfix migration pattern (DROP+CREATE) is safe** when signature is unchanged. GRANTs must be re-issued after CREATE because DROP loses them.
+- **Anonymous SECURITY DEFINER RPC for token-gated public reads.** When you need to expose a curated read to anon callers without granting direct SELECT on RLS-gated tables, write a SECURITY DEFINER function that does the auth (token validation), runs the read, and returns curated JSONB. Pattern: `CREATE OR REPLACE FUNCTION ... LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions AS ... GRANT EXECUTE TO anon, authenticated`.
+- **localStorage keyed by sha256(token) prefix** — safer than keying by raw token (which would briefly persist plaintext) and stable across devices on the same browser. Web Crypto's `crypto.subtle.digest('SHA-256', ...)` is async — handle with a one-shot useEffect that resolves the key first, then a second effect that uses it.
+- **Wake-lock on user-gesture only.** `navigator.wakeLock.request('screen')` requires a recent user gesture; calling it from inside a button click handler works, calling it from a useEffect on mount does not. Wrap in try/catch — older browsers + iOS Safari may reject.
+- **Standalone CSS scope-root for unshelled routes.** RefEntry doesn't render inside the authenticated app shell, so brand tokens declared on `.admin-matches` / `.po-screen` etc. don't apply. Declare tokens locally on `.ref-entry` root with a unique `--rf-*` prefix to avoid collisions if the app shell ever wraps this page.
 
 ## Completed in S041 (26/APR/2026, Home PC)
 
