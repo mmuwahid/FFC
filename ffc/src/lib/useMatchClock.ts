@@ -42,6 +42,7 @@ export interface MatchEvent {
   event_type: EventType
   match_minute: number          // continuous from kickoff (whole minutes)
   match_second: number          // 0..59
+  half: 1 | 2                   // which half this event belongs to (halftime event uses 1)
   team: 'white' | 'black' | null
   profile_id: string | null
   guest_id: string | null
@@ -322,6 +323,7 @@ export function useMatchClock(args: {
         event_type: isOwnGoal ? 'own_goal' : 'goal',
         match_minute: stamp.match_minute,
         match_second: stamp.match_second,
+        half: prev.half === 'break' ? 1 : prev.half,
         team,
         profile_id: participant.profile_id,
         guest_id: participant.guest_id,
@@ -347,6 +349,7 @@ export function useMatchClock(args: {
         event_type: kind === 'yellow' ? 'yellow_card' : 'red_card',
         match_minute: stamp.match_minute,
         match_second: stamp.match_second,
+        half: prev.half === 'break' ? 1 : prev.half,
         team,
         profile_id: participant.profile_id,
         guest_id: participant.guest_id,
@@ -367,6 +370,7 @@ export function useMatchClock(args: {
         event_type: 'pause',
         match_minute: stamp.match_minute,
         match_second: stamp.match_second,
+        half: prev.half,
         team: null,
         profile_id: null,
         guest_id: null,
@@ -395,6 +399,7 @@ export function useMatchClock(args: {
         event_type: 'resume',
         match_minute: stamp.match_minute,
         match_second: stamp.match_second,
+        half: prev.half,
         team: null,
         profile_id: null,
         guest_id: null,
@@ -423,6 +428,7 @@ export function useMatchClock(args: {
         event_type: 'halftime',
         match_minute: regulationHalfMinutes,
         match_second: 0,
+        half: 1,
         team: null,
         profile_id: null,
         guest_id: null,

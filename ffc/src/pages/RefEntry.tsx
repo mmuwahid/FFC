@@ -390,14 +390,20 @@ function EventStrip({ events, format }: { events: MatchEvent[]; format: '7v7' | 
 }
 
 function formatEventMinute(e: MatchEvent, regulationHalfMinutes: number): string {
-  const baseHalfStart = e.match_minute < regulationHalfMinutes ? 0 : regulationHalfMinutes
-  const minutesIntoHalf = e.match_minute - baseHalfStart
-  const isStoppage = minutesIntoHalf >= regulationHalfMinutes
-  if (isStoppage) {
-    const stoppageMin = minutesIntoHalf - regulationHalfMinutes
+  if (e.half === 1) {
+    if (e.match_minute < regulationHalfMinutes) {
+      return `${e.match_minute}'`
+    }
+    const stoppageMin = e.match_minute - regulationHalfMinutes
     return `${regulationHalfMinutes}+${stoppageMin}'`
   }
-  return `${e.match_minute}'`
+  // half === 2
+  const totalReg = regulationHalfMinutes * 2
+  if (e.match_minute < totalReg) {
+    return `${e.match_minute}'`
+  }
+  const stoppageMin = e.match_minute - totalReg
+  return `${totalReg}+${stoppageMin}'`
 }
 
 function eventIcon(t: MatchEvent['event_type']): string {
