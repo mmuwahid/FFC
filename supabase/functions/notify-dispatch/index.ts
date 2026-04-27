@@ -3,19 +3,35 @@
 // fans out Web Push via web-push lib to every push_subscription of recipient.
 // 410/404 prune dead subscriptions; other errors log only (polling fallback
 // in slice 2A-D will retry undelivered rows).
+//
+// Auth model (S048): the Supabase Functions gateway requires a bearer JWT
+// (legacy anon or service_role) just to reach this code, so the trigger
+// MUST send Authorization: Bearer <legacy-service_role-jwt>. That JWT is
+// stored in Vault as 'service_role_key' and read by the trigger.
+//
+// Once we're in the function, we authenticate the CALLER independently of
+// the gateway via a shared secret in X-Dispatch-Secret. The shared secret
+// is in Vault as 'dispatch_shared_secret' (read by trigger) and in this
+// function's env as DISPATCH_SHARED_SECRET. This decouples function-level
+// auth from Supabase's two-key system (legacy JWT vs new sb_secret_*).
 
 import { createClient } from '@supabase/supabase-js'
 import webPush from 'web-push'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+// Note: Supabase auto-injects SUPABASE_SERVICE_ROLE_KEY as the new-style
+// sb_secret_* key, which the supabase-js client does not accept for
+// service-role connections. We use a separately-configured env var
+// LEGACY_SERVICE_ROLE_JWT (legacy JWT format, set by hand) for createClient.
+const LEGACY_SERVICE_ROLE_JWT = Deno.env.get('LEGACY_SERVICE_ROLE_JWT')!
+const DISPATCH_SHARED_SECRET = Deno.env.get('DISPATCH_SHARED_SECRET')!
 const VAPID_PUBLIC = Deno.env.get('VAPID_PUBLIC_KEY')!
 const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE_KEY')!
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:m.muwahid@gmail.com'
 
 webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE)
 
-const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+const sb = createClient(SUPABASE_URL, LEGACY_SERVICE_ROLE_JWT, {
   auth: { persistSession: false, autoRefreshToken: false },
 })
 
@@ -29,9 +45,10 @@ interface NotificationRow {
 }
 
 Deno.serve(async (req) => {
-  // Auth check: trigger must present service-role bearer.
-  const authHdr = req.headers.get('authorization') ?? ''
-  if (!authHdr.startsWith('Bearer ') || authHdr.slice(7) !== SERVICE_ROLE_KEY) {
+  // Auth check: caller must present DISPATCH_SHARED_SECRET in X-Dispatch-Secret.
+  // The Supabase gateway has already validated the bearer JWT before we run.
+  const dispatchSecret = req.headers.get('x-dispatch-secret') ?? ''
+  if (dispatchSecret !== DISPATCH_SHARED_SECRET) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
