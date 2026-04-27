@@ -1625,6 +1625,10 @@ export type Database = {
         Args: { p_matchday_id: string; p_reason?: string }
         Returns: string
       }
+      admin_drop_pending_match_event: {
+        Args: { p_event_id: string }
+        Returns: undefined
+      }
       admin_submit_match_result: {
         Args: {
           p_approve?: boolean
