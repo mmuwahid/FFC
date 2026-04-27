@@ -4671,3 +4671,26 @@ textarea.auth-input {
 .admin-ref-sheet-done {
   margin-top: 4px;
 }
+
+/* Slice 2B-F — pending ref-entry review CTA on AdminMatches cards */
+.admin-md-pending-review {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(229, 186, 91, 0.08);
+  border: 1px solid rgba(229, 186, 91, 0.32);
+  border-radius: 10px;
+  margin: 8px 0;
+}
+.admin-md-pending-label {
+  font-size: 13px;
+  color: var(--accent, #e5ba5b);
+  font-weight: 500;
+}
+.admin-md-pending-cta {
+  white-space: nowrap;
+  font-size: 13px;
+  padding: 6px 12px;
+}

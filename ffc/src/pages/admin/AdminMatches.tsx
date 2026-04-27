@@ -56,6 +56,7 @@ interface MatchdayWithMatch extends MatchdayRow {
   effective_format: MatchFormat
   draft?: DraftInfo | null
   activeToken?: ActiveTokenInfo  // present iff a non-consumed, non-expired ref_tokens row exists
+  pendingEntryId?: string  // present iff a pending_match_entries row with status='pending' exists
 }
 
 type Segment = 'this_week' | 'upcoming' | 'past'
@@ -183,12 +184,13 @@ export function AdminMatches() {
   const loadAll = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const [mdRes, matchesRes, seasonsRes, draftsRes, tokensRes] = await Promise.all([
+    const [mdRes, matchesRes, seasonsRes, draftsRes, tokensRes, pendingRes] = await Promise.all([
       supabase.from('matchdays').select('*').order('kickoff_at', { ascending: false }).limit(60),
       supabase.from('matches').select('id, matchday_id, score_white, score_black, result, motm_user_id, motm_guest_id, approved_at, notes'),
       supabase.from('seasons').select('id, default_format, ended_at').is('ended_at', null).order('starts_on', { ascending: false }).limit(1),
       supabase.from('draft_sessions').select('id, matchday_id, status, current_picker_team, reason, started_at, triggered_by_profile_id').in('status', ['in_progress']),
       supabase.from('ref_tokens').select('matchday_id, expires_at').is('consumed_at', null).gt('expires_at', new Date().toISOString()),
+      supabase.from('pending_match_entries').select('id, matchday_id').eq('status', 'pending'),
     ])
     if (mdRes.error) setError(mdRes.error.message)
     if (matchesRes.error) setError(matchesRes.error.message)
@@ -200,6 +202,12 @@ export function AdminMatches() {
     const tokensByMd = new Map<string, ActiveTokenInfo>()
     for (const t of (tokensRes.data ?? []) as { matchday_id: string; expires_at: string }[]) {
       tokensByMd.set(t.matchday_id, { expires_at: t.expires_at })
+    }
+
+    // Pending ref entries per matchday (status='pending')
+    const pendingByMd = new Map<string, string>()
+    for (const pe of (pendingRes.data ?? []) as { id: string; matchday_id: string }[]) {
+      pendingByMd.set(pe.matchday_id, pe.id)
     }
 
     // Draft info per matchday (in-progress only)
@@ -242,6 +250,7 @@ export function AdminMatches() {
       effective_format: md.format ?? (season?.default_format as MatchFormat) ?? '7v7',
       draft: draftByMd.get(md.id) ?? null,
       activeToken: tokensByMd.get(md.id),
+      pendingEntryId: pendingByMd.get(md.id),
     }))
     setMatchdays(enriched)
     setLoading(false)
@@ -365,6 +374,7 @@ export function AdminMatches() {
               onPickCaptains={() => navigate(`/matchday/${md.id}/captains`)}
               onMintRefLink={() => { void handleMintRefLink(md) }}
               mintBusy={mintBusy === md.id}
+              onReviewPending={() => md.pendingEntryId && navigate(`/admin/match-entries/${md.pendingEntryId}`)}
             />
           ))}
         </ul>
@@ -528,7 +538,7 @@ export function AdminMatches() {
 // ─── Matchday card ─────────────────────────────────────────────
 
 function MatchdayCard({
-  md, onEdit, onLock, onEnterResult, onEditResult, onDraftForceComplete, onDraftAbandon, onFormation, onPickCaptains, onMintRefLink, mintBusy,
+  md, onEdit, onLock, onEnterResult, onEditResult, onDraftForceComplete, onDraftAbandon, onFormation, onPickCaptains, onMintRefLink, mintBusy, onReviewPending,
 }: {
   md: MatchdayWithMatch
   onEdit: () => void
@@ -541,6 +551,7 @@ function MatchdayCard({
   onPickCaptains: () => void
   onMintRefLink: () => void
   mintBusy: boolean
+  onReviewPending: () => void
 }) {
   const phase = phaseLabel(md)
   const hasResult = !!md.match
@@ -587,6 +598,15 @@ function MatchdayCard({
           onForceComplete={onDraftForceComplete}
           onAbandon={onDraftAbandon}
         />
+      )}
+
+      {md.pendingEntryId && !md.match?.approved_at && (
+        <div className="admin-md-pending-review" role="region" aria-label="Pending ref entry">
+          <span className="admin-md-pending-label">⏳ Ref entry awaiting review</span>
+          <button type="button" className="auth-btn auth-btn--approve admin-md-pending-cta" onClick={onReviewPending}>
+            Review →
+          </button>
+        </div>
       )}
 
       <div className="admin-md-actions">
