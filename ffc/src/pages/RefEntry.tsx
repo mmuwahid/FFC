@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import type { Json } from '../lib/database.types'
 import { useMatchSession, type RefMatchdayPayload } from '../lib/useMatchSession'
-import { useMatchClock, type MatchEvent } from '../lib/useMatchClock'
+import { useMatchClock, type ClockState, type MatchEvent } from '../lib/useMatchClock'
 import { REGULATION_HALF_MINUTES, MAX_STOPPAGE_SOFT_LIMIT_SECONDS } from '../lib/refConsoleConstants'
 import {
   CardKindPicker,
   CardPlayerPicker,
+  EventDeletePicker,
   MotmPicker,
   PauseReasonPicker,
   ScorerPicker,
@@ -13,22 +16,31 @@ import {
 } from './RefEntryPickers'
 import '../styles/ref-entry.css'
 
-/* §3.4-v2 Slice 2B-C — RefEntry pre-match mode.
+/* §3.4-v2 RefEntry — slices 2B-C (pre), 2B-D (live), 2B-E (review + post + submit).
  *
  * URL: /ref/:token (anonymous; token is the only auth).
  *
- * Modes (slice 2B-C handles loading/invalid/pre; 2B-D adds live; 2B-E adds post):
+ * Modes:
  *   loading → spinner
  *   invalid → token-rejected screen
  *   pre     → matchday header + rosters + KICK OFF button
- *   live    → placeholder ("Live console — wired in slice 2B-D")
+ *   live    → live match console (score/clock/event log/pickers)
+ *   review  → final score + MOTM + event log + notes + SUBMIT TO ADMIN
+ *   post    → "submitted, admin notified" success view
  */
 
 export function RefEntry() {
   const { token } = useParams()
-  const { mode, payload, error, kickoffAt, startMatch, sessionStorageKey } = useMatchSession(token)
+  const session = useMatchSession(token)
+  // Lift the clock hook to RefEntry top-level so live + review screens share
+  // the same instance. The hook tolerates null sessionStorageKey/kickoffIso.
+  const clock = useMatchClock({
+    sessionStorageKey: session.sessionStorageKey,
+    kickoffIso: session.kickoffAt,
+    format: session.payload?.matchday.effective_format ?? '7v7',
+  })
 
-  if (mode === 'loading') {
+  if (session.mode === 'loading') {
     return (
       <section className="ref-entry ref-entry--center">
         <div className="ref-entry-spinner" aria-hidden />
@@ -37,7 +49,7 @@ export function RefEntry() {
     )
   }
 
-  if (mode === 'invalid') {
+  if (session.mode === 'invalid') {
     return (
       <section className="ref-entry ref-entry--center">
         <h1 className="ref-entry-title">Link expired</h1>
@@ -45,38 +57,51 @@ export function RefEntry() {
           This ref link is no longer valid — it may have been used or replaced. Ask
           the admin to share a fresh link.
         </p>
-        {error && <p className="ref-entry-error">{error}</p>}
+        {session.error && <p className="ref-entry-error">{session.error}</p>}
       </section>
     )
   }
 
-  if (mode === 'live') {
-    if (!payload) return null
+  if (!session.payload) return null
+
+  if (session.mode === 'live') {
     return (
       <LiveConsole
-        payload={payload}
-        kickoffAt={kickoffAt}
-        sessionStorageKey={sessionStorageKey}
+        payload={session.payload}
+        clock={clock}
+        onEndMatch={() => {
+          clock.endMatch()
+          session.endMatch()
+        }}
       />
     )
   }
 
-  if (mode === 'post') {
+  if (session.mode === 'review') {
     return (
-      <section className="ref-entry ref-entry--center">
-        <h1 className="ref-entry-title">Submit pending</h1>
-        <p className="ref-entry-copy">Post-match summary wires up in slice 2B-E.</p>
-      </section>
+      <ReviewConsole
+        payload={session.payload}
+        clock={clock}
+        token={token ?? ''}
+        sessionStorageKey={session.sessionStorageKey}
+        onSubmitted={() => session.confirmSubmit()}
+        onBackToLive={() => {
+          clock.reopen()
+          session.reopenLive()
+        }}
+      />
     )
   }
 
-  // mode === 'pre'
-  if (!payload) return null
+  if (session.mode === 'post') {
+    return <PostSubmittedView clock={clock} />
+  }
 
-  const md = payload.matchday
+  // mode === 'pre'
+  const md = session.payload.matchday
   const kickoffLabel = formatKickoff(md.kickoff_at)
 
-  if (!payload.has_match_row || md.roster_locked_at === null) {
+  if (!session.payload.has_match_row || md.roster_locked_at === null) {
     return (
       <section className="ref-entry ref-entry--center">
         <h1 className="ref-entry-title">Roster not yet locked</h1>
@@ -99,15 +124,15 @@ export function RefEntry() {
       </header>
 
       <div className="ref-entry-rosters">
-        <RosterCard team="white" players={payload.white} />
-        <RosterCard team="black" players={payload.black} />
+        <RosterCard team="white" players={session.payload.white} />
+        <RosterCard team="black" players={session.payload.black} />
       </div>
 
       <div className="ref-entry-cta-wrap">
         <button
           type="button"
           className="ref-entry-cta"
-          onClick={() => void startMatch()}
+          onClick={() => void session.startMatch()}
         >
           ⚽ KICK OFF
         </button>
@@ -169,27 +194,19 @@ function formatKickoff(iso: string): string {
 
 /* ─── §3.4-v2 Slice 2B-D — Live console ───────────────────────────────────── */
 
+type ClockHook = ReturnType<typeof useMatchClock>
+
 interface LiveConsoleProps {
   payload: RefMatchdayPayload
-  kickoffAt: string | null
-  sessionStorageKey: string | null
+  clock: ClockHook
+  onEndMatch: () => void
 }
 
-function LiveConsole({ payload, kickoffAt, sessionStorageKey }: LiveConsoleProps) {
-  const clock = useMatchClock({
-    sessionStorageKey,
-    kickoffIso: kickoffAt,
-    format: payload.matchday.effective_format,
-  })
-
-  // Picker state — Tasks 4 & 5 add more pickers (pause-reason, card,
-  // MOTM); Task 3 only needs the scorer trigger so the score-cell handlers
-  // compile. The own-goal toggle is a local useState INSIDE ScorerPicker.
+function LiveConsole({ payload, clock, onEndMatch }: LiveConsoleProps) {
   const [scorerTeam, setScorerTeam] = useState<'white' | 'black' | null>(null)
   const [pausePickerOpen, setPausePickerOpen] = useState(false)
   const [cardPickerOpen, setCardPickerOpen] = useState(false)
   const [motmPickerOpen, setMotmPickerOpen] = useState(false)
-  // Card flow: stage 1 = picking team+player; stage 2 = yellow-or-red.
   const [cardStage, setCardStage] = useState<{
     team: 'white' | 'black'
     profile_id: string | null
@@ -303,12 +320,11 @@ function LiveConsole({ payload, kickoffAt, sessionStorageKey }: LiveConsoleProps
             <span className="ref-action-btn-ico">⏭</span>
             END 1ST HALF
           </button>
-          {/* END MATCH wires to slice 2B-E (post-match summary). Disabled stub. */}
           <button
             type="button"
             className="ref-action-btn ref-action-btn--end"
-            disabled
-            title="End match wires up in slice 2B-E"
+            onClick={onEndMatch}
+            disabled={clock.state.paused_at !== null}
           >
             <span className="ref-action-btn-ico">🏁</span> END MATCH
           </button>
@@ -391,7 +407,7 @@ function LiveHeader({ half }: { half: 1 | 2 | 'break' }) {
 }
 
 interface HalfStripProps {
-  clock: ReturnType<typeof useMatchClock>
+  clock: ClockHook
   format: '7v7' | '5v5'
 }
 
@@ -423,7 +439,7 @@ function HalfStrip({ clock, format }: HalfStripProps) {
   )
 }
 
-function ScoreReadOnly({ clock }: { clock: ReturnType<typeof useMatchClock> }) {
+function ScoreReadOnly({ clock }: { clock: ClockHook }) {
   return (
     <div className="ref-score-block" style={{ opacity: 0.85 }}>
       <div className="ref-score-cell ref-score-cell--white">
@@ -439,7 +455,7 @@ function ScoreReadOnly({ clock }: { clock: ReturnType<typeof useMatchClock> }) {
   )
 }
 
-function HalftimeView({ clock }: { clock: ReturnType<typeof useMatchClock> }) {
+function HalftimeView({ clock }: { clock: ClockHook }) {
   return (
     <div className="ref-halftime-banner">
       <div className="ref-ht-label">
@@ -553,3 +569,364 @@ function eventDescription(e: MatchEvent): string {
   }
 }
 
+/* ─── §3.4-v2 Slice 2B-E — Review console + post-submitted view ───────────── */
+
+interface ReviewConsoleProps {
+  payload: RefMatchdayPayload
+  clock: ClockHook
+  token: string
+  sessionStorageKey: string | null
+  onSubmitted: () => void
+  onBackToLive: () => void
+}
+
+function ReviewConsole({ payload, clock, token, sessionStorageKey, onSubmitted, onBackToLive }: ReviewConsoleProps) {
+  const [notes, setNotes] = useState('')
+  const [motmPickerOpen, setMotmPickerOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<MatchEvent | null>(null)
+  const [submitBusy, setSubmitBusy] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const halfMinutes = REGULATION_HALF_MINUTES[payload.matchday.effective_format]
+
+  const winner = useMemo<'white' | 'black' | 'draw'>(() => {
+    if (clock.state.score_white > clock.state.score_black) return 'white'
+    if (clock.state.score_black > clock.state.score_white) return 'black'
+    return 'draw'
+  }, [clock.state.score_white, clock.state.score_black])
+
+  const sortedEvents = useMemo(
+    () => [...clock.state.events].sort((a, b) => a.ordinal - b.ordinal),
+    [clock.state.events],
+  )
+
+  async function handleSubmit() {
+    if (submitBusy) return
+    setSubmitBusy(true)
+    setSubmitError(null)
+    try {
+      const refPayload = buildSubmitPayload(clock.state, payload, notes, winner)
+      const { error } = await supabase.rpc('submit_ref_entry', {
+        p_token: token,
+        p_payload: refPayload as unknown as Json,
+      })
+      if (error) throw error
+      // Best-effort cleanup: token is now server-burned; the clock state is
+      // dead weight after this point. A reload will land on 'invalid' anyway.
+      if (sessionStorageKey) {
+        try {
+          localStorage.removeItem(sessionStorageKey + ':clock')
+        } catch {
+          /* private mode / storage blocked — non-fatal */
+        }
+      }
+      onSubmitted()
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : 'Submit failed. Tap SUBMIT again.')
+      setSubmitBusy(false)
+    }
+  }
+
+  return (
+    <section className="ref-entry">
+      <header className="ref-live-header">
+        <div className="ref-live-header-block">
+          <span className="ref-live-md-label">Matchday</span>
+          <span className="ref-live-half-label">Match complete · review</span>
+        </div>
+        <span className="ref-live-dot ref-live-dot--break">DONE</span>
+      </header>
+      <div className="ref-review">
+        <div className={'ref-review-final-score ref-review-final-score--' + winner}>
+          <div className={'ref-review-side ref-review-side--white' + (winner === 'white' ? ' ref-review-side--winner' : '')}>
+            <div className="ref-score-label">WHITE</div>
+            <div className="ref-review-final-num">{clock.state.score_white}</div>
+          </div>
+          <div className="ref-review-final-divider">{winner === 'draw' ? 'DRAW' : ':'}</div>
+          <div className={'ref-review-side ref-review-side--black' + (winner === 'black' ? ' ref-review-side--winner' : '')}>
+            <div className="ref-score-label">BLACK</div>
+            <div className="ref-review-final-num">{clock.state.score_black}</div>
+          </div>
+        </div>
+
+        <div className="ref-review-motm-card">
+          <div className="ref-review-motm-label">MAN OF THE MATCH</div>
+          {clock.state.motm ? (
+            <div className="ref-review-motm-row">
+              <span className="ref-review-motm-name">⭐ {clock.state.motm.display_name}</span>
+              <span className={'ref-roster-chip ref-roster-chip--' + clock.state.motm.team}>
+                {clock.state.motm.team.toUpperCase()}
+              </span>
+            </div>
+          ) : (
+            <div className="ref-review-motm-empty">Not set</div>
+          )}
+          <button
+            type="button"
+            className="ref-review-motm-btn"
+            onClick={() => setMotmPickerOpen(true)}
+            disabled={submitBusy}
+          >
+            {clock.state.motm ? 'Change MOTM' : 'Set MOTM'}
+          </button>
+        </div>
+
+        <div className="ref-review-notes">
+          <label htmlFor="ref-notes" className="ref-review-section-label">NOTES (OPTIONAL)</label>
+          <textarea
+            id="ref-notes"
+            className="ref-review-notes-input"
+            rows={3}
+            placeholder="Anything the admin should know? Disputed call, abandoned, etc."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            disabled={submitBusy}
+            maxLength={500}
+          />
+        </div>
+
+        <div className="ref-review-events">
+          <div className="ref-review-section-label">
+            EVENT LOG · {sortedEvents.length} {sortedEvents.length === 1 ? 'event' : 'events'}
+          </div>
+          {sortedEvents.length === 0 ? (
+            <div className="ref-event-strip-empty" style={{ marginTop: 8 }}>
+              No events logged.
+            </div>
+          ) : (
+            <ul className="ref-review-events-list">
+              {sortedEvents.map((e) => (
+                <li
+                  key={e.ordinal}
+                  className={
+                    'ref-review-event-row' +
+                    (e.event_type === 'pause' || e.event_type === 'resume' ? ' ref-review-event-row--muted' : '')
+                  }
+                >
+                  <span className="ref-event-min">{formatEventMinute(e, halfMinutes)}</span>
+                  <span className="ref-event-ico">{eventIcon(e.event_type)}</span>
+                  <span className="ref-event-desc">{eventDescription(e)}{describeParticipant(e, payload)}</span>
+                  {isDeletable(e) && (
+                    <button
+                      type="button"
+                      className="ref-review-event-delete-btn"
+                      onClick={() => setDeleteTarget(e)}
+                      disabled={submitBusy}
+                      aria-label="Delete event"
+                    >
+                      🗑
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {submitError && (
+          <div className="ref-review-error-banner" role="alert">
+            <strong>Couldn&apos;t submit.</strong> {submitError}
+          </div>
+        )}
+
+        <div className="ref-review-actions">
+          <button
+            type="button"
+            className="ref-action-btn"
+            onClick={onBackToLive}
+            disabled={submitBusy}
+          >
+            <span className="ref-action-btn-ico">←</span> BACK TO LIVE
+          </button>
+          <button
+            type="button"
+            className="ref-action-btn ref-action-btn--submit"
+            onClick={() => void handleSubmit()}
+            disabled={submitBusy}
+          >
+            <span className="ref-action-btn-ico">📤</span>
+            {submitBusy ? 'SUBMITTING…' : 'SUBMIT TO ADMIN'}
+          </button>
+        </div>
+      </div>
+
+      {motmPickerOpen && (
+        <MotmPicker
+          payload={payload}
+          current={clock.state.motm}
+          onPick={(selection) => {
+            clock.setMotm(selection)
+            setMotmPickerOpen(false)
+          }}
+          onClose={() => setMotmPickerOpen(false)}
+        />
+      )}
+      {deleteTarget && (
+        <EventDeletePicker
+          minuteLabel={formatEventMinute(deleteTarget, halfMinutes)}
+          description={eventDescription(deleteTarget) + describeParticipant(deleteTarget, payload)}
+          onConfirm={() => clock.deleteEvent(deleteTarget.ordinal)}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
+    </section>
+  )
+}
+
+function isDeletable(e: MatchEvent): boolean {
+  return e.event_type === 'goal' || e.event_type === 'own_goal'
+    || e.event_type === 'yellow_card' || e.event_type === 'red_card'
+}
+
+/** Render " · <player>" if the event is associated with one, else empty. */
+function describeParticipant(e: MatchEvent, payload: RefMatchdayPayload): string {
+  if (!e.profile_id && !e.guest_id) return ''
+  const all = [...payload.white, ...payload.black]
+  const match = all.find((p) =>
+    (e.profile_id && p.profile_id === e.profile_id)
+    || (e.guest_id && p.guest_id === e.guest_id)
+  )
+  return match ? ` · ${match.display_name}` : ''
+}
+
+interface SubmitPlayer {
+  profile_id: string | null
+  guest_id: string | null
+  team: 'white' | 'black'
+  goals: number
+  yellow_cards: number
+  red_cards: number
+  is_motm: boolean
+}
+
+interface SubmitEvent {
+  event_type: MatchEvent['event_type']
+  match_minute: number
+  match_second: number
+  team: 'white' | 'black' | null
+  profile_id: string | null
+  guest_id: string | null
+  meta: Record<string, unknown>
+  ordinal: number
+}
+
+interface SubmitPayload {
+  result: 'white' | 'black' | 'draw'
+  score_white: number
+  score_black: number
+  notes: string | null
+  players: SubmitPlayer[]
+  events: SubmitEvent[]
+  timing: {
+    kickoff_at: string
+    halftime_at: string | null
+    fulltime_at: string | null
+    stoppage_h1_seconds: number
+    stoppage_h2_seconds: number
+  }
+}
+
+/**
+ * Build the submit_ref_entry payload from the clock state + roster.
+ * Aggregates per-player goals/cards from events; own_goal events do NOT credit
+ * the scoring player (they only increment the scoreboard, which is already in
+ * `score_white`/`score_black`). MOTM derived from `state.motm`.
+ */
+function buildSubmitPayload(
+  state: ClockState,
+  payload: RefMatchdayPayload,
+  notes: string,
+  winner: 'white' | 'black' | 'draw',
+): SubmitPayload {
+  const eachRoster: Array<{ team: 'white' | 'black'; players: typeof payload.white }> = [
+    { team: 'white', players: payload.white },
+    { team: 'black', players: payload.black },
+  ]
+
+  const players: SubmitPlayer[] = eachRoster.flatMap(({ team, players: roster }) =>
+    roster.map((p) => {
+      let goals = 0
+      let yellow = 0
+      let red = 0
+      for (const e of state.events) {
+        const matches =
+          (p.profile_id && e.profile_id === p.profile_id)
+          || (p.guest_id && e.guest_id === p.guest_id)
+        if (!matches) continue
+        // Goal credit: only the scorer's actual roster team gets the goal.
+        // event.team is the team that *scored* — for a regular goal that's the
+        // scorer's roster team; for an own_goal it's the OPPOSITE roster team.
+        if (e.event_type === 'goal' && e.team === team) goals += 1
+        else if (e.event_type === 'yellow_card') yellow += 1
+        else if (e.event_type === 'red_card') red += 1
+      }
+      const isMotm =
+        !!state.motm
+        && state.motm.team === team
+        && (
+          (state.motm.profile_id !== null && state.motm.profile_id === p.profile_id)
+          || (state.motm.guest_id !== null && state.motm.guest_id === p.guest_id)
+        )
+      return {
+        profile_id: p.profile_id,
+        guest_id: p.guest_id,
+        team,
+        goals,
+        yellow_cards: yellow,
+        red_cards: red,
+        is_motm: isMotm,
+      }
+    }),
+  )
+
+  const events: SubmitEvent[] = state.events.map((e) => ({
+    event_type: e.event_type,
+    match_minute: e.match_minute,
+    match_second: e.match_second,
+    team: e.team,
+    profile_id: e.profile_id,
+    guest_id: e.guest_id,
+    meta: e.meta,
+    ordinal: e.ordinal,
+  }))
+
+  const trimmedNotes = notes.trim()
+
+  return {
+    result: winner,
+    score_white: state.score_white,
+    score_black: state.score_black,
+    notes: trimmedNotes === '' ? null : trimmedNotes,
+    players,
+    events,
+    timing: {
+      kickoff_at: state.kickoff_at,
+      halftime_at: state.halftime_at,
+      fulltime_at: state.fulltime_at,
+      stoppage_h1_seconds: state.stoppage_h1_seconds,
+      stoppage_h2_seconds: state.stoppage_h2_seconds,
+    },
+  }
+}
+
+function PostSubmittedView({ clock }: { clock: ClockHook }) {
+  return (
+    <section className="ref-entry ref-entry--center">
+      <div className="ref-post-checkmark" aria-hidden>✓</div>
+      <h1 className="ref-entry-title">Submitted</h1>
+      <p className="ref-entry-copy">
+        Result sent for admin review. You can close this tab.
+      </p>
+      <div className="ref-post-final-score-readout">
+        <span className="ref-post-side">WHITE {clock.state.score_white}</span>
+        <span className="ref-post-divider">·</span>
+        <span className="ref-post-side">BLACK {clock.state.score_black}</span>
+      </div>
+      {clock.state.motm && (
+        <p className="ref-entry-copy" style={{ marginTop: 8 }}>
+          MOTM: <strong>{clock.state.motm.display_name}</strong> ({clock.state.motm.team[0].toUpperCase()})
+        </p>
+      )}
+    </section>
+  )
+}

@@ -291,3 +291,46 @@ export function truncateName(name: string): string {
   if (name.length <= 14) return name
   return name.slice(0, 12) + '…'
 }
+
+export interface EventDeletePickerProps {
+  /** Pre-formatted minute label (e.g. "12'", "35+1'"). */
+  minuteLabel: string
+  /** Human-readable description of the event being deleted. */
+  description: string
+  onConfirm: () => void
+  onClose: () => void
+}
+
+export function EventDeletePicker({ minuteLabel, description, onConfirm, onClose }: EventDeletePickerProps) {
+  return (
+    <>
+      <div className="ref-picker-backdrop" onClick={onClose} />
+      <div className="ref-picker-sheet" role="dialog" aria-modal="true">
+        <div className="ref-picker-grabber" />
+        <h3 className="ref-picker-title">Delete this event?</h3>
+        <p className="ref-picker-sub">
+          <strong>{minuteLabel}</strong> — {description}
+        </p>
+        <p className="ref-picker-sub" style={{ marginTop: 4 }}>
+          The score will adjust automatically. This can&apos;t be undone.
+        </p>
+        <div className="ref-picker-grid">
+          <button
+            type="button"
+            className="ref-picker-row"
+            onClick={() => {
+              onConfirm()
+              onClose()
+            }}
+            style={{ background: 'rgba(230,51,73,0.18)', borderColor: 'var(--rf-danger)' }}
+          >
+            <span>🗑 Delete event</span>
+          </button>
+        </div>
+        <button type="button" className="ref-picker-cancel" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </>
+  )
+}
