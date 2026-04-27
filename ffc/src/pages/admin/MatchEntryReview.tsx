@@ -15,9 +15,10 @@
 //   - Realtime subscription on pending_match_entries (needs ALTER PUBLICATION first)
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import type { Database } from '../../lib/database.types'
+import type { Database, Json } from '../../lib/database.types'
 import '../../styles/match-entry-review.css'
 
 type TeamColor = Database['public']['Enums']['team_color']
@@ -139,6 +140,21 @@ export function MatchEntryReview() {
   // Match-level inline edits (only set when user changes from pending value).
   const [editScoreWhite, setEditScoreWhite] = useState<number | null>(null)
   const [editScoreBlack, setEditScoreBlack] = useState<number | null>(null)
+  // setEditNotes / setEditMotm are forward-facing — wired by future MOTM picker
+  // + notes editor sheets (not in this Task). Read-side already feeds handleApprove.
+  const [editNotes, _setEditNotes] = useState<string | null>(null)
+  const [editMotm, _setEditMotm] = useState<{ profile_id: string | null; guest_id: string | null } | null>(null)
+  void _setEditNotes; void _setEditMotm
+
+  type Sheet =
+    | { kind: 'approve' }
+    | { kind: 'reject' }
+    | { kind: 'drop_event'; event: PendingEventRow }
+    | null
+
+  const [sheet, setSheet] = useState<Sheet>(null)
+  const [sheetBusy, setSheetBusy] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const loadAll = useCallback(async (entryId: string) => {
     setLoading(true)
@@ -203,6 +219,82 @@ export function MatchEntryReview() {
     if (!id) return
     void loadAll(id)
   }, [id, loadAll])
+
+  const handleApprove = async () => {
+    if (!data || !id) return
+    setSheetBusy(true)
+    setActionError(null)
+    try {
+      // Build p_edits jsonb from match-level inline edits.
+      const edits: Record<string, Json> = {}
+      if (editScoreWhite !== null && editScoreWhite !== data.entry.score_white) edits.score_white = editScoreWhite
+      if (editScoreBlack !== null && editScoreBlack !== data.entry.score_black) edits.score_black = editScoreBlack
+      if (editNotes !== null && editNotes !== (data.entry.notes ?? '')) edits.notes = editNotes
+      if (editMotm !== null) {
+        edits.motm_user_id = editMotm.profile_id
+        edits.motm_guest_id = editMotm.guest_id
+      }
+      // Always recompute result if scores were edited.
+      if ('score_white' in edits || 'score_black' in edits) {
+        edits.result = deriveResult(
+          (edits.score_white as number | undefined) ?? data.entry.score_white,
+          (edits.score_black as number | undefined) ?? data.entry.score_black,
+        )
+      }
+      const { error } = await supabase.rpc('approve_match_entry', {
+        p_pending_id: id,
+        p_edits: edits as unknown as Json,
+      })
+      if (error) throw error
+      setSheet(null)
+      navigate('/admin/matches')
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSheetBusy(false)
+    }
+  }
+
+  const handleReject = async (reason: string) => {
+    if (!id) return
+    if (reason.trim().length === 0) {
+      setActionError('Reject reason is required')
+      return
+    }
+    setSheetBusy(true)
+    setActionError(null)
+    try {
+      const { error } = await supabase.rpc('reject_match_entry', {
+        p_pending_id: id,
+        p_reason: reason,
+      })
+      if (error) throw error
+      setSheet(null)
+      navigate('/admin/matches')
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSheetBusy(false)
+    }
+  }
+
+  const handleDropEvent = async (eventId: string) => {
+    if (!id) return
+    setSheetBusy(true)
+    setActionError(null)
+    try {
+      const { error } = await supabase.rpc('admin_drop_pending_match_event', {
+        p_event_id: eventId,
+      })
+      if (error) throw error
+      setSheet(null)
+      await loadAll(id)  // refresh event log
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSheetBusy(false)
+    }
+  }
 
   // Effective scores after inline edits, used for both display + validation.
   const effectiveScoreWhite = editScoreWhite ?? data?.entry.score_white ?? 0
@@ -276,7 +368,6 @@ export function MatchEntryReview() {
               className="mer-score-input"
               value={effectiveScoreWhite}
               onChange={(e) => setEditScoreWhite(Math.max(0, parseInt(e.target.value || '0', 10)))}
-              disabled
             />
           </div>
           <span className="mer-score-dash">–</span>
@@ -288,7 +379,6 @@ export function MatchEntryReview() {
               className="mer-score-input"
               value={effectiveScoreBlack}
               onChange={(e) => setEditScoreBlack(Math.max(0, parseInt(e.target.value || '0', 10)))}
-              disabled
             />
           </div>
         </div>
@@ -347,9 +437,10 @@ export function MatchEntryReview() {
                 <button
                   type="button"
                   className="mer-event-drop"
-                  disabled
-                  aria-label="Drop event (wired in Task 4)"
-                  title="Drop"
+                  onClick={() => setSheet({ kind: 'drop_event', event: e })}
+                  disabled={isSystemEvent(e.event_type) || sheetBusy}
+                  aria-label="Drop event"
+                  title={isSystemEvent(e.event_type) ? 'System events cannot be dropped' : 'Drop event'}
                 >
                   🗑
                 </button>
@@ -367,11 +458,64 @@ export function MatchEntryReview() {
         </div>
       )}
 
-      {/* Action row stub — wired in Task 4 */}
+      {/* Action row */}
       <div className="mer-actions">
-        <button type="button" className="mer-action-btn mer-action-btn--reject" disabled>Reject</button>
-        <button type="button" className="mer-action-btn mer-action-btn--approve" disabled>Approve</button>
+        <button
+          type="button"
+          className="mer-action-btn mer-action-btn--reject"
+          onClick={() => setSheet({ kind: 'reject' })}
+          disabled={sheetBusy}
+        >
+          Reject
+        </button>
+        <button
+          type="button"
+          className="mer-action-btn mer-action-btn--approve"
+          onClick={() => setSheet({ kind: 'approve' })}
+          disabled={sheetBusy}
+        >
+          Approve
+        </button>
       </div>
+
+      {sheet && createPortal(
+        <div className="sheet-overlay" role="dialog" aria-modal onClick={() => !sheetBusy && setSheet(null)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-handle" aria-hidden />
+            {sheet.kind === 'approve' && (
+              <ApproveSheet
+                scoreWhite={effectiveScoreWhite}
+                scoreBlack={effectiveScoreBlack}
+                mismatch={!validation.ok}
+                busy={sheetBusy}
+                error={actionError}
+                onConfirm={handleApprove}
+                onCancel={() => !sheetBusy && setSheet(null)}
+              />
+            )}
+            {sheet.kind === 'reject' && (
+              <RejectSheet
+                busy={sheetBusy}
+                error={actionError}
+                onConfirm={handleReject}
+                onCancel={() => !sheetBusy && setSheet(null)}
+              />
+            )}
+            {sheet.kind === 'drop_event' && (
+              <DropEventSheet
+                event={sheet.event}
+                description={eventDescription(sheet.event, profilesById, guestsById)}
+                minute={formatMatchMinute(sheet.event.match_minute, sheet.event.match_second)}
+                busy={sheetBusy}
+                error={actionError}
+                onConfirm={() => handleDropEvent(sheet.event.id)}
+                onCancel={() => !sheetBusy && setSheet(null)}
+              />
+            )}
+          </div>
+        </div>,
+        document.body,
+      )}
     </section>
   )
 }
@@ -396,5 +540,90 @@ function PlayerRow({
       <span className="mer-player-stat" title="Reds">🟥 {row.red_cards}</span>
       <span className={`mer-player-stat${row.is_motm ? ' mer-player-stat--motm' : ''}`} title="MOTM">{row.is_motm ? '⭐' : ''}</span>
     </div>
+  )
+}
+
+// ─── Sheet sub-components ──────────────────────────────────────
+
+function ApproveSheet({
+  scoreWhite, scoreBlack, mismatch, busy, error, onConfirm, onCancel,
+}: {
+  scoreWhite: number; scoreBlack: number; mismatch: boolean
+  busy: boolean; error: string | null
+  onConfirm: () => void; onCancel: () => void
+}) {
+  return (
+    <>
+      <h3>Approve match entry?</h3>
+      <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+        Final: WHITE {scoreWhite} – {scoreBlack} BLACK. The match record will be promoted; player stats and event log will be locked in.
+      </p>
+      {mismatch && (
+        <div className="mer-warn-banner">
+          Score vs player goals don't match. Approve anyway only if you're sure.
+        </div>
+      )}
+      {error && <div className="auth-banner auth-banner--danger" role="alert">{error}</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
+        <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel} disabled={busy}>Cancel</button>
+        <button type="button" className="auth-btn auth-btn--approve" onClick={onConfirm} disabled={busy}>{busy ? 'Approving…' : 'Approve'}</button>
+      </div>
+    </>
+  )
+}
+
+function RejectSheet({
+  busy, error, onConfirm, onCancel,
+}: {
+  busy: boolean; error: string | null
+  onConfirm: (reason: string) => void; onCancel: () => void
+}) {
+  const [reason, setReason] = useState('')
+  return (
+    <>
+      <h3>Reject this entry?</h3>
+      <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+        The pending row + event log will be deleted. The ref must regenerate the link to resubmit.
+      </p>
+      <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Reason (visible in audit log)</label>
+      <textarea
+        className="mer-notes-textarea"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        rows={3}
+        maxLength={300}
+        placeholder="e.g. Wrong scoreline; ref to resubmit"
+      />
+      {error && <div className="auth-banner auth-banner--danger" role="alert">{error}</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
+        <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel} disabled={busy}>Cancel</button>
+        <button type="button" className="auth-btn auth-btn--reject-filled" onClick={() => onConfirm(reason)} disabled={busy || reason.trim().length === 0}>{busy ? 'Rejecting…' : 'Reject'}</button>
+      </div>
+    </>
+  )
+}
+
+function DropEventSheet({
+  event: _event,
+  description, minute, busy, error, onConfirm, onCancel,
+}: {
+  event: PendingEventRow; description: string; minute: string
+  busy: boolean; error: string | null
+  onConfirm: () => void; onCancel: () => void
+}) {
+  void _event
+  return (
+    <>
+      <h3>Drop this event?</h3>
+      <p style={{ fontSize: 14 }}><strong>{minute}</strong> · {description}</p>
+      <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+        The event will be removed from this entry. The score and per-player aggregates are <strong>not</strong> auto-recalculated — adjust them manually before approving.
+      </p>
+      {error && <div className="auth-banner auth-banner--danger" role="alert">{error}</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
+        <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel} disabled={busy}>Cancel</button>
+        <button type="button" className="auth-btn auth-btn--reject-filled" onClick={onConfirm} disabled={busy}>{busy ? 'Dropping…' : 'Drop event'}</button>
+      </div>
+    </>
   )
 }
