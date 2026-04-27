@@ -709,6 +709,7 @@ export type Database = {
         Row: {
           body: string
           created_at: string
+          delivered_at: string | null
           dispatched_push_at: string | null
           id: string
           kind: Database["public"]["Enums"]["notification_kind"]
@@ -721,6 +722,7 @@ export type Database = {
         Insert: {
           body: string
           created_at?: string
+          delivered_at?: string | null
           dispatched_push_at?: string | null
           id?: string
           kind: Database["public"]["Enums"]["notification_kind"]
@@ -733,6 +735,7 @@ export type Database = {
         Update: {
           body?: string
           created_at?: string
+          delivered_at?: string | null
           dispatched_push_at?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]
@@ -1245,8 +1248,6 @@ export type Database = {
         Row: {
           auth: string
           created_at: string
-          disabled_at: string | null
-          disabled_reason: string | null
           endpoint: string
           id: string
           last_seen_at: string
@@ -1257,8 +1258,6 @@ export type Database = {
         Insert: {
           auth: string
           created_at?: string
-          disabled_at?: string | null
-          disabled_reason?: string | null
           endpoint: string
           id?: string
           last_seen_at?: string
@@ -1269,8 +1268,6 @@ export type Database = {
         Update: {
           auth?: string
           created_at?: string
-          disabled_at?: string | null
-          disabled_reason?: string | null
           endpoint?: string
           id?: string
           last_seen_at?: string
