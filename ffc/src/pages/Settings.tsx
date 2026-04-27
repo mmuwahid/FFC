@@ -108,6 +108,10 @@ export function Settings() {
   )
   const [promptDismissed, setPromptDismissed] = useState(false)
 
+  // Admin-only: pending match entries count (S047 nav badge).
+  // Fetched only when role is admin/super_admin; non-admins don't see the row at all.
+  const [pendingEntriesCount, setPendingEntriesCount] = useState<number>(0)
+
   // Delete-account toast
   const [toast, setToast] = useState<string | null>(null)
 
@@ -139,6 +143,23 @@ export function Settings() {
       setLoading(false)
     })()
   }, [session?.user?.id])
+
+  // Admin-only: fetch pending_match_entries count for the nav badge.
+  // Cheap exact-count query against a small table; runs once per Settings mount.
+  useEffect(() => {
+    if (!isAdmin) return
+    let cancelled = false
+    ;(async () => {
+      const { count, error: err } = await supabase
+        .from('pending_match_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+      if (!cancelled && !err && typeof count === 'number') {
+        setPendingEntriesCount(count)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [isAdmin])
 
   async function patchProfile(updates: Partial<Database['public']['Tables']['profiles']['Update']>) {
     if (!profile) return { ok: false }
@@ -402,11 +423,21 @@ export function Settings() {
         </button>
       </section>
 
-      {/* ============ Admin platform entry — S034 ============ */}
+      {/* ============ Admin platform entry — S034 (badge: S047) ============ */}
       {isAdmin && (
         <section className="st-section">
           <button type="button" className="st-admin-link" onClick={() => navigate('/admin')}>
-            <span>🛠 Admin platform</span>
+            <span className="st-admin-link-label">
+              🛠 Admin platform
+              {pendingEntriesCount > 0 && (
+                <span
+                  className="st-admin-badge"
+                  aria-label={`${pendingEntriesCount} pending match ${pendingEntriesCount === 1 ? 'entry' : 'entries'} awaiting review`}
+                >
+                  {pendingEntriesCount}
+                </span>
+              )}
+            </span>
             <span className="st-chevron">›</span>
           </button>
         </section>

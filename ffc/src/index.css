@@ -4506,6 +4506,30 @@ textarea.auth-input {
 }
 .st-admin-link:hover { background: rgba(200, 16, 46, 0.16); }
 .st-admin-link .st-chevron { color: rgba(255, 217, 222, 0.7); }
+.st-admin-link-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+/* S047: pending-match-entries count badge on the Admin platform row.
+ * Bright accent so it reads at a glance; min-width keeps single-digit
+ * counts from looking like a stray pixel. */
+.st-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 11px;
+  background: #e63349;
+  color: #f2ead6;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px rgba(230, 51, 73, 0.18);
+}
 
 /* Admin hub page — 3 large link cards */
 .ah-root {
