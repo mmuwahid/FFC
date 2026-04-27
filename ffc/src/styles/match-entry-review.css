@@ -88,12 +88,6 @@
   letter-spacing: 1.2px;
   color: var(--text-muted);
 }
-.mer-score-value {
-  font-size: 44px;
-  font-weight: 700;
-  line-height: 1;
-}
-.mer-score-side--winner .mer-score-value { color: var(--accent); }
 .mer-score-dash {
   font-size: 28px;
   color: var(--text-muted);
@@ -280,3 +274,8 @@
   border-radius: 8px;
 }
 @keyframes mer-skel { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+.mer-score-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

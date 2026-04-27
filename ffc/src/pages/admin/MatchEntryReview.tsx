@@ -67,17 +67,11 @@ function formatMSS(totalSeconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-function formatMatchMinute(minute: number, second: number, _regulationHalf: number): string {
-  // Regulation: 0..(regHalf-1) → "M'", regHalf..regHalf*2-1 → "M'"
-  // Stoppage 1st half: minute >= regHalf and < regHalf*2 → reads as "regHalf+N'"
-  // We can't tell stoppage from regulation 2nd-half from minute alone, so we
-  // rely on a simple rule: if minute in [regHalf, regHalf*2), it's
-  // 2nd-half regulation. If >= regHalf*2, 2nd-half stoppage.
-  // 1st-half stoppage events are stored with minute = regHalf, regHalf+1, etc.
-  // BUT they were captured during 1st half. The pending_match_events table has
-  // no 'half' column; we infer from event order vs the halftime/fulltime events.
-  // For now, render as plain "M'M:SS" — refining stoppage notation is a polish
-  // item. Match-second precision is preserved for sort stability.
+function formatMatchMinute(minute: number, second: number): string {
+  // Renders match minute as M' or M'SS. Stoppage-notation refinement
+  // (e.g. "35+1'" instead of "36'" for 1st-half stoppage) is a polish
+  // item for a later slice — at that point the format-driven regulation
+  // half length will need to be plumbed in.
   if (second === 0) return `${minute}'`
   return `${minute}'${String(second).padStart(2, '0')}`
 }
@@ -223,8 +217,6 @@ export function MatchEntryReview() {
     )
   }, [data, effectiveScoreWhite, effectiveScoreBlack])
 
-  const regulationHalf = data?.matchday.format === '5v5' ? 25 : 35
-
   if (loading) {
     return (
       <section className="mer-screen">
@@ -284,6 +276,7 @@ export function MatchEntryReview() {
               className="mer-score-input"
               value={effectiveScoreWhite}
               onChange={(e) => setEditScoreWhite(Math.max(0, parseInt(e.target.value || '0', 10)))}
+              disabled
             />
           </div>
           <span className="mer-score-dash">–</span>
@@ -295,6 +288,7 @@ export function MatchEntryReview() {
               className="mer-score-input"
               value={effectiveScoreBlack}
               onChange={(e) => setEditScoreBlack(Math.max(0, parseInt(e.target.value || '0', 10)))}
+              disabled
             />
           </div>
         </div>
@@ -348,7 +342,7 @@ export function MatchEntryReview() {
           <ul className="mer-events-list">
             {events.map((e) => (
               <li key={e.id} className={`mer-event-row${isSystemEvent(e.event_type) ? ' mer-event-row--system' : ''}`}>
-                <span className="mer-event-min">{formatMatchMinute(e.match_minute, e.match_second, regulationHalf)}</span>
+                <span className="mer-event-min">{formatMatchMinute(e.match_minute, e.match_second)}</span>
                 <span className="mer-event-desc">{eventDescription(e, profilesById, guestsById)}</span>
                 <button
                   type="button"
