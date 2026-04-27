@@ -156,6 +156,11 @@ export function MatchEntryReview() {
   const [sheetBusy, setSheetBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
+  const openSheet = useCallback((s: Sheet) => {
+    setActionError(null)
+    setSheet(s)
+  }, [])
+
   const loadAll = useCallback(async (entryId: string) => {
     setLoading(true)
     setError(null)
@@ -246,7 +251,7 @@ export function MatchEntryReview() {
         p_edits: edits as unknown as Json,
       })
       if (error) throw error
-      setSheet(null)
+      openSheet(null)
       navigate('/admin/matches')
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e))
@@ -269,7 +274,7 @@ export function MatchEntryReview() {
         p_reason: reason,
       })
       if (error) throw error
-      setSheet(null)
+      openSheet(null)
       navigate('/admin/matches')
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e))
@@ -287,7 +292,7 @@ export function MatchEntryReview() {
         p_event_id: eventId,
       })
       if (error) throw error
-      setSheet(null)
+      openSheet(null)
       await loadAll(id)  // refresh event log
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e))
@@ -367,7 +372,10 @@ export function MatchEntryReview() {
               min={0}
               className="mer-score-input"
               value={effectiveScoreWhite}
-              onChange={(e) => setEditScoreWhite(Math.max(0, parseInt(e.target.value || '0', 10)))}
+              onChange={(e) => {
+                const v = parseInt(e.target.value || '0', 10)
+                setEditScoreWhite(Number.isFinite(v) ? Math.max(0, v) : 0)
+              }}
             />
           </div>
           <span className="mer-score-dash">–</span>
@@ -378,7 +386,10 @@ export function MatchEntryReview() {
               min={0}
               className="mer-score-input"
               value={effectiveScoreBlack}
-              onChange={(e) => setEditScoreBlack(Math.max(0, parseInt(e.target.value || '0', 10)))}
+              onChange={(e) => {
+                const v = parseInt(e.target.value || '0', 10)
+                setEditScoreBlack(Number.isFinite(v) ? Math.max(0, v) : 0)
+              }}
             />
           </div>
         </div>
@@ -437,7 +448,7 @@ export function MatchEntryReview() {
                 <button
                   type="button"
                   className="mer-event-drop"
-                  onClick={() => setSheet({ kind: 'drop_event', event: e })}
+                  onClick={() => openSheet({ kind: 'drop_event', event: e })}
                   disabled={isSystemEvent(e.event_type) || sheetBusy}
                   aria-label="Drop event"
                   title={isSystemEvent(e.event_type) ? 'System events cannot be dropped' : 'Drop event'}
@@ -463,7 +474,7 @@ export function MatchEntryReview() {
         <button
           type="button"
           className="mer-action-btn mer-action-btn--reject"
-          onClick={() => setSheet({ kind: 'reject' })}
+          onClick={() => openSheet({ kind: 'reject' })}
           disabled={sheetBusy}
         >
           Reject
@@ -471,7 +482,7 @@ export function MatchEntryReview() {
         <button
           type="button"
           className="mer-action-btn mer-action-btn--approve"
-          onClick={() => setSheet({ kind: 'approve' })}
+          onClick={() => openSheet({ kind: 'approve' })}
           disabled={sheetBusy}
         >
           Approve
@@ -479,7 +490,7 @@ export function MatchEntryReview() {
       </div>
 
       {sheet && createPortal(
-        <div className="sheet-overlay" role="dialog" aria-modal onClick={() => !sheetBusy && setSheet(null)}>
+        <div className="sheet-overlay" role="dialog" aria-modal onClick={() => !sheetBusy && openSheet(null)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-handle" aria-hidden />
             {sheet.kind === 'approve' && (
@@ -490,7 +501,7 @@ export function MatchEntryReview() {
                 busy={sheetBusy}
                 error={actionError}
                 onConfirm={handleApprove}
-                onCancel={() => !sheetBusy && setSheet(null)}
+                onCancel={() => !sheetBusy && openSheet(null)}
               />
             )}
             {sheet.kind === 'reject' && (
@@ -498,7 +509,7 @@ export function MatchEntryReview() {
                 busy={sheetBusy}
                 error={actionError}
                 onConfirm={handleReject}
-                onCancel={() => !sheetBusy && setSheet(null)}
+                onCancel={() => !sheetBusy && openSheet(null)}
               />
             )}
             {sheet.kind === 'drop_event' && (
@@ -509,7 +520,7 @@ export function MatchEntryReview() {
                 busy={sheetBusy}
                 error={actionError}
                 onConfirm={() => handleDropEvent(sheet.event.id)}
-                onCancel={() => !sheetBusy && setSheet(null)}
+                onCancel={() => !sheetBusy && openSheet(null)}
               />
             )}
           </div>
