@@ -190,7 +190,7 @@ export function AdminMatches() {
       supabase.from('seasons').select('id, default_format, ended_at').is('ended_at', null).order('starts_on', { ascending: false }).limit(1),
       supabase.from('draft_sessions').select('id, matchday_id, status, current_picker_team, reason, started_at, triggered_by_profile_id').in('status', ['in_progress']),
       supabase.from('ref_tokens').select('matchday_id, expires_at').is('consumed_at', null).gt('expires_at', new Date().toISOString()),
-      supabase.from('pending_match_entries').select('id, matchday_id').eq('status', 'pending'),
+      supabase.from('pending_match_entries').select('id, matchday_id').eq('status', 'pending').order('submitted_at', { ascending: false }),
     ])
     if (mdRes.error) setError(mdRes.error.message)
     if (matchesRes.error) setError(matchesRes.error.message)
@@ -204,7 +204,7 @@ export function AdminMatches() {
       tokensByMd.set(t.matchday_id, { expires_at: t.expires_at })
     }
 
-    // Pending ref entries per matchday (status='pending')
+    // Pending ref entries per matchday (status='pending'; one expected per matchday by RPC contract — order_by takes the latest if a duplicate ever appears).
     const pendingByMd = new Map<string, string>()
     for (const pe of (pendingRes.data ?? []) as { id: string; matchday_id: string }[]) {
       pendingByMd.set(pe.matchday_id, pe.id)
