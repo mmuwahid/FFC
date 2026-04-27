@@ -21,6 +21,7 @@ import { AdminHome } from './pages/admin/AdminHome'
 import { AdminPlayers } from './pages/admin/AdminPlayers'
 import { AdminMatches } from './pages/admin/AdminMatches'
 import { AdminSeasons } from './pages/admin/AdminSeasons'
+import { MatchEntryReview } from './pages/admin/MatchEntryReview'
 import { CaptainHelper } from './pages/admin/CaptainHelper' // §3.1-v2
 import { FormationPlanner } from './pages/FormationPlanner' // §3.19
 
@@ -77,6 +78,7 @@ export const router = createBrowserRouter([
       { path: 'admin/players', element: <AdminPlayers /> },
       { path: 'admin/matches', element: <AdminMatches /> },
       { path: 'admin/seasons', element: <AdminSeasons /> },
+      { path: 'admin/match-entries/:id', element: <MatchEntryReview /> },
     ],
   },
   { path: '*', element: <NotFound /> },

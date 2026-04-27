@@ -1,0 +1,282 @@
+/* match-entry-review.css — Phase 2 Slice 2B-F.
+ * Brand-themed scope-root tokens declared on .mer-screen.
+ * Pattern source: Poll, Leaderboard, Matches (S035–S036).
+ */
+
+.mer-screen {
+  --bg: #0e1826;
+  --surface: rgba(20, 34, 52, 0.68);
+  --surface-2: rgba(28, 44, 64, 0.78);
+  --text: #f2ead6;
+  --text-muted: rgba(242, 234, 214, 0.62);
+  --border: rgba(242, 234, 214, 0.14);
+  --accent: #e5ba5b;
+  --success: #4fbf93;
+  --warn: #d7a04a;
+  --warning: #d7a04a;
+  --danger: #e63349;
+  --skel-a: rgba(242, 234, 214, 0.06);
+  --skel-b: rgba(242, 234, 214, 0.10);
+
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 16px 12px calc(96px + env(safe-area-inset-bottom)) 12px;
+}
+
+.mer-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  font-size: 14px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+.mer-back:hover { color: var(--text); }
+
+.mer-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 16px;
+}
+.mer-header h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.2px;
+}
+.mer-header-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.mer-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.mer-section-label {
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+
+/* Final score block */
+.mer-score-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+.mer-score-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.mer-score-team {
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+}
+.mer-score-value {
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1;
+}
+.mer-score-side--winner .mer-score-value { color: var(--accent); }
+.mer-score-dash {
+  font-size: 28px;
+  color: var(--text-muted);
+}
+.mer-score-input {
+  width: 64px;
+  height: 56px;
+  font-size: 32px;
+  font-weight: 700;
+  text-align: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+}
+
+/* Timing summary grid */
+.mer-timing-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+}
+.mer-timing-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+.mer-timing-row dt { color: var(--text-muted); }
+.mer-timing-row dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+/* Player grid (read-only in 2B-F) */
+.mer-team-block {
+  margin-bottom: 14px;
+}
+.mer-team-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.mer-team-head--white .mer-team-name::before { content: 'WHITE · '; color: var(--text-muted); font-weight: 400; }
+.mer-team-head--black .mer-team-name::before { content: 'BLACK · '; color: var(--text-muted); font-weight: 400; }
+.mer-player-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto auto;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  align-items: center;
+}
+.mer-player-row:last-child { border-bottom: none; }
+.mer-player-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mer-player-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 28px;
+  justify-content: flex-end;
+}
+.mer-player-stat--motm { color: var(--accent); }
+
+/* Event log */
+.mer-events-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.mer-event-row {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  align-items: center;
+}
+.mer-event-row:last-child { border-bottom: none; }
+.mer-event-min {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.mer-event-desc { color: var(--text); }
+.mer-event-drop {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.mer-event-drop:hover { background: rgba(230, 51, 73, 0.08); }
+.mer-event-drop:disabled { opacity: 0.4; cursor: not-allowed; }
+.mer-event-row--system { opacity: 0.7; }
+.mer-event-row--system .mer-event-drop { display: none; }
+
+/* MOTM block */
+.mer-motm-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.mer-motm-name { font-weight: 600; }
+.mer-motm-empty { color: var(--text-muted); font-style: italic; }
+.mer-motm-change {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Notes */
+.mer-notes-textarea {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 72px;
+}
+
+/* Action row (sticky bottom) */
+.mer-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.mer-action-btn {
+  height: 48px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+.mer-action-btn--reject { background: transparent; color: var(--danger); border-color: var(--danger); }
+.mer-action-btn--reject:hover { background: rgba(230, 51, 73, 0.08); }
+.mer-action-btn--approve { background: var(--accent); color: #1a1306; border-color: var(--accent); }
+.mer-action-btn--approve:hover { filter: brightness(1.05); }
+.mer-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Validation warning banner */
+.mer-warn-banner {
+  background: rgba(215, 160, 74, 0.12);
+  border: 1px solid var(--warn);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--warn);
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Error banner (reuses .auth-banner from app shell — local override only for color) */
+
+/* Loading skeleton */
+.mer-skel {
+  background: linear-gradient(90deg, var(--skel-a) 25%, var(--skel-b) 50%, var(--skel-a) 75%);
+  background-size: 200% 100%;
+  animation: mer-skel 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+@keyframes mer-skel { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
