@@ -10,7 +10,11 @@
 //   - REJECT  → reject_match_entry({ p_pending_id, p_reason })
 //   - DROP single event → admin_drop_pending_match_event({ p_event_id }) (migration 0032)
 //
-// Deferred (NOT in this slice):
+// S047 Task 1 carry-over: MOTM picker + Notes textarea bottom sheets wired.
+//   Both are local-state-only (synchronous setEditMotm / setEditNotes); the
+//   diff is sent in p_edits on Approve via the existing handleApprove builder.
+//
+// Deferred (still NOT in this screen):
 //   - Per-player aggregate edit-before-approve (post-approval edit_match_players covers it)
 //   - Realtime subscription on pending_match_entries (needs ALTER PUBLICATION first)
 
@@ -138,18 +142,23 @@ export function MatchEntryReview() {
   const [error, setError] = useState<string | null>(null)
 
   // Match-level inline edits (only set when user changes from pending value).
+  // editMotm semantics:
+  //   null                                     → no edit, fall back to entry.is_motm row
+  //   { profile_id: 'x', guest_id: null }      → set MOTM to that profile
+  //   { profile_id: null, guest_id: 'g' }      → set MOTM to that guest
+  //   { profile_id: null, guest_id: null }     → explicit clear (handleApprove sends both as null)
+  // editNotes semantics: null = no edit; '' = explicit clear; 'text' = update.
   const [editScoreWhite, setEditScoreWhite] = useState<number | null>(null)
   const [editScoreBlack, setEditScoreBlack] = useState<number | null>(null)
-  // setEditNotes / setEditMotm are forward-facing — wired by future MOTM picker
-  // + notes editor sheets (not in this Task). Read-side already feeds handleApprove.
-  const [editNotes, _setEditNotes] = useState<string | null>(null)
-  const [editMotm, _setEditMotm] = useState<{ profile_id: string | null; guest_id: string | null } | null>(null)
-  void _setEditNotes; void _setEditMotm
+  const [editNotes, setEditNotes] = useState<string | null>(null)
+  const [editMotm, setEditMotm] = useState<{ profile_id: string | null; guest_id: string | null } | null>(null)
 
   type Sheet =
     | { kind: 'approve' }
     | { kind: 'reject' }
     | { kind: 'drop_event'; event: PendingEventRow }
+    | { kind: 'motm' }
+    | { kind: 'notes' }
     | null
 
   const [sheet, setSheet] = useState<Sheet>(null)
@@ -339,10 +348,23 @@ export function MatchEntryReview() {
   const { entry, players, events, matchday, profilesById, guestsById } = data
   const whitePlayers = players.filter((p) => p.team === 'white')
   const blackPlayers = players.filter((p) => p.team === 'black')
-  const motmPlayer = players.find((p) => p.is_motm)
-  const motmName = motmPlayer
-    ? (motmPlayer.profile_id ? profilesById.get(motmPlayer.profile_id)?.display_name : guestsById.get(motmPlayer.guest_id ?? '')?.display_name) ?? '—'
+  const initialMotmPlayer = players.find((p) => p.is_motm) ?? null
+
+  // effectiveMotm resolves the local edit override against the pending row's is_motm flag.
+  // null result → no MOTM (either originally absent or explicitly cleared via the picker).
+  const effectiveMotm: { profile_id: string | null; guest_id: string | null } | null =
+    editMotm !== null
+      ? (editMotm.profile_id === null && editMotm.guest_id === null ? null : editMotm)
+      : (initialMotmPlayer ? { profile_id: initialMotmPlayer.profile_id, guest_id: initialMotmPlayer.guest_id } : null)
+
+  const effectiveMotmName: string | null = effectiveMotm
+    ? (effectiveMotm.profile_id
+        ? (profilesById.get(effectiveMotm.profile_id)?.display_name ?? '—')
+        : (guestsById.get(effectiveMotm.guest_id ?? '')?.display_name ?? '—'))
     : null
+
+  // effectiveNotes — override wins; falls back to entry.notes (null → empty for textarea seeding).
+  const effectiveNotes: string = editNotes !== null ? editNotes : (entry.notes ?? '')
 
   const winningSide = effectiveScoreWhite > effectiveScoreBlack ? 'white' : effectiveScoreBlack > effectiveScoreWhite ? 'black' : 'draw'
 
@@ -413,8 +435,17 @@ export function MatchEntryReview() {
       <div className="mer-card">
         <h2 className="mer-section-label">Man of the Match</h2>
         <div className="mer-motm-row">
-          {motmName ? <span className="mer-motm-name">{motmName}</span> : <span className="mer-motm-empty">— none —</span>}
-          {/* Change/Set deferred — uses sheet wired in Task 4 */}
+          {effectiveMotmName
+            ? <span className="mer-motm-name">{effectiveMotmName}</span>
+            : <span className="mer-motm-empty">— none —</span>}
+          <button
+            type="button"
+            className="mer-motm-change"
+            onClick={() => openSheet({ kind: 'motm' })}
+            disabled={sheetBusy}
+          >
+            {effectiveMotmName ? 'Change' : 'Set'}
+          </button>
         </div>
       </div>
 
@@ -462,13 +493,23 @@ export function MatchEntryReview() {
         )}
       </div>
 
-      {/* Notes (read-only in this Task; editable in Task 4 sheet) */}
-      {entry.notes && (
-        <div className="mer-card">
-          <h2 className="mer-section-label">Ref notes</h2>
-          <p style={{ margin: 0, fontSize: 14, whiteSpace: 'pre-wrap' }}>{entry.notes}</p>
+      {/* Notes — editable (saved on Approve) */}
+      <div className="mer-card">
+        <h2 className="mer-section-label">Ref notes</h2>
+        <div className="mer-motm-row">
+          {effectiveNotes.length > 0
+            ? <span className="mer-notes-preview">{effectiveNotes}</span>
+            : <span className="mer-motm-empty">— none —</span>}
+          <button
+            type="button"
+            className="mer-motm-change"
+            onClick={() => openSheet({ kind: 'notes' })}
+            disabled={sheetBusy}
+          >
+            {effectiveNotes.length > 0 ? 'Edit' : 'Add'}
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Action row */}
       <div className="mer-actions">
@@ -522,6 +563,34 @@ export function MatchEntryReview() {
                 error={actionError}
                 onConfirm={() => handleDropEvent(sheet.event.id)}
                 onCancel={() => !sheetBusy && openSheet(null)}
+              />
+            )}
+            {sheet.kind === 'motm' && (
+              <MotmSheet
+                whitePlayers={whitePlayers}
+                blackPlayers={blackPlayers}
+                profiles={profilesById}
+                guests={guestsById}
+                current={effectiveMotm}
+                onPick={(selection) => {
+                  setEditMotm(selection)
+                  openSheet(null)
+                }}
+                onClear={() => {
+                  setEditMotm({ profile_id: null, guest_id: null })
+                  openSheet(null)
+                }}
+                onCancel={() => openSheet(null)}
+              />
+            )}
+            {sheet.kind === 'notes' && (
+              <NotesSheet
+                initial={effectiveNotes}
+                onSave={(text) => {
+                  setEditNotes(text)
+                  openSheet(null)
+                }}
+                onCancel={() => openSheet(null)}
               />
             )}
           </div>
@@ -635,6 +704,106 @@ function DropEventSheet({
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
         <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel} disabled={busy}>Cancel</button>
         <button type="button" className="auth-btn auth-btn--reject-filled" onClick={onConfirm} disabled={busy}>{busy ? 'Dropping…' : 'Drop event'}</button>
+      </div>
+    </>
+  )
+}
+
+// MOTM picker — local-state-only (no RPC). Pick or Clear closes the sheet
+// and writes to editMotm; the change is sent on Approve.
+function MotmSheet({
+  whitePlayers, blackPlayers, profiles, guests, current, onPick, onClear, onCancel,
+}: {
+  whitePlayers: PendingPlayerRow[]
+  blackPlayers: PendingPlayerRow[]
+  profiles: Map<string, PlayerLite>
+  guests: Map<string, GuestLite>
+  current: { profile_id: string | null; guest_id: string | null } | null
+  onPick: (selection: { profile_id: string | null; guest_id: string | null }) => void
+  onClear: () => void
+  onCancel: () => void
+}) {
+  function isCurrent(p: PendingPlayerRow): boolean {
+    if (!current) return false
+    return current.profile_id === p.profile_id && current.guest_id === p.guest_id
+  }
+  function nameOf(p: PendingPlayerRow): string {
+    return p.profile_id
+      ? (profiles.get(p.profile_id)?.display_name ?? '—')
+      : (guests.get(p.guest_id ?? '')?.display_name ?? '—')
+  }
+  return (
+    <>
+      <h3>Set MOTM</h3>
+      <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+        Combined roster · saved on Approve. Tap a player to pick.
+      </p>
+      <div className="mer-motm-list">
+        {([['WHITE', whitePlayers], ['BLACK', blackPlayers]] as const).map(([label, list]) => (
+          <div key={label} className="mer-motm-team">
+            <div className="mer-motm-team-label">{label}</div>
+            {list.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={'mer-motm-pick' + (isCurrent(p) ? ' mer-motm-pick--active' : '')}
+                onClick={() => onPick({ profile_id: p.profile_id, guest_id: p.guest_id })}
+              >
+                <span>{nameOf(p)}</span>
+                {isCurrent(p) && <span aria-hidden>⭐</span>}
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: current ? '1fr 1fr' : '1fr', gap: 10, marginTop: 12 }}>
+        {current && (
+          <button type="button" className="auth-btn auth-btn--reject-filled" onClick={onClear}>Clear MOTM</button>
+        )}
+        <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel}>Close</button>
+      </div>
+    </>
+  )
+}
+
+// Notes editor — local-state-only. Save closes the sheet and writes to editNotes;
+// the change is sent on Approve.
+function NotesSheet({
+  initial, onSave, onCancel,
+}: {
+  initial: string
+  onSave: (notes: string) => void
+  onCancel: () => void
+}) {
+  const [text, setText] = useState(initial)
+  const trimmed = text.trim()
+  const isCleared = initial.length > 0 && trimmed.length === 0
+  return (
+    <>
+      <h3>{initial.length > 0 ? 'Edit ref notes' : 'Add ref notes'}</h3>
+      <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+        Optional · visible to other admins on the saved match. Saved when you Approve.
+      </p>
+      <textarea
+        className="mer-notes-textarea"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={5}
+        maxLength={500}
+        placeholder="e.g. 8 mins extra time in 2nd half · disputed goal at 67'"
+      />
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', marginTop: 4 }}>
+        {text.length} / 500
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
+        <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel}>Cancel</button>
+        <button
+          type="button"
+          className="auth-btn auth-btn--approve"
+          onClick={() => onSave(trimmed)}
+        >
+          {isCleared ? 'Clear' : 'Save'}
+        </button>
       </div>
     </>
   )

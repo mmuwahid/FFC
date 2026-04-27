@@ -279,3 +279,61 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Notes preview line (truncated single-line; full text appears in editor sheet) */
+.mer-notes-preview {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* MOTM picker — combined-roster list (matches sheet pattern in this file) */
+.mer-motm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 50vh;
+  overflow-y: auto;
+  margin: 4px 0 0;
+}
+.mer-motm-team {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mer-motm-team-label {
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+  margin: 4px 0 2px;
+}
+.mer-motm-pick {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.mer-motm-pick:hover {
+  background: rgba(229, 186, 91, 0.10);
+  border-color: var(--accent);
+}
+.mer-motm-pick--active {
+  background: rgba(229, 186, 91, 0.18);
+  border-color: var(--accent);
+  font-weight: 600;
+}
