@@ -1,22 +1,53 @@
 # FFC Todo
 
-## NEXT SESSION — S045
+## NEXT SESSION — S046
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S044 close commit on `main`.
-- Migrations on live DB: **31** (unchanged from S043 — slice 2B-D was client-only).
+- Expected tip: S045 close commit on `main`.
+- Migrations on live DB: **31** (unchanged from S043 — slice 2B-E was client-only).
 
-**S045 agenda:**
+**S046 agenda:**
 
-1. **Slice 2B-E** — Post-match summary + submit. Add a sixth mode (`'review'`) between `'live'` and `'post'` that fires when ref taps END MATCH (currently a disabled stub). Render final-score row, MOTM row, full event log with edit affordances ("✎ Edit event log" → editable list view that lets ref correct typos before submit), and SUBMIT TO ADMIN button. Wire `submit_ref_entry` RPC call (already extended in 0028 to accept `events[]` + `timing` payload). On success: burn the token (`consumed_at = now()` is server-side), transition to `'post'` mode, show "thanks, admin notified" copy. Out of scope this slice: Web Push notification to admin (Phase 2A), admin review screen (slice 2B-F).
-2. **Slice 2B-F** — Admin review screen `/admin/match-entries/:id`. Pre-fills approve flow with submitted timing + events. Per-player grid editable. Approve → `approve_match_entry` (already extended in 0028). Reject → `reject_match_entry` deletes pending rows + event log, ref must regenerate token.
-3. **Carry-over** — live device acceptance for slices 2B-B / 2B-C / 2B-D (real Thursday matchday). Captain reroll live test (deferred until MD31 runs in-app).
+1. **Slice 2B-F** — Admin review screen `/admin/match-entries/:id`. Renders submitted ref entry with timing summary (kickoff_at · halftime_at · fulltime_at · 1st-half stoppage M:SS · 2nd-half stoppage M:SS) + per-player aggregates (editable grid pre-filled from `pending_match_entry_players`) + event log readout (read-only). Approve → `approve_match_entry(p_pending_id, p_edits)` (already extended in 0028 to copy timing + event log to permanent tables). Reject → `reject_match_entry(p_pending_id)` deletes pending rows + event log; ref must regenerate token. Spec at `docs/superpowers/specs/2026-04-26-phase2-design.md` §B.4. Likely surfaces a new admin-bottom-nav badge when pending entries exist.
+2. **Carry-over — live device acceptance** for slices 2B-B / 2B-C / 2B-D / 2B-E on a real Thursday matchday. End-to-end flow: admin mints ref link from AdminMatches → opens link on phone → KICK OFF → log goals/cards/MOTM → END MATCH → review → SUBMIT → admin opens review screen → APPROVE → leaderboard updates with no manual entry.
+3. **Captain reroll live test** — deferred until MD31 runs in-app.
 4. **Defense-in-depth follow-up (S043 spawn):** REVOKE EXECUTE FROM PUBLIC on admin RPCs; explicit GRANT TO authenticated.
 
 **Backburner:**
 
 - **Email notification on approve/reject** — when admin approves or rejects a signup, send a transactional email to the player so they know to open the app (or that their application was declined). Implementation path: Supabase Edge Function (`notify-signup-outcome`) triggered by a database webhook on `pending_signups.resolution` changing from `pending` → `approved`/`rejected`. Email provider: [Resend](https://resend.com) free tier (100 emails/day, no card). Approved email: "Welcome to FFC — you're in, open the app and start voting." Rejected email: "Your FFC signup wasn't approved — contact an admin." Edge Function needs `RESEND_API_KEY` env var in Supabase project settings.
+
+## Completed in S045 (27/APR/2026, Home PC)
+
+### Slice 2B-E — RefEntry post-match review + submit_ref_entry wiring
+
+**No migration this slice.** All client-side: `submit_ref_entry` and `pending_match_events` already shipped in migration 0028 (S040).
+
+- [x] **`useMatchSession` extensions** — `'review'` added to `MatchMode` union (between `'live'` and `'post'`); new `endMatch()` flips live → review, `confirmSubmit()` flips review → post, `reopenLive()` flips review → live (BACK TO LIVE escape hatch). Persisted via the existing `writePersisted` effect so a refresh on the review screen lands back on review.
+- [x] **`useMatchClock` extensions** — `fulltime_at: string | null` added to `ClockState`. `endMatch()` mutator captures `fulltime_at`, finalises any open pause into the current half's stoppage (mirrors `endHalf` logic), emits a `'fulltime'` event with stamp computed pre-pause-finalisation so the displayed clock at tap-time matches. `reopen()` mutator drops the trailing `'fulltime'` event and clears `fulltime_at` (only if `fulltime_at !== null`). `deleteEvent(ordinal)` mutator: refuses pause/resume/halftime/fulltime to avoid clock-machine state corruption; for `goal` decrements `score_<event.team>`; for `own_goal` decrements OPPOSITE of `event.team` (because `addGoal` credits the scoring team via `scoringTeam = team === 'white' ? 'black' : 'white'`, so the score went to the opposite team and reversal mirrors). Defensive `??`-normalisation added to `readClockState` so legacy persisted state without `fulltime_at` hydrates as `null` (not `undefined` — would have spuriously tripped the "already ended" guard).
+- [x] **`useMatchClock` lifted to RefEntry top-level** — was instantiated inside `<LiveConsole>`; now called once at `RefEntry()` so Live + Review share the same hook instance. Hook already tolerates `null` for `sessionStorageKey` and `kickoffIso`, so calling it before `mode === 'live'` is a safe no-op.
+- [x] **`<ReviewConsole>` component** — final-score block with winner-highlight or DRAW badge; MOTM card (display + Change/Set + Clear); optional notes textarea (3 rows, 500 char max, plain `<textarea>`); full chronological event log with delete affordance only on goal/own_goal/yellow/red rows (`isDeletable(e)` helper); BACK TO LIVE + SUBMIT TO ADMIN action row (BACK disabled while submit in flight); error banner. State: `notes` / `motmPickerOpen` / `deleteTarget` / `submitBusy` / `submitError`. Submit handler busy-guards, calls `supabase.rpc('submit_ref_entry', { p_token, p_payload })` with `as unknown as Json` cast, on success clears `:clock` localStorage + flips mode to `'post'` via `session.confirmSubmit()`, on error surfaces banner + allows retry.
+- [x] **`<EventDeletePicker>` bottom sheet** — added to `RefEntryPickers.tsx`. `role="dialog"` + `aria-modal="true"`. Shows minute label + event description; danger-tinted Delete button + Cancel.
+- [x] **`<PostSubmittedView>` component** — replaces the `'post'` stub. Big green ✓ checkmark + "Submitted" title + "Result sent for admin review. You can close this tab." + final-score readout + MOTM line.
+- [x] **`buildSubmitPayload(state, payload, notes, winner)` helper** — aggregates per-player goals (only `'goal'` events with matching `profile_id`/`guest_id` AND matching roster team), yellow_cards, red_cards, is_motm. Own_goal events do NOT credit the participant for goals (the score increment is already in `score_white`/`score_black` from the clock). Strips client-only `committed_at`/`half` fields from events. Includes timing block (`kickoff_at`/`halftime_at`/`fulltime_at`/`stoppage_h1_seconds`/`stoppage_h2_seconds`). Notes empty-string → null. Result derived from scores by the parent `useMemo`.
+- [x] **CSS** — appended ~250 LOC of `.ref-review-*` rules (final score with `--winner` highlight + `--draw` badge, MOTM card, notes textarea, events list with delete button, error banner, actions grid) + `.ref-post-*` rules (checkmark + readout) + `.ref-action-btn--submit` (gold-on-bg primary).
+- [x] **END MATCH wired** — third action-row button, no longer disabled stub. `onClick` calls `clock.endMatch()` then `session.endMatch()` (clock state must be frozen before mode flips). Disabled while paused.
+- [x] **Build verification** — `tsc -b` EXIT 0 + `vite build` EXIT 0 (PWA precache 11 entries, ~1540 KiB). ESLint clean on changed files. Dev preview at `/ref/dummy-token` confirms hook lift didn't break loading/invalid path (renders correct `'invalid'` view, no console errors).
+- [x] **4 commits, all pushed at close.** plan `5dd1be8` · hooks `6c0b4aa` · review console + post view + submit wiring `0348ce4` · close-out commit.
+
+### S045 gotchas / lessons (additive)
+
+- **Lifting a stateful hook to share between sibling routes.** When two siblings need the same authoritative state and the hook tolerates null inputs, lift the call to the common parent rather than threading through context. Required minor adjustment: a fallback `format='7v7'` since `payload.matchday.effective_format` is null when `mode !== 'live'`. The hook is in no-op state then anyway, so the value is moot.
+- **Defensive `??`-normalisation on hydrate when persisted shape evolves.** Adding `fulltime_at` to `ClockState` would have made S044-persisted state hydrate with `fulltime_at: undefined`, and `undefined !== null` would have spuriously tripped the "already ended" guard in `endMatch()`. Fixed by normalising every field in `readClockState`. Cheap, forward-compatible, beats version-bumping.
+- **`result` is derivable from scores; client should compute it.** `submit_ref_entry` accepts both `result` and `score_white`/`score_black`. Client uses `useMemo` to derive result from scores so the two can't drift. If a future spec adds "match was forfeit / abandoned with the score not reflecting the outcome" the assumption needs revisiting.
+- **Own-goal score-reversal mirror invariant.** `addGoal(team, ..., isOwnGoal=true)` records `event.team` = SCORING team. For own-goal that's the OPPOSITE of the participant's roster team. So in `deleteEvent`, reverse for `'goal'` by decrementing `event.team`'s score, but for `'own_goal'` decrement the OPPOSITE of `event.team` (mirrors the `scoringTeam = team === 'white' ? 'black' : 'white'` flip in `addGoal`). Subtle invariant; comment at every callsite that touches it.
+- **Pause/resume/halftime/fulltime are non-deletable in review.** These are clock-machine transition events. Deleting them would corrupt accumulated stoppage / break / fulltime state. UI hides the affordance via `isDeletable(e)`; `deleteEvent` returns `prev` unchanged for these types as belt-and-braces. Ref's escape hatch for a wrongly-pressed PAUSE: undo within 15s, or BACK TO LIVE → resume → re-end.
+- **`as unknown as Json` for jsonb RPC args.** Supabase's generated `Json` type carries a structural index signature `[k: string]: Json | undefined`; hand-written interfaces don't, so direct assign fails TS2322. Precedent in `AdminMatches.tsx` (`p_edits: edits as unknown as Json`). Alternatives (importing the specific RPC's `Args` type) are verbose with no real benefit.
+- **`buildSubmitPayload` discards `committed_at` and `half`.** These are client-only — `committed_at` is for undo-window math, `half` is for stoppage-notation rendering. The submit RPC doesn't need either; `match_minute` already encodes the half implicitly via the `< regulationHalfMinutes * 2` cutoff.
+- **Submit busy state shouldn't reset on success.** The component unmounts when mode flips to `'post'`. Trying to `setSubmitBusy(false)` after a successful `confirmSubmit()` is a "you can't setState on an unmounted component" warning waiting to happen. Only reset `submitBusy` on error.
+- **`localStorage.removeItem` on submit success is best-effort.** Wrapped in try/catch — private mode / storage blocked / browser quirks should never block a successful submit. The `:clock` storage is dead weight after token burn anyway; it'll be cleaned up by browser eventually.
+- **`role="dialog"` + `aria-modal="true"` on every picker.** Already established in slice 2B-D for the 4 live pickers. EventDeletePicker follows the same convention.
 
 ## Completed in S044 (27/APR/2026, Home PC)
 
