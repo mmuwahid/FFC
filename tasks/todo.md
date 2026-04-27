@@ -1,22 +1,46 @@
 # FFC Todo
 
-## NEXT SESSION — S046
+## NEXT SESSION — S047
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S045 close commit on `main`.
-- Migrations on live DB: **31** (unchanged from S043 — slice 2B-E was client-only).
+- Expected tip: S046 close commit on `main`.
+- Migrations on live DB: **32** (slice 2B-F added migration 0032 `admin_drop_pending_match_event`).
 
-**S046 agenda:**
+**S047 agenda:**
 
-1. **Slice 2B-F** — Admin review screen `/admin/match-entries/:id`. Renders submitted ref entry with timing summary (kickoff_at · halftime_at · fulltime_at · 1st-half stoppage M:SS · 2nd-half stoppage M:SS) + per-player aggregates (editable grid pre-filled from `pending_match_entry_players`) + event log readout (read-only). Approve → `approve_match_entry(p_pending_id, p_edits)` (already extended in 0028 to copy timing + event log to permanent tables). Reject → `reject_match_entry(p_pending_id)` deletes pending rows + event log; ref must regenerate token. Spec at `docs/superpowers/specs/2026-04-26-phase2-design.md` §B.4. Likely surfaces a new admin-bottom-nav badge when pending entries exist.
-2. **Carry-over — live device acceptance** for slices 2B-B / 2B-C / 2B-D / 2B-E on a real Thursday matchday. End-to-end flow: admin mints ref link from AdminMatches → opens link on phone → KICK OFF → log goals/cards/MOTM → END MATCH → review → SUBMIT → admin opens review screen → APPROVE → leaderboard updates with no manual entry.
-3. **Captain reroll live test** — deferred until MD31 runs in-app.
-4. **Defense-in-depth follow-up (S043 spawn):** REVOKE EXECUTE FROM PUBLIC on admin RPCs; explicit GRANT TO authenticated.
+1. **MOTM picker + Notes textarea UI for `MatchEntryReview`** — the deferred items from slice 2B-F. Read paths already wired in `handleApprove`'s p_edits builder; setters are `_setEditMotm`/`_setEditNotes` waiting for the picker + textarea. MOTM picker pattern parallel to slice 2B-E's `MotmPicker` in `RefEntryPickers.tsx` — consider extracting to a shared component if shape matches. Notes is just a `<textarea maxLength={500}>` per the slice 2B-E precedent. Both are bottom-sheet patterns matching the existing approve/reject/drop-event sheets in the file.
+2. **Live device acceptance for the 2B-B/C/D/E/F chain** on a real Thursday matchday. Still pending from previous slices — accumulates. End-to-end flow: admin mints ref link from AdminMatches → opens link on phone → KICK OFF → log goals/cards/MOTM → END MATCH → review → SUBMIT → admin opens new MatchEntryReview screen → APPROVE → leaderboard updates with no manual entry. Real test of the full ref → admin loop.
+3. **Captain reroll live test** on MD31 (still pending from S037).
+4. **Defense-in-depth follow-up (S043 spawn):** REVOKE EXECUTE FROM PUBLIC on admin RPCs; explicit GRANT TO authenticated. Phase 2 backstop in case a future helper bug recurs after the is_admin NULL-safety fix.
+5. **Admin nav badge for pending entries count** — Phase 2A push tie-in (decorative — not blocking). Surfaces a count next to the Admin tab when `pending_match_entries WHERE status='pending'` is non-zero. Read-only, lightweight; complements the Phase 2A push notifications.
 
 **Backburner:**
 
 - **Email notification on approve/reject** — when admin approves or rejects a signup, send a transactional email to the player so they know to open the app (or that their application was declined). Implementation path: Supabase Edge Function (`notify-signup-outcome`) triggered by a database webhook on `pending_signups.resolution` changing from `pending` → `approved`/`rejected`. Email provider: [Resend](https://resend.com) free tier (100 emails/day, no card). Approved email: "Welcome to FFC — you're in, open the app and start voting." Rejected email: "Your FFC signup wasn't approved — contact an admin." Edge Function needs `RESEND_API_KEY` env var in Supabase project settings.
+
+## Completed in S046 (27/APR/2026, Work PC)
+
+### Slice 2B-F — Admin match-entry review screen + migration 0032
+
+**1 migration this slice (0032 `admin_drop_pending_match_event`).** Live DB now at 32 migrations.
+
+- [x] **Migration 0032 `admin_drop_pending_match_event`** (43 LOC) — admin-gated SECURITY DEFINER RPC for dropping a single bogus event row from a submitted ref entry's `pending_match_events` log before approving. Idempotent on missing row. Audited via `log_admin_action`. `is_admin()` guard verified by anon-key curl (post-S043 NULL-safety hotfix returns `42501 Admin role required` correctly). Commit: `f161c19`.
+- [x] **`MatchEntryReview.tsx` screen + route + read-only render** — new route `/admin/match-entries/:id`. Loads `pending_match_entries` + per-player aggregates + event log + matchday header in parallel via supabase-js plus profiles + match_guests for display-name lookup. Renders timing summary (kickoff / halftime / fulltime / stoppage h1+h2), final score (inline-editable inputs), MOTM display, per-player aggregate grid (read-only), chronological event log with system-event styling, ref notes (when non-null). Brand-themed `.mer-screen` scope-root tokens. 640 LOC final after review fixes; sibling CSS file `match-entry-review.css` 281 LOC. Schema-drift correction: `match_result` enum is `'win_white'|'win_black'|'draw'` (not `'white'|'black'|'draw'` as plan assumed). Commits: `02f40a3` + review-fix `4ee238e`.
+- [x] **AdminMatches per-card "Ref entry awaiting review" CTA** — sixth `Promise.all` branch fetches `pending_match_entries WHERE status='pending'` ordered `submitted_at desc` (one-per-matchday by RPC contract; ordering ensures latest if duplicate). New `pendingByMd` Map; new `pendingEntryId?: string` field on `MatchdayWithMatch`. Per-card conditional CTA renders gold-tinted "⏳ Ref entry awaiting review" + Review button only when `pendingEntryId && !match?.approved_at`. CSS at `.admin-md-pending-*` in `index.css`. Commits: `c98d98f` + review-fix `f2b64c3`.
+- [x] **Approve / Reject / Drop-event sheets wired** — `Sheet` discriminated union (`approve | reject | drop_event`) + `sheet`/`sheetBusy`/`actionError` state. `handleApprove` builds `p_edits` jsonb from inline match-level edits (score, MOTM, notes), recomputes `result` if scores edited, calls `approve_match_entry({ p_pending_id, p_edits as unknown as Json })`. `handleReject` requires reason min 1 char, calls `reject_match_entry`. `handleDropEvent` calls migration 0032's RPC. Both Approve and Reject navigate to `/admin/matches` on success; Drop refetches via `loadAll`. Three sub-components inline below `PlayerRow`. Sheet portal renders to `document.body`. Commits: `1f294ae` + review-fix `762447d` (`openSheet` helper for actionError clearing on transitions, NaN defence on score inputs via `Number.isFinite` guard before `Math.max`).
+- [x] **Build verification** — `tsc -b` EXIT 0 + `vite build` EXIT 0 (PWA precache 11 entries, ~1560 KiB total / 749.61 KB main JS / 130.47 KB CSS). ESLint clean on changed files after one targeted fix on a new `react-hooks/set-state-in-effect` error in MatchEntryReview.tsx mount/id-change useEffect (intent-comment eslint-disable, S044 pattern). Two pre-existing AdminMatches.tsx errors (lines 259 + 773) confirmed via git blame — out of scope.
+- [x] **8 commits, all pushed at close.** Plan + Task 1 migration `f161c19` · Task 2 feature `02f40a3` · Task 2 review-fix `4ee238e` · Task 3 feature `c98d98f` · Task 3 review-fix `f2b64c3` · Task 4 feature `1f294ae` · Task 4 review-fix `762447d` · close-out (this commit).
+
+### S046 gotchas / lessons (additive)
+
+- **Schema-drift check applies to enum values, not just column names.** `match_result` enum is `'win_white'|'win_black'|'draw'` — the plan assumed `'white'|'black'|'draw'` (matching the `team_color` enum convention). The S024 schema-drift lesson generalises: even when the enum value space looks "obvious" from a sister enum, query the live types before writing code. Cheap to do; expensive to miss.
+- **`openSheet(s)` wrapper that clears error state on every sheet transition** — small but useful idiom for screens with multiple action sheets sharing one screen-scope error banner. Replaces all `setSheet(...)` callsites with a single helper, removes a class of stale-error bugs where the error from a failed Approve persists into a fresh Reject sheet open.
+- **`Number.isFinite` guard before `Math.max`** when parsing user input via `parseInt`. NaN propagates silently through `Math.max(0, NaN) === NaN` + setState + JSX rendering, surfacing only as a confusing Postgres type error at RPC time. The fix: `Number.isFinite(parsed) ? Math.max(0, parsed) : 0` everywhere a number-input feeds state.
+- **`event: _event: PendingEventRow` rename + `void _event` belt-and-braces** — TS escape hatch for prop types kept for API stability while the body doesn't read them. Sister pattern to `_setEditNotes`/`_setEditMotm` for setters that aren't yet wired (S047 will land them).
+- **Discriminated-union "drop a kind that has no UI yet"** — pre-approved when the variant adds noise without value. Pragmatic over canonical-completeness; can revisit if UI lands.
+- **Pre-existing-vs-new ESLint triage at slice close.** When the lint sweep on changed files reports errors, run `git blame -L line,line file` on each error site before fixing. Pre-existing errors from prior sessions are out of scope; only new errors introduced by the current slice need addressing. Reduces both noise and risk of touching unrelated code at close-out.
+- **Sub-agent driven plan-execute pattern with two-stage review** scaled cleanly across 5 Tasks. Each Task: implementer → spec compliance review → code quality review → optional fix-up commits. The review-fix commits are peer to feature commits in the slice's ledger. Examples that surfaced from review (not implementation): Task 2's "score inputs are inline-editable but inactionable" (review-fix disabled them, Task 4 re-enabled when handler landed); Task 3's "no order_by on the pending-entries query"; Task 4's "actionError stale across sheet transitions" + "NaN propagation from score inputs".
 
 ## Completed in S045 (27/APR/2026, Home PC)
 

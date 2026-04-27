@@ -222,6 +222,7 @@ export function MatchEntryReview() {
 
   useEffect(() => {
     if (!id) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional async hydration on mount/id change
     void loadAll(id)
   }, [id, loadAll])
 
