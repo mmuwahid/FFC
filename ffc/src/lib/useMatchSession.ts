@@ -8,15 +8,16 @@ import { supabase } from './supabase'
  *   'loading' — fetching matchday from token
  *   'invalid' — token rejected by server (expired, consumed, or never existed)
  *   'pre'     — pre-match screen visible; admin tapped link, ref hasn't started
- *   'live'    — match clock running (slice 2B-D wires the actual UI)
- *   'post'    — match ended, awaiting submit (slice 2B-E)
+ *   'live'    — match clock running (slice 2B-D)
+ *   'review'  — ref tapped END MATCH; final-score / event-log / submit (slice 2B-E)
+ *   'post'    — submit succeeded; admin notified; one-way terminal mode
  *
  * State persists per-token in localStorage so a refresh / backgrounding doesn't
  * lose context. Key is sha256(token) so multiple admins minting different tokens
  * for different matchdays don't clobber each other in the browser.
  */
 
-export type MatchMode = 'loading' | 'invalid' | 'pre' | 'live' | 'post'
+export type MatchMode = 'loading' | 'invalid' | 'pre' | 'live' | 'review' | 'post'
 
 interface RosterPlayer {
   profile_id: string | null
@@ -160,5 +161,24 @@ export function useMatchSession(token: string | undefined) {
     }
   }
 
-  return { mode, payload, error, kickoffAt, startMatch, sessionStorageKey: storageKey }
+  /** Slice 2B-E — flip live → review when ref taps END MATCH. */
+  const endMatch = () => setMode('review')
+
+  /** Slice 2B-E — flip review → post on successful submit_ref_entry response. */
+  const confirmSubmit = () => setMode('post')
+
+  /** Slice 2B-E — flip review → live if ref taps BACK TO LIVE on the review screen. */
+  const reopenLive = () => setMode('live')
+
+  return {
+    mode,
+    payload,
+    error,
+    kickoffAt,
+    startMatch,
+    endMatch,
+    confirmSubmit,
+    reopenLive,
+    sessionStorageKey: storageKey,
+  }
 }

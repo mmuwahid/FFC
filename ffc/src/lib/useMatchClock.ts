@@ -23,9 +23,7 @@ export type MatchHalf = 1 | 2 | 'break'
 
 /**
  * Event types — mirror DB enum match_event_type.
- * `fulltime` is declared for type-completeness; the corresponding `endMatch`
- * action lands in slice 2B-E (post-match summary + submit). For now no in-hook
- * mutator emits it.
+ * `fulltime` is emitted by `endMatch()` (slice 2B-E).
  */
 export type EventType =
   | 'goal'
@@ -66,6 +64,7 @@ export interface ClockState {
   stoppage_h1_seconds: number         // accumulated; updated on resume
   stoppage_h2_seconds: number
   paused_at: string | null            // ISO if currently paused, else null
+  fulltime_at: string | null          // when 2nd half ended (slice 2B-E)
   score_white: number
   score_black: number
   events: MatchEvent[]
@@ -110,6 +109,16 @@ interface UseMatchClockReturn {
   undoLast: () => void
   /** True if the most recent event is still within the undo window. */
   canUndo: boolean
+  /** End the match. Captures fulltime_at, finalizes any open pause, emits 'fulltime' event. */
+  endMatch: () => void
+  /** Re-open the match (review → live transition). Clears fulltime_at and removes the most recent 'fulltime' event. No-op if not at full time. */
+  reopen: () => void
+  /**
+   * Delete an event by ordinal. Goal/own_goal events also reverse their score
+   * impact. Pause/resume/halftime/fulltime events refuse the delete (silently
+   * no-op) because removing them would corrupt clock state.
+   */
+  deleteEvent: (ordinal: number) => void
 }
 
 const CLOCK_KEY_SUFFIX = ':clock'
@@ -122,7 +131,23 @@ function readClockState(key: string): ClockState | null {
   try {
     const raw = localStorage.getItem(key)
     if (!raw) return null
-    return JSON.parse(raw) as ClockState
+    const parsed = JSON.parse(raw) as Partial<ClockState>
+    // Normalize fields that may be missing on legacy persisted state (pre-2B-E).
+    return {
+      kickoff_at: parsed.kickoff_at ?? new Date().toISOString(),
+      half: parsed.half ?? 1,
+      halftime_at: parsed.halftime_at ?? null,
+      halftime_break_seconds_extra: parsed.halftime_break_seconds_extra ?? 0,
+      second_half_kickoff_at: parsed.second_half_kickoff_at ?? null,
+      stoppage_h1_seconds: parsed.stoppage_h1_seconds ?? 0,
+      stoppage_h2_seconds: parsed.stoppage_h2_seconds ?? 0,
+      paused_at: parsed.paused_at ?? null,
+      fulltime_at: parsed.fulltime_at ?? null,
+      score_white: parsed.score_white ?? 0,
+      score_black: parsed.score_black ?? 0,
+      events: parsed.events ?? [],
+      motm: parsed.motm ?? null,
+    }
   } catch {
     return null
   }
@@ -223,6 +248,7 @@ function emptyClockState(kickoffIso: string): ClockState {
     stoppage_h1_seconds: 0,
     stoppage_h2_seconds: 0,
     paused_at: null,
+    fulltime_at: null,
     score_white: 0,
     score_black: 0,
     events: [],
@@ -468,6 +494,92 @@ export function useMatchClock(args: {
     setState((prev) => ({ ...prev, motm: selection }))
   }, [])
 
+  const endMatch: UseMatchClockReturn['endMatch'] = useCallback(() => {
+    setState((prev) => {
+      if (prev.fulltime_at) return prev // already ended
+      // 'break' is a transitional state; we shouldn't end the match from it.
+      // Caller should startSecondHalf first; UI gates this.
+      if (prev.half === 'break') return prev
+      // Stamp BEFORE finalizing the pause, so the fulltime event minute reflects
+      // the displayed clock at the moment the ref tapped END MATCH.
+      const stamp = stampFromState(prev, regulationHalfMinutes)
+      // If currently paused, finalize the pause into the current half's stoppage.
+      let finalH1 = prev.stoppage_h1_seconds
+      let finalH2 = prev.stoppage_h2_seconds
+      if (prev.paused_at) {
+        const pauseDurationSec = Math.floor((Date.now() - Date.parse(prev.paused_at)) / 1000)
+        if (prev.half === 1) finalH1 += pauseDurationSec
+        else if (prev.half === 2) finalH2 += pauseDurationSec
+      }
+      const event: MatchEvent = {
+        ordinal: nextOrdinal(prev.events),
+        event_type: 'fulltime',
+        match_minute: stamp.match_minute,
+        match_second: stamp.match_second,
+        half: prev.half,
+        team: null,
+        profile_id: null,
+        guest_id: null,
+        meta: {},
+        committed_at: new Date().toISOString(),
+      }
+      return {
+        ...prev,
+        fulltime_at: new Date().toISOString(),
+        paused_at: null,
+        stoppage_h1_seconds: finalH1,
+        stoppage_h2_seconds: finalH2,
+        events: [...prev.events, event],
+      }
+    })
+  }, [nextOrdinal, regulationHalfMinutes])
+
+  const reopen: UseMatchClockReturn['reopen'] = useCallback(() => {
+    setState((prev) => {
+      if (!prev.fulltime_at) return prev
+      // Drop the most recent 'fulltime' event (should be at the tail).
+      const last = prev.events[prev.events.length - 1]
+      const events = last && last.event_type === 'fulltime'
+        ? prev.events.slice(0, -1)
+        : prev.events
+      return { ...prev, fulltime_at: null, events }
+    })
+  }, [])
+
+  const deleteEvent: UseMatchClockReturn['deleteEvent'] = useCallback((ordinal) => {
+    setState((prev) => {
+      const idx = prev.events.findIndex((e) => e.ordinal === ordinal)
+      if (idx === -1) return prev
+      const evt = prev.events[idx]
+      // Refuse deletes that would corrupt clock-machine state.
+      if (
+        evt.event_type === 'pause'
+        || evt.event_type === 'resume'
+        || evt.event_type === 'halftime'
+        || evt.event_type === 'fulltime'
+      ) {
+        return prev
+      }
+      // Reverse score impact for goal/own_goal.
+      let scoreWhite = prev.score_white
+      let scoreBlack = prev.score_black
+      if (evt.event_type === 'goal') {
+        if (evt.team === 'white') scoreWhite -= 1
+        if (evt.team === 'black') scoreBlack -= 1
+      } else if (evt.event_type === 'own_goal') {
+        // Score went to opposite team; reverse it.
+        if (evt.team === 'white') scoreBlack -= 1
+        if (evt.team === 'black') scoreWhite -= 1
+      }
+      return {
+        ...prev,
+        events: [...prev.events.slice(0, idx), ...prev.events.slice(idx + 1)],
+        score_white: Math.max(0, scoreWhite),
+        score_black: Math.max(0, scoreBlack),
+      }
+    })
+  }, [])
+
   const undoLast: UseMatchClockReturn['undoLast'] = useCallback(() => {
     setState((prev) => {
       const last = prev.events[prev.events.length - 1]
@@ -539,5 +651,8 @@ export function useMatchClock(args: {
     setMotm,
     undoLast,
     canUndo,
+    endMatch,
+    reopen,
+    deleteEvent,
   }
 }
