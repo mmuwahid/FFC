@@ -14,6 +14,7 @@ type Json = Database['public']['Tables']['notifications']['Row']['payload']
 const DEFAULT_BY_KIND: Partial<Record<NotificationKind, string>> = {
   poll_open: '/poll',
   poll_reminder: '/poll',
+  vote_reminder: '/poll',
   roster_locked: '/poll',
   teams_posted: '/poll',
   plus_one_unlocked: '/poll',

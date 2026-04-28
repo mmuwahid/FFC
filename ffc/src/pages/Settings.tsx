@@ -27,6 +27,7 @@ interface PushPrefs {
   master: boolean
   poll_open: boolean
   poll_reminder: boolean
+  vote_reminder: boolean
   roster_locked: boolean
   plus_one_unlocked: boolean
   match_result_posted: boolean
@@ -47,6 +48,7 @@ const DEFAULT_PUSH_PREFS: PushPrefs = {
   master: true,
   poll_open: true,
   poll_reminder: true,
+  vote_reminder: true,
   roster_locked: true,
   plus_one_unlocked: true,
   match_result_posted: true,
@@ -64,6 +66,7 @@ const POSITIONS: PlayerPosition[] = ['GK', 'DEF', 'CDM', 'W', 'ST']
 const PUSH_EVENTS: { key: keyof PushPrefs; label: string }[] = [
   { key: 'poll_open', label: 'Poll opens' },
   { key: 'poll_reminder', label: 'Poll reminder (2 min before close)' },
+  { key: 'vote_reminder', label: 'Vote reminders (24h · 3h · 15m before close)' },
   { key: 'roster_locked', label: 'Roster locked' },
   { key: 'plus_one_unlocked', label: '+1 slot unlocked' },
   { key: 'match_result_posted', label: 'Match result posted' },
@@ -85,6 +88,7 @@ function normalisePushPrefs(raw: unknown): PushPrefs {
       master: r.master ?? true,
       poll_open: r.poll_open ?? true,
       poll_reminder: r.poll_reminder ?? true,
+      vote_reminder: r.vote_reminder ?? true,
       roster_locked: r.roster_locked ?? true,
       plus_one_unlocked: r.plus_one_unlocked ?? true,
       match_result_posted: r.match_result_posted ?? true,

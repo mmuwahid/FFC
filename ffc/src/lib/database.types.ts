@@ -1752,6 +1752,7 @@ export type Database = {
         Args: { p_matchday_id: string }
         Returns: Database["public"]["Enums"]["match_format"]
       }
+      enqueue_vote_reminders: { Args: never; Returns: number }
       fire_due_reminders: { Args: never; Returns: undefined }
       fire_scheduled_reminder: {
         Args: { p_reminder_id: string }
@@ -1997,6 +1998,7 @@ export type Database = {
         | "captain_auto_picked"
         | "captain_assigned"
         | "you_are_in"
+        | "vote_reminder"
       pending_match_status: "pending" | "approved" | "rejected"
       player_position: "GK" | "DEF" | "CDM" | "W" | "ST"
       poll_choice: "yes" | "no" | "maybe"
@@ -2183,6 +2185,7 @@ export const Constants = {
         "captain_auto_picked",
         "captain_assigned",
         "you_are_in",
+        "vote_reminder",
       ],
       pending_match_status: ["pending", "approved", "rejected"],
       player_position: ["GK", "DEF", "CDM", "W", "ST"],
