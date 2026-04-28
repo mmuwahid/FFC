@@ -1617,6 +1617,10 @@ export type Database = {
     }
     Functions: {
       accept_substitute: { Args: { p_matchday_id: string }; Returns: undefined }
+      admin_delete_player: {
+        Args: { p_profile_id: string }
+        Returns: undefined
+      }
       admin_draft_abandon: {
         Args: { p_matchday_id: string; p_reason?: string }
         Returns: string

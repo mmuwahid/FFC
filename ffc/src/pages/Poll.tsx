@@ -495,6 +495,34 @@ export function Poll() {
           </div>
         )
       }
+      // Issue #2 — show explicit confirmation when the caller voted No or Maybe.
+      // Previously this branch fell through to the "Will you play Thursday?" prompt
+      // which made the click feel like a no-op. Now the chosen option is rendered
+      // as the active state with a "Change my mind" affordance to re-open the row.
+      const myChoice = myVote && !myVote.cancelled_at ? myVote.choice : null
+      if (myChoice === 'no') {
+        return (
+          <div className="po-status po-status--no">
+            <div className="po-status-title">You're sitting this one out</div>
+            <div className="po-status-sub">Voted NO · {fmtShort(myVote!.committed_at)}</div>
+            <button type="button" className="auth-btn auth-btn--sheet-cancel po-status-cancel" onClick={() => vote('cancel')} disabled={busy || !pollOpen}>
+              Change my mind
+            </button>
+          </div>
+        )
+      }
+      if (myChoice === 'maybe') {
+        return (
+          <div className="po-status po-status--maybe">
+            <div className="po-status-title">You're a maybe</div>
+            <div className="po-status-sub">Voted MAYBE · {fmtShort(myVote!.committed_at)}</div>
+            <div className="po-vote-row">
+              <button type="button" className="auth-btn auth-btn--approve" onClick={() => vote('yes')} disabled={busy || !pollOpen}>Confirm Yes</button>
+              <button type="button" className="auth-btn auth-btn--reject" onClick={() => vote('no')} disabled={busy || !pollOpen}>Switch to No</button>
+            </div>
+          </div>
+        )
+      }
       return (
         <div className="po-status po-status--novote">
           <div className="po-status-title">Will you play Thursday?</div>

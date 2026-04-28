@@ -1003,6 +1003,14 @@ textarea.auth-input {
   gap: 8px;
   margin-top: 6px;
 }
+/* S051 issue #7 — destructive action lives below the primary action row,
+ * separated by a hairline so admin can't accidentally tap it. */
+.admin-edit-delete-row {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, rgba(242, 234, 214, 0.14));
+}
+.admin-edit-delete-row .auth-btn { width: 100%; }
 .sheet-actions .auth-btn {
   flex: 1;
   padding: 12px;
@@ -2305,6 +2313,17 @@ textarea.auth-input {
   font-size: 22px; font-weight: 700; margin: 0 0 16px;
   color: var(--text);
 }
+/* S051 issue #4 — back button at top of Settings. Mirrors the .ah-back
+ * shape used by Admin sub-pages so the affordance feels consistent. */
+.st-back {
+  display: inline-flex; align-items: center;
+  background: transparent; border: none;
+  color: var(--text-muted);
+  font-size: 14px; font-weight: 600;
+  padding: 4px 8px 4px 0; margin-bottom: 6px;
+  cursor: pointer;
+}
+.st-back:hover { color: var(--text); }
 .st-loading, .st-error { padding: 48px 20px; text-align: center; color: var(--text-muted); }
 
 .st-section { margin-bottom: 22px; }
@@ -2442,6 +2461,26 @@ textarea.auth-input {
   border: 1px solid var(--border);
 }
 .st-account-email { font-size: 14px; color: var(--text); font-weight: 600; }
+/* S051 issue #4 — single-row variant of the account block. Email truncates,
+ * Sign out + Delete sit side-by-side on the right. */
+.st-account-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.st-account-row-email {
+  flex: 1 1 auto; min-width: 0;
+  font-size: 13px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.st-account-row .st-btn-signout,
+.st-account-row .st-btn-delete {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  font-size: 12px;
+}
 .st-btn-signout {
   padding: 10px 14px; border-radius: 10px;
   background: var(--surface-2); color: var(--text);
@@ -3243,6 +3282,9 @@ textarea.auth-input {
 .po-status--waitlist { flex-direction: column; align-items: stretch; gap: 6px; border-left-color: var(--warn, #c7a04a); background: rgba(199, 160, 74, 0.08); }
 .po-status--locked { border-left-color: var(--danger, #e26666); }
 .po-status--locked-nv { border-left-color: var(--text-muted); }
+/* Issue #2 — visible state for No/Maybe choices so the click feels real. */
+.po-status--no { flex-direction: column; align-items: stretch; gap: 8px; border-left-color: var(--danger, #e63349); background: rgba(230, 51, 73, 0.08); }
+.po-status--maybe { flex-direction: column; align-items: stretch; gap: 10px; border-left-color: var(--warn, #c7a04a); background: rgba(199, 160, 74, 0.08); }
 .po-status-title { font-size: 15px; font-weight: 600; color: var(--text); }
 .po-status-sub { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
 .po-status-badge {
@@ -5107,9 +5149,9 @@ textarea.auth-input {
 .lb-table-grid {
   display: grid;
   grid-template-columns:
-    44px                    /* rank      (sticky) */
-    minmax(180px, 1.5fr)    /* player    (sticky) */
-    36px                    /* P  matches played */
+    36px                    /* rank      (sticky) */
+    160px                   /* player    (sticky) — fixed width keeps numbers visible on portrait */
+    40px                    /* MP matches played */
     32px                    /* W  wins */
     32px                    /* D  draws */
     32px                    /* L  losses */
@@ -5119,7 +5161,7 @@ textarea.auth-input {
     44px;                   /* Pts */
   align-items: center;
   gap: 0;
-  min-width: 760px;          /* forces horizontal scroll on portrait */
+  min-width: 604px;          /* forces horizontal scroll on portrait */
   position: relative;
 }
 .lb-table-grid--header {
@@ -5202,9 +5244,12 @@ textarea.auth-input {
   color: #0e1826;
   flex-shrink: 0;
 }
-.lb-last5-pill--W { background: #4fbf93; }
-.lb-last5-pill--L { background: #e63349; color: #f2ead6; }
-.lb-last5-pill--D { background: rgba(242, 234, 214, 0.35); color: #0e1826; }
+/* Specificity bumped (.lb-cell--last5 .lb-last5-pill--X) so the colours
+ * survive any later cell-level resets. Repeated bg/colour ensures the
+ * pill renders even when the row is in a top-3 medal-tinted state. */
+.lb-cell--last5 .lb-last5-pill--W { background: #4fbf93; color: #0e1826; }
+.lb-cell--last5 .lb-last5-pill--L { background: #e63349; color: #f2ead6; }
+.lb-cell--last5 .lb-last5-pill--D { background: rgba(242, 234, 214, 0.55); color: #0e1826; }
 .lb-last5-empty { color: var(--text-muted, rgba(242, 234, 214, 0.4)); font-size: 14px; }
 
 /* Sticky columns — first two cells stay anchored on horizontal scroll. */
@@ -5216,7 +5261,7 @@ textarea.auth-input {
 }
 .lb-cell--sticky-2 {
   position: sticky;
-  left: 44px; /* matches rank-column width */
+  left: 36px; /* matches rank-column width */
   z-index: 2;
   background: var(--bg, #0e1826);
 }
@@ -5377,6 +5422,30 @@ body.is-leaderboard-landscape .lb-table-grid {
   font-size: 13px;
   line-height: 1.5;
   color: var(--text-muted, rgba(242, 234, 214, 0.78));
+}
+/* S051 — iOS / Android tab toggle inside the install prompt. */
+.iip-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 4px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+}
+.iip-tab {
+  flex: 1 1 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, rgba(242, 234, 214, 0.62));
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.iip-tab--active {
+  background: var(--surface, rgba(20, 34, 52, 0.68));
+  color: var(--accent, #e5ba5b);
 }
 .iip-steps {
   list-style: none;

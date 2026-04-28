@@ -18,9 +18,13 @@ interface Props {
   avatarUrl: string | null
   /** Sign out — provided by AppContext, threaded through RoleLayout. */
   onSignOut: () => Promise<void>
+  /** True for admin / super-admin — surfaces the Admin platform row (S051 issue #4). */
+  isAdmin?: boolean
+  /** Open the install-instructions modal. RoleLayout owns the modal state. */
+  onInstallClick?: () => void
 }
 
-export function AppDrawer({ open, onClose, displayName, avatarUrl, onSignOut }: Props) {
+export function AppDrawer({ open, onClose, displayName, avatarUrl, onSignOut, isAdmin, onInstallClick }: Props) {
   const navigate = useNavigate()
 
   // ESC + lock scroll while open
@@ -88,6 +92,26 @@ export function AppDrawer({ open, onClose, displayName, avatarUrl, onSignOut }: 
           >
             <span className="app-drawer-item-ico" aria-hidden>⚙️</span>
             <span className="app-drawer-item-label">Settings</span>
+            <span className="app-drawer-chevron" aria-hidden>›</span>
+          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="app-drawer-item"
+              onClick={() => go('/admin')}
+            >
+              <span className="app-drawer-item-ico" aria-hidden>🛠️</span>
+              <span className="app-drawer-item-label">Admin platform</span>
+              <span className="app-drawer-chevron" aria-hidden>›</span>
+            </button>
+          )}
+          <button
+            type="button"
+            className="app-drawer-item"
+            onClick={() => { onClose(); onInstallClick?.() }}
+          >
+            <span className="app-drawer-item-ico" aria-hidden>📲</span>
+            <span className="app-drawer-item-label">Install app</span>
             <span className="app-drawer-chevron" aria-hidden>›</span>
           </button>
           <button

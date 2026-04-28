@@ -39,6 +39,7 @@ type Sheet =
   | { kind: 'ban'; profile: ProfileRow }
   | { kind: 'unban'; profile: ProfileRow }
   | { kind: 'reinstate'; profile: ProfileRow }
+  | { kind: 'delete'; profile: ProfileRow }
   | null
 
 const POSITIONS: Position[] = ['GK', 'DEF', 'CDM', 'W', 'ST']
@@ -143,6 +144,7 @@ export function AdminPlayers() {
   const openBan = (profile: ProfileRow) => setSheet({ kind: 'ban', profile })
   const openUnban = (profile: ProfileRow) => setSheet({ kind: 'unban', profile })
   const openReinstate = (profile: ProfileRow) => setSheet({ kind: 'reinstate', profile })
+  const openDelete = (profile: ProfileRow) => setSheet({ kind: 'delete', profile })
   const closeSheet = () => { if (!sheetBusy) setSheet(null) }
 
   return (
@@ -235,6 +237,17 @@ export function AdminPlayers() {
               <EditSheet
                 profile={sheet.profile}
                 isSuperAdmin={isSuperAdmin}
+                busy={sheetBusy}
+                setBusy={setSheetBusy}
+                onDone={async () => { setSheet(null); await loadAll() }}
+                onError={setError}
+                onCancel={closeSheet}
+                onDelete={() => openDelete(sheet.profile)}
+              />
+            )}
+            {sheet.kind === 'delete' && (
+              <DeletePlayerSheet
+                profile={sheet.profile}
                 busy={sheetBusy}
                 setBusy={setSheetBusy}
                 onDone={async () => { setSheet(null); await loadAll() }}
@@ -553,8 +566,8 @@ function RejectSheet({
 }
 
 function EditSheet({
-  profile, isSuperAdmin, busy, setBusy, onDone, onError, onCancel,
-}: SheetBaseProps & { profile: ProfileRow; isSuperAdmin: boolean }) {
+  profile, isSuperAdmin, busy, setBusy, onDone, onError, onCancel, onDelete,
+}: SheetBaseProps & { profile: ProfileRow; isSuperAdmin: boolean; onDelete: () => void }) {
   const [name, setName] = useState(profile.display_name)
   const [primary, setPrimary] = useState<Position | ''>(profile.primary_position ?? '')
   const [secondary, setSecondary] = useState<Position | ''>(profile.secondary_position ?? '')
@@ -660,6 +673,69 @@ function EditSheet({
           disabled={busy || !dirty || Boolean(invalid)}
         >
           {busy ? 'Saving…' : 'Save changes'}
+        </button>
+      </div>
+
+      {/* S051 issue #7 — Delete player. Super-admin profiles cannot be deleted
+       * via this RPC (server-side guard); button hidden in that case. */}
+      {profile.role !== 'super_admin' && (
+        <div className="admin-edit-delete-row">
+          <button
+            type="button"
+            className="auth-btn auth-btn--reject-outline"
+            onClick={onDelete}
+            disabled={busy}
+          >
+            Delete player
+          </button>
+        </div>
+      )}
+    </>
+  )
+}
+
+function DeletePlayerSheet({
+  profile, busy, setBusy, onDone, onError, onCancel,
+}: SheetBaseProps & { profile: ProfileRow }) {
+  const [confirmText, setConfirmText] = useState('')
+  const ready = confirmText.trim() === 'DELETE'
+
+  const confirm = async () => {
+    if (!ready) return
+    setBusy(true)
+    const { error } = await supabase.rpc('admin_delete_player', { p_profile_id: profile.id })
+    setBusy(false)
+    if (error) { onError(error.message); return }
+    await onDone()
+  }
+
+  return (
+    <>
+      <h3>Delete {profile.display_name}?</h3>
+      <p className="sheet-sub">
+        Soft-deletes the profile (mirrors player self-delete). Match history and
+        leaderboard entries fall off; historical results stay intact as
+        <strong> Deleted player</strong>. Cannot be undone.
+      </p>
+      <p className="auth-hint">Type <strong>DELETE</strong> to confirm:</p>
+      <input
+        className="auth-input"
+        type="text"
+        value={confirmText}
+        onChange={(e) => setConfirmText(e.target.value)}
+        placeholder="DELETE"
+        autoCapitalize="characters"
+        disabled={busy}
+      />
+      <div className="sheet-actions">
+        <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel} disabled={busy}>Cancel</button>
+        <button
+          type="button"
+          className="auth-btn auth-btn--reject-filled"
+          onClick={confirm}
+          disabled={busy || !ready}
+        >
+          {busy ? 'Deleting…' : 'Confirm delete'}
         </button>
       </div>
     </>

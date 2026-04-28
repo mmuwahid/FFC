@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { MatchDetailSheet } from '../components/MatchDetailSheet'
 import '../styles/matches.css'
@@ -97,45 +97,80 @@ export function Matches() {
       })
   }, [])
 
-  // Load matches + matchday numbers whenever active season changes
+  // Load matches + matchday numbers. Extracted as a useCallback so realtime
+  // subscriptions + window-focus / visibilitychange listeners can re-run it.
+  // Issue #5 — previously the screen would show "No matches yet" on tab
+  // return until a hard refresh; the new effects guarantee a re-fetch on
+  // every visit and on every realtime mutation against matches/match_players.
+  const loadMatches = useCallback(async (seasonId: string, mode: 'initial' | 'refresh' = 'initial') => {
+    if (mode === 'initial') setLoading(true)
+    const [matchRes, mdRes] = await Promise.all([
+      supabase
+        .from('matches')
+        .select(`
+          id, result, score_white, score_black, approved_at, matchday_id,
+          matchday:matchdays!inner(id, kickoff_at, is_friendly),
+          motm_member:profiles!matches_motm_user_id_fkey(display_name),
+          motm_guest:match_guests!matches_motm_guest_id_fkey(display_name),
+          scorers:match_players(team, goals, profile:profiles(display_name), guest:match_guests(display_name))
+        `)
+        .eq('season_id', seasonId)
+        .not('approved_at', 'is', null)
+        .order('approved_at', { ascending: false })
+        .limit(50),
+      supabase
+        .from('matchdays')
+        .select('id, kickoff_at')
+        .eq('season_id', seasonId)
+        .order('kickoff_at', { ascending: true }),
+    ])
+
+    const numMap: Record<string, number> = {}
+    ;(mdRes.data ?? []).forEach((row, i) => { numMap[row.id] = i + 1 })
+    setMatchdayNumber(numMap)
+
+    const rows = ((matchRes.data ?? []) as unknown as MatchRow[])
+      .filter(m => m.matchday && !m.matchday.is_friendly)
+    setMatches(rows)
+    setLoading(false)
+  }, [])
+
+  // Initial + season-switch load
   useEffect(() => {
     if (!activeSeasonId) return
-    setLoading(true)
-    ;(async () => {
-      const [matchRes, mdRes] = await Promise.all([
-        supabase
-          .from('matches')
-          .select(`
-            id, result, score_white, score_black, approved_at, matchday_id,
-            matchday:matchdays!inner(id, kickoff_at, is_friendly),
-            motm_member:profiles!matches_motm_user_id_fkey(display_name),
-            motm_guest:match_guests!matches_motm_guest_id_fkey(display_name),
-            scorers:match_players(team, goals, profile:profiles(display_name), guest:match_guests(display_name))
-          `)
-          .eq('season_id', activeSeasonId)
-          .not('approved_at', 'is', null)
-          .order('approved_at', { ascending: false })
-          .limit(50),
-        supabase
-          .from('matchdays')
-          .select('id, kickoff_at')
-          .eq('season_id', activeSeasonId)
-          .order('kickoff_at', { ascending: true }),
-      ])
+    void loadMatches(activeSeasonId, 'initial')
+  }, [activeSeasonId, loadMatches])
 
-      // Build matchday# lookup (index+1 by kickoff_at asc)
-      const numMap: Record<string, number> = {}
-      ;(mdRes.data ?? []).forEach((row, i) => {
-        numMap[row.id] = i + 1
+  // Realtime — any match approval/edit triggers a silent refresh.
+  useEffect(() => {
+    if (!activeSeasonId) return
+    const ch = supabase
+      .channel(`matches-tab-${activeSeasonId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
+        void loadMatches(activeSeasonId, 'refresh')
       })
-      setMatchdayNumber(numMap)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_players' }, () => {
+        void loadMatches(activeSeasonId, 'refresh')
+      })
+      .subscribe()
+    return () => { void supabase.removeChannel(ch) }
+  }, [activeSeasonId, loadMatches])
 
-      const rows = ((matchRes.data ?? []) as unknown as MatchRow[])
-        .filter(m => m.matchday && !m.matchday.is_friendly)
-      setMatches(rows)
-      setLoading(false)
-    })()
-  }, [activeSeasonId])
+  // Re-fetch on tab focus / visibility — fixes "No matches yet" stale-state
+  // bug when switching tabs in the bottom nav.
+  useEffect(() => {
+    if (!activeSeasonId) return
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void loadMatches(activeSeasonId, 'refresh')
+    }
+    const onFocus = () => { void loadMatches(activeSeasonId, 'refresh') }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onFocus)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [activeSeasonId, loadMatches])
 
   // Click-outside to close picker
   useEffect(() => {

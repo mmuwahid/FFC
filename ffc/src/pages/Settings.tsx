@@ -100,8 +100,9 @@ function normalisePushPrefs(raw: unknown): PushPrefs {
 
 export function Settings() {
   const navigate = useNavigate()
-  const { session, signOut, role } = useApp()
-  const isAdmin = role === 'admin' || role === 'super_admin'
+  const { session, signOut } = useApp()
+  // S051 issue #4 — Admin platform link moved out of Settings into the avatar drawer.
+  // The role check + pending-count fetch that used to live here have been removed.
 
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -123,10 +124,6 @@ export function Settings() {
   const [masterBusy, setMasterBusy] = useState(false)
   const [masterError, setMasterError] = useState<string | null>(null)
   const [iosInstallOpen, setIosInstallOpen] = useState(false)
-
-  // Admin-only: pending match entries count (S047 nav badge).
-  // Fetched only when role is admin/super_admin; non-admins don't see the row at all.
-  const [pendingEntriesCount, setPendingEntriesCount] = useState<number>(0)
 
   // Delete-account state (S049 — RPC live; soft-delete via migration 0040)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -165,23 +162,6 @@ export function Settings() {
       setLoading(false)
     })()
   }, [session?.user?.id])
-
-  // Admin-only: fetch pending_match_entries count for the nav badge.
-  // Cheap exact-count query against a small table; runs once per Settings mount.
-  useEffect(() => {
-    if (!isAdmin) return
-    let cancelled = false
-    ;(async () => {
-      const { count, error: err } = await supabase
-        .from('pending_match_entries')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'pending')
-      if (!cancelled && !err && typeof count === 'number') {
-        setPendingEntriesCount(count)
-      }
-    })()
-    return () => { cancelled = true }
-  }, [isAdmin])
 
   async function patchProfile(updates: Partial<Database['public']['Tables']['profiles']['Update']>) {
     if (!profile) return { ok: false }
@@ -370,6 +350,11 @@ export function Settings() {
 
   return (
     <div className="st-screen">
+      {/* Issue #4 — back button so the user can leave Settings without
+       * resorting to OS back-gestures or the bottom nav. */}
+      <button type="button" className="st-back" onClick={() => navigate(-1)} aria-label="Back">
+        ‹ Back
+      </button>
       <h1 className="st-title">Settings</h1>
 
       {/* ============ State tiles ============ */}
@@ -504,19 +489,7 @@ export function Settings() {
         {nameError && <div className="st-name-error">{nameError}</div>}
       </section>
 
-      {/* ============ Row 5: Account ============ */}
-      <section className="st-section">
-        <div className="st-section-label">Account</div>
-        <div className="st-account">
-          <div className="st-account-email">{profile.email ?? session?.user?.email ?? '—'}</div>
-          <button type="button" className="st-btn-signout" onClick={handleSignOut}>Sign out</button>
-          <button type="button" className="st-btn-delete st-btn-delete--active" onClick={openDeleteSheet}>
-            Delete account
-          </button>
-        </div>
-      </section>
-
-      {/* ============ Bottom-of-screen link to Rules ============ */}
+      {/* ============ League Rules link ============ */}
       <section className="st-section">
         <button type="button" className="st-rules-link" onClick={() => navigate('/settings/rules')}>
           <span>League Rules</span>
@@ -524,25 +497,22 @@ export function Settings() {
         </button>
       </section>
 
-      {/* ============ Admin platform entry — S034 (badge: S047) ============ */}
-      {isAdmin && (
-        <section className="st-section">
-          <button type="button" className="st-admin-link" onClick={() => navigate('/admin')}>
-            <span className="st-admin-link-label">
-              🛠 Admin platform
-              {pendingEntriesCount > 0 && (
-                <span
-                  className="st-admin-badge"
-                  aria-label={`${pendingEntriesCount} pending match ${pendingEntriesCount === 1 ? 'entry' : 'entries'} awaiting review`}
-                >
-                  {pendingEntriesCount}
-                </span>
-              )}
-            </span>
-            <span className="st-chevron">›</span>
+      {/* ============ Account (moved to bottom per S051 issue #4) ============
+       * Email + Sign out + Delete account live on a single row with the email
+       * truncated to share space with the two action buttons. The Admin platform
+       * entry that used to live below has been moved into the avatar drawer. */}
+      <section className="st-section">
+        <div className="st-section-label">Account</div>
+        <div className="st-account-row">
+          <span className="st-account-row-email" title={profile.email ?? session?.user?.email ?? ''}>
+            {profile.email ?? session?.user?.email ?? '—'}
+          </span>
+          <button type="button" className="st-btn-signout" onClick={handleSignOut}>Sign out</button>
+          <button type="button" className="st-btn-delete st-btn-delete--active" onClick={openDeleteSheet}>
+            Delete account
           </button>
-        </section>
-      )}
+        </div>
+      </section>
 
       {toast && (
         <div className="st-toast" onAnimationEnd={() => setToast(null)}>

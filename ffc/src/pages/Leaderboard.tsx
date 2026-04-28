@@ -748,7 +748,7 @@ export function Leaderboard() {
               <div className="lb-table-grid lb-table-grid--header">
                 <span className="lb-cell lb-cell--rank lb-cell--sticky-1" aria-hidden />
                 <span className="lb-cell lb-cell--player lb-cell--sticky-2">Player</span>
-                <span className="lb-cell lb-cell--num">P</span>
+                <span className="lb-cell lb-cell--num">MP</span>
                 <span className="lb-cell lb-cell--num">W</span>
                 <span className="lb-cell lb-cell--num">D</span>
                 <span className="lb-cell lb-cell--num">L</span>

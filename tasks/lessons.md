@@ -36,12 +36,13 @@ The original prose-heavy lessons (S008–S049) are archived at [`_archive/lesson
 - **`.phone-inner > * { flex-shrink: 0 }`** — phone-frame is a scroll container, not stretch container; ANY child with `overflow: hidden` (cards, pitch-wraps) gets shrunk to 0 by flex spec without this. Applies to all phone-frame mockups.
 - **Sticky bottom-nav, never absolute** — `.tabbar { position: sticky; bottom: 0; margin-top: auto; flex-shrink: 0; z-index: 10 }`. Absolute inside scroll container anchors to scroll-content-bottom, not viewport-bottom — appears mid-screen when content overflows.
 
-## Windows + OneDrive workflow (S015–S016)
+## Windows + OneDrive workflow (S015–S016, S052)
 - **OneDrive working tree + external `.git/` per PC.** `git init --separate-git-dir=C:/Users/<user>/FFC-git`. The `.git` pointer file syncs via OneDrive across PCs but git's object DB stays local. Authoritative source = `origin/main`.
 - **Bypass `.bin/*.cmd` wrappers** when project path contains `&` (e.g. "11 - AI & Digital") — cmd.exe truncates at `&`. Use `node ./node_modules/<pkg>/bin/<bin>` directly in `package.json` scripts.
 - **Vercel env vars on Windows:** `vercel env add <NAME> <env> --value "<v>" --yes` (positional env, `--value` flag, `--yes`). Preview takes empty-string positional branch arg. Never pipe stdin via `echo |` — captures trailing `\n`. Add `console.log(..., '(len:', v.length, ')')` runtime canary.
 - **`.npmrc` in package root for peer-dep workarounds** — `legacy-peer-deps=true`. `--flag` doesn't persist across CI's clean `npm install`.
 - **`SSL_CERT_FILE` for Go-binary CA-pool failures** — Go CLIs (`gh`, `docker`, `kubectl`) bundle Mozilla CAs and ignore Windows cert store. Export OS roots to PEM, point env var, restart shell. Raw `git` works without this (uses schannel).
+- **`git update-index --refresh` is the right move when stale-mtime files appear modified but `git diff` is empty (S052).** Touching working-tree files via OneDrive sync (or any external tool) updates mtimes without changing content; git's stat cache then reports them as "modified" until refreshed. Symptom: `git status` shows files as M but `git diff <file>` is empty for all of them. NOT a cross-PC stash situation.
 
 ## Schema + RPC verification (S024–S028, S046–S047, S051)
 - **Before referencing any column, function, enum, or view, query it from `pg_*` / `information_schema`.** Spec prose is not authoritative — DDL is. plpgsql lazy-parses function bodies so CREATE passes but first call fails on bad column/enum/cast.
@@ -84,7 +85,7 @@ The original prose-heavy lessons (S008–S049) are archived at [`_archive/lesson
 - **SW cache bump via build-timestamp** — `VitePWA({ workbox: { cacheId: 'ffc-<ISO-timestamp>' } })` + `cleanupOutdatedCaches: true` eliminates Rule #19 manual discipline. Now superseded by `injectManifest` workflow with `cleanupOutdatedCaches()` call in `src/sw.ts` (S048).
 - **Vercel MCP `list_deployments`** — first-line diagnostic for "did my push trigger a deploy" — returns SHA + state + timestamp + commit message in one call.
 
-## React + UI patterns (S016, S025–S028, S045–S049)
+## React + UI patterns (S016, S025–S028, S045–S049, S052)
 - **Plain-object Context, per-render rebuild.** `AppProvider` rebuilds `{ session, role, loading, signOut }` every render. No `useMemo` (#1 source of stale-Context bugs). If perf becomes real (FFC isn't close), the fix is `useSyncExternalStore`, not memo.
 - **Inline HTML splash + `requestAnimationFrame` hide on first commit** — paints before any JS parses; CSS-only splash is faster than any JS-rendered splash.
 - **Custom DOM events for cross-screen state refresh** — `window.dispatchEvent('ffc:profile-changed')` from Profile/Settings; RoleLayout listens + refetches. Lighter than threading through Context. Caveat: events don't carry diff data, listeners must refetch.
@@ -101,6 +102,12 @@ The original prose-heavy lessons (S008–S049) are archived at [`_archive/lesson
 - **`min-width: 22px` + tabular-nums on count badges** — single-digit counts collapse to oval otherwise.
 - **Single consolidated commit for entangled multi-task slice** — when 3+ tasks edit overlapping files, one feat(s###) commit with task breakdown beats artificially split commits.
 - **Pre-existing-vs-new ESLint triage at slice close** — `git blame -L line,line file` on each error. Pre-existing errors out of scope.
+- **Bumped-specificity `.parent .child--variant` is a cheap colour-regression fix (S052).** Before `!important`, qualify the selector with one extra ancestor — buys a specificity tier without ownership churn. Useful when colours stop showing up despite seemingly correct rules.
+- **Width-based "fits on portrait" fix > pill/content-removal (S052).** When a flex/grid layout mis-allocates space, the cause is usually an unconstrained `fr` / `auto` / `1fr min-content` term, not the content cells themselves. Switch elastic terms to fixed widths before stripping content.
+- **Status-card "no visible change after click" bug pattern (S052).** When a UI commits state that flips a discriminated-union back to a state visually identical to the pre-click state, users perceive the click as a no-op. Every legal choice in a multi-option control deserves its own confirmation state.
+- **`visibilitychange + focus` is a 5-line stale-data antidote for SPA tabs (S052).** When a tab's data dependency is implicit ("I'll see fresh data on next mount") but mount triggers don't fire on navigation between persistent route children, subscribe to `document.visibilitychange` + `window.focus` and re-trigger your loader. Combine with realtime subs to cover both tab-return AND mid-screen mutation.
+- **Back-compat alias when refactoring a component into a more general shape (S052).** When a component grows tabs/options and gets renamed (e.g. `IosInstallPrompt` → `InstallPrompt`), keep the original name as a thin wrapper — `export const IosInstallPrompt = (p) => <InstallPrompt {...p} initialTab="ios"/>` — so existing call sites stay untouched.
+- **Scroll-to-top on route mount needs both `window` AND `#root` scroll (S052).** When the app shell uses `#root` as the scroll container (CSS `overflow: auto` on `#root`), `window.scrollTo(0,0)` alone doesn't reset it. Pattern: `window.scrollTo(0,0); document.getElementById('root')?.scrollTo?.(0,0)`.
 
 ## Realtime + Edge Functions (S030, S048, S049, S051)
 - **`ALTER PUBLICATION supabase_realtime ADD TABLE`** required before `postgres_changes` fires. Verify via `pg_publication_tables`. Filter supports ONE column; secondary filters apply client-side.

@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { AppTopBar } from '../components/AppTopBar'
 import { AppDrawer } from '../components/AppDrawer'
 import { NotificationsPanel } from '../components/NotificationsPanel'
+import { InstallPrompt } from '../components/IosInstallPrompt'
 
 /* Authenticated shell. S049 restructure:
  *   - Bottom nav reduced from 5 → 3 tabs (Poll · Leaderboard · Matches).
@@ -32,7 +33,10 @@ export function RoleLayout() {
   const [unreadCount, setUnreadCount] = useState<number>(0)
   const [bellOpen, setBellOpen] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [installOpen, setInstallOpen] = useState(false)
   const [notifTick, setNotifTick] = useState(0) // bumped on realtime INSERT
+
+  const isAdmin = role === 'admin' || role === 'super_admin'
 
   const refreshProfile = useCallback(async (pid: string) => {
     const { data } = await supabase
@@ -147,7 +151,10 @@ export function RoleLayout() {
         displayName={displayName}
         avatarUrl={avatarUrl}
         onSignOut={signOut}
+        isAdmin={isAdmin}
+        onInstallClick={() => setInstallOpen(true)}
       />
+      <InstallPrompt open={installOpen} onClose={() => setInstallOpen(false)} />
       <NotificationsPanel
         open={bellOpen}
         onClose={() => setBellOpen(false)}

@@ -1,13 +1,66 @@
 # FFC Todo
 
-## NEXT SESSION — S052
+## NEXT SESSION — S053
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: `7a47dfd` (S051 close, 2A-F vote reminders) or later on `main`.
-- Migrations on live DB: **45** (S051 added 0041 → 0045).
+- Expected tip: S052 fix-pack close (commit hash filled at push) on `main`.
+- Migrations on live DB: **46** (S052 added 0046 admin_delete_player_rpc).
 
-**S052 agenda — Phase 2 close-out via single-Thursday live acceptance (or post-Phase-2 mini-tasks if Thursday hasn't landed):**
+**S053 agenda — Phase 2 close-out via single-Thursday live acceptance (deferred from S052; S052 was a GitHub-issue fix-pack instead):**
+
+1. **Phase 2 close: V3.0:122 8-box acceptance on a real Thursday matchday.** Same 8 boxes as the previous S052 agenda — copied below verbatim.
+   - [ ] No vote-chasing in WhatsApp — push reminders alone cover non-voters.
+   - [ ] Roster locks itself at the deadline; confirmed/waitlist players get `roster_locked` push.
+   - [ ] Captain pair auto-set on lock; admin gets `captain_auto_picked` push with override deeplink.
+   - [ ] Confirmed player drops post-lock → admins + captains see CaptainDropoutBanner appear realtime.
+   - [ ] Ref runs entire match on console (no paper).
+   - [ ] Goals / cards / MOTM time-stamped at moment of capture.
+   - [ ] After full-time, ref taps SUBMIT → admin gets push within 30 seconds.
+   - [ ] Admin opens review screen, taps APPROVE → leaderboard updates without manual entry.
+2. **GitHub issue #1 (deferred from S052)** — Leaderboard player abbreviation. User explicitly wants pills (position + MOTM star) to STAY. Re-open with the user once they have a clearer ask; possibly revisit only if portrait readability still feels poor after the S052 column-width fix.
+3. **Live verification of S052 UI fixes on production:**
+   - [ ] Poll: tapping No / Maybe shows the new red/amber state cards with "Change my mind" / "Confirm Yes" / "Switch to No" actions.
+   - [ ] Leaderboard portrait: header reads "MP" not "P"; player col fits in 160px; W/L/D Last 5 pills render green / red / cream-grey.
+   - [ ] Settings: ‹ Back chip top-left, Account row at bottom (one row: email · sign-out · delete), no Admin platform link in Settings.
+   - [ ] Avatar drawer: Profile · Settings · 🛠 Admin platform (admin only) · 📲 Install app · Sign out.
+   - [ ] Install app modal: opens with iOS / Android tabs; correct tab pre-selected per UA.
+   - [ ] Matches tab: switch to Poll → switch back → list renders without a manual refresh; realtime sub fires on new approvals.
+   - [ ] Admin platform: opens scrolled to top, three cards visible above the fold.
+   - [ ] AdminPlayers Edit sheet: Delete player button at bottom, type-DELETE confirm sheet → soft-delete → row drops out of Active list and historical match cards show "Deleted player".
+4. **Carry-over verification from S051** — push subscribe (Chrome desktop + iPhone PWA installed), Resend signup-outcome email, captain reroll live test on a real matchday.
+
+**Backburner:**
+- **Resend custom sender domain** — verify a domain in Resend, set `NOTIFY_FROM` env on `notify-signup-outcome` EF (default is `onboarding@resend.dev`).
+- **Phase 3 mockup-first work** — V3.0:139–148 backlog. Player analytics + H2H comparison. Per CLAUDE.md operating rule #1, build mockups in `mockups/` first.
+
+## Completed in S052 (28/APR/2026, Work PC)
+
+### GitHub issue fix-pack — issues #2 / #3 / #4 / #5 / #6 / #7 closed (#1 deferred per user)
+
+**1 migration (0046). Live DB: 45 → 46. 1 commit (hash filled on push).**
+
+- [x] **Triage.** User pointed at 7 open GitHub issues on `mmuwahid/FFC`. After clarifying questions, user asked to keep position + MOTM pills (deferring issue #1) but still wanted issue #3's portrait re-fit done — implication being a column-width fix, not a pill-removal. Plus 2 unrelated polish items: rename leaderboard "P" → "MP", restore Last 5 W/L/D green/red/cream colours.
+- [x] **Issue #3 — Leaderboard portrait fits.** `lb-table-grid` `grid-template-columns` rank `44px → 36px`, player `minmax(180px, 1.5fr) → 160px` fixed, MP `36px → 40px`. `min-width: 760px → 604px`. Sticky-2 `left: 44px → 36px` to match the new rank col. Pills + MOTM stays inside the 160px player cell (which is what the user explicitly wanted).
+- [x] **Polish — Last 5 colours + MP rename.** Bumped specificity on `.lb-cell--last5 .lb-last5-pill--{W,L,D}` (was bare `.lb-last5-pill--X`) so the colours survive any later cell-level resets. Header text `P` → `MP`.
+- [x] **Issue #2 — Poll No/Maybe visual feedback.** Status-card branch checked `myVote.choice === 'yes'` only; voting No or Maybe fell through to the "Will you play Thursday?" prompt → looked like the click did nothing. Added two new state cards: `.po-status--no` (red border-left) with "Change my mind" cancel button; `.po-status--maybe` (amber border-left) with "Confirm Yes" / "Switch to No" actions. Existing `cast_poll_vote` RPC already accepts `cancel`, no SQL change.
+- [x] **Issue #5 — Matches stale-on-tab-return.** Existing single-fetch effect didn't refresh on revisit. Extracted the matches+matchday loader into a `useCallback`; added (a) realtime sub on `matches` + `match_players` mirroring Leaderboard's pattern, (b) `visibilitychange` + `focus` listeners that re-fetch on every tab return. Both effects guard on `activeSeasonId`.
+- [x] **Issue #6 — Admin platform scroll-to-top.** `useEffect(() => { window.scrollTo(0,0); document.getElementById('root')?.scrollTo?.(0,0) }, [])` on `AdminHome` mount. Both window + #root because `#root` is the actual scroll container per the layout shell.
+- [x] **Issue #4 — Settings restructure + drawer Install + Admin moved out.** Extended `IosInstallPrompt.tsx` into a tabbed iOS / Android `InstallPrompt` (auto-detects platform via UA, default `initialTab='auto'`); kept `IosInstallPrompt` named export as a back-compat alias for the existing Settings push-gate caller. `AppDrawer.tsx` got two new rows: 🛠 Admin platform (admin-only, navigates `/admin`) + 📲 Install app (everyone, opens the modal). RoleLayout passes `isAdmin` + `onInstallClick` + renders the `<InstallPrompt>` portal at layout level. Settings.tsx: new `‹ Back` chip at top, Account section moved to bottom (after League Rules) and merged email + Sign out + Delete account into one row (`.st-account-row`), removed the `🛠 Admin platform` row entirely (lives in drawer now). Removed unused `isAdmin` + `pendingEntriesCount` state in Settings.
+- [x] **Issue #7 — admin_delete_player RPC + EditSheet delete button.** Migration `0046_admin_delete_player_rpc.sql`: `admin_delete_player(p_profile_id uuid)` SECURITY DEFINER + `is_admin()` body guard + REVOKE PUBLIC + GRANT EXECUTE TO authenticated. Refuses self-target (use `delete_my_account`), already-deleted targets, and `super_admin` targets. Audits BEFORE the destructive UPDATE (mirrors S034 / S049 pattern). Same anonymisation as `delete_my_account` (display_name → 'Deleted player', clears avatar/auth/email, soft-delete via `deleted_at`). `AdminPlayers.tsx` EditSheet now has a "Delete player" button under the Save row (super_admin profiles hidden). New `DeletePlayerSheet` mirrors the type-DELETE confirm pattern from Settings; on success closes sheet + reloads list.
+- [x] **Verification.** `tsc -b` EXIT 0 after type regen (live DB types refreshed, 2189 → 2213 lines). `vite build` EXIT 0; PWA precache 12 entries / 1619.63 KiB; `dist/sw.mjs` 17.18 kB / 5.81 kB gzip. Migration applied via `npx supabase db push --linked`. Live screen verification deferred to S053 since auth-gated routes can't run in preview.
+- [x] **Cross-PC sync caught at commit time.** Session-start system snapshot showed stale "M CLAUDE.md / sessions/INDEX.md / tasks/lessons.md / tasks/todo.md" entries from a prior S051 close on home PC; `git update-index --refresh` cleared the stale flags after the local HEAD already advanced to `608d1dc`. Important to internalise as the canonical "git status looks dirty but isn't" symptom — fix is `git update-index --refresh` not stash.
+
+### S052 patterns / lessons (additive)
+
+- **`git update-index --refresh` is the right move when stale-mtime files appear modified but `git diff` is empty.** Touching working-tree files via OneDrive sync (or any external tool) updates mtimes without changing content. Git's stat cache then reports them as "modified" until you refresh the index. Showed up at commit time today — saved a wrong "stash to fix cross-PC lag" diagnosis.
+- **Bumped-specificity (`.parent .child--variant`) is a cheap "the colours just stopped showing up" fix.** Before reaching for `!important`, qualify the selector with one extra ancestor — buys a specificity tier without ownership churn. The Last 5 pills already had correct colour rules; bumping `.lb-cell--last5 .lb-last5-pill--W/L/D` makes them survive any future cell-level reset added in a different sub-section.
+- **Width-based "fits on portrait" fix > pill-removal.** The natural fix to "player col eats all space" is to remove pills, but the user explicitly wants pills. Switching `minmax(180px, 1.5fr)` → fixed `160px` removes the elastic 1.5fr expansion that was consuming the available horizontal space — pills stay, numbers become visible. Generalises: when a flex/grid layout mis-allocates space, the cause is usually an unconstrained `fr` / `auto` / `1fr min-content` term, not the cells themselves.
+- **Status-card "no visible change after click" bug pattern.** When a UI commits state that flips a discriminated-union back to a state visually identical to the pre-click state, users perceive the click as a no-op. The fix is to add explicit "you chose X" states for every legal choice, not to lean on the same prompt + side data. Reuse anywhere users can pick from a multi-option control: every legal choice deserves its own visual confirmation.
+- **`visibilitychange + focus` is a 5-line stale-data antidote for SPA tabs.** When a tab's data dependency is implicit ("I'll see fresh data on next mount") but mount triggers don't fire on navigation between persistent route children, the cheap fix is to subscribe to `document.visibilitychange` + `window.focus` and re-trigger your loader. Combine with realtime subs to cover both scenarios (tab-return AND mid-screen mutation).
+- **Back-compat alias for the IosInstallPrompt rename.** The component grew tabs → became a multi-platform InstallPrompt, but Settings.tsx still consumes `IosInstallPrompt` as the iOS-gate. Exporting `IosInstallPrompt = (p) => <InstallPrompt {...p} initialTab="ios" />` from the same file kept the existing call site untouched while giving the drawer a generic component to point at. Pattern: when refactoring a component into a more general shape, keep the original name as a thin wrapper.
+
+
 
 1. **Phase 2 close: V3.0:122 8-box acceptance on a real Thursday matchday.**
    - [ ] No vote-chasing in WhatsApp — push reminders alone cover non-voters (vote-reminders cron firing at T-24h / T-3h / T-15m before `poll_closes_at`).

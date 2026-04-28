@@ -5,6 +5,7 @@
  * Renders three management cards: Seasons · Players · Matches.
  * Non-admins hitting this route see the access-denied state.
  */
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useApp } from '../../lib/AppContext'
@@ -26,6 +27,14 @@ export function AdminHome() {
   const navigate = useNavigate()
   const { role } = useApp()
   const isAdmin = role === 'admin' || role === 'super_admin'
+
+  // Issue #6 — when /admin opens after a route change, the page can land
+  // mid-scroll because the previous route left the document scrolled. Reset
+  // the window AND #root scroll on mount so the hub always opens at the top.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    document.getElementById('root')?.scrollTo?.(0, 0)
+  }, [])
 
   if (!isAdmin) {
     return (
