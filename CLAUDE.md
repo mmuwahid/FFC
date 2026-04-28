@@ -2,11 +2,13 @@
 
 FFC is a mobile-first PWA for managing a weekly 7v7 friends football league: Monday poll → Thursday game cycle, with match history, leaderboard, seasons, awards, and WhatsApp share integration.
 
-## Current state (S050 close, 28/APR/2026)
-- **Phase:** Phase 1 complete; Phase 2 in flight (Slice 2A push backend + 2B Live Match Console). S050 was a docs-only housekeeping pass — no app code, no migrations.
-- **Live:** https://ffc-gilt.vercel.app · `main` clean at `88f73f9`.
-- **Migrations on live DB:** 40 (`0001` → `0040_delete_my_account_rpc`).
-- **Authoritative plan:** `planning/FFC-masterplan-V3.0.md`.
+## Current state (S051 close, 28/APR/2026)
+- **Phase:** Phase 1 complete. **Phase 2A code-complete** (push client + auth-purge + Resend signup-outcome + auto-lock + auto-pick + dropout banner + vote reminders all shipped S051). **Phase 2B Live Match Console code-complete** (since S044). **Live device acceptance owed across the entire stack** — needs a real Thursday matchday to tick the V3.0:122 8-box criteria and close Phase 2.
+- **Live:** https://ffc-gilt.vercel.app · `main` clean at `7a47dfd`.
+- **Migrations on live DB:** 45 (`0001` → `0045_phase2a_vote_reminders`). S051 added 0041–0045.
+- **pg_cron jobs live:** `auto-lock-matchdays` (`* * * * *`) · `vote-reminders` (`*/5 * * * *`).
+- **Edge Functions live:** `notify-dispatch` (S048) · `purge-deleted-auth-user` (S051) · `notify-signup-outcome` (S051; `RESEND_API_KEY` set as Supabase project secret).
+- **Authoritative plan:** `planning/FFC-masterplan-V3.0.md` (player analytics + H2H comparison restored to Phase 3 backlog this session).
 - **Session history:** `sessions/INDEX.md` + per-session logs at `sessions/S###/session-log.md`. Do not duplicate session narratives here.
 - **Durable lessons:** `tasks/lessons.md` (inherits PadelHub's lessons too).
 - **Open todo:** `tasks/todo.md` (`## NEXT SESSION` is the live agenda; older session blocks live in `tasks/_archive/`).

@@ -43,7 +43,7 @@ The original prose-heavy lessons (S008–S049) are archived at [`_archive/lesson
 - **`.npmrc` in package root for peer-dep workarounds** — `legacy-peer-deps=true`. `--flag` doesn't persist across CI's clean `npm install`.
 - **`SSL_CERT_FILE` for Go-binary CA-pool failures** — Go CLIs (`gh`, `docker`, `kubectl`) bundle Mozilla CAs and ignore Windows cert store. Export OS roots to PEM, point env var, restart shell. Raw `git` works without this (uses schannel).
 
-## Schema + RPC verification (S024–S028, S046–S047)
+## Schema + RPC verification (S024–S028, S046–S047, S051)
 - **Before referencing any column, function, enum, or view, query it from `pg_*` / `information_schema`.** Spec prose is not authoritative — DDL is. plpgsql lazy-parses function bodies so CREATE passes but first call fails on bad column/enum/cast.
   - Columns: `information_schema.columns WHERE table_name='X'`
   - Function signatures: `pg_get_function_identity_arguments(oid)` from `pg_proc`
@@ -59,12 +59,14 @@ The original prose-heavy lessons (S008–S049) are archived at [`_archive/lesson
 - **`edit_match_result` is narrow** — score/result/MOTM/notes only, requires `approved_at IS NOT NULL`, no nested `players`. Use `edit_match_players` for per-player post-approval edits.
 - **`bans` live on `public.player_bans`** (`profile_id`, `starts_at`, `ends_at`, `revoked_at`) — NOT a column on profiles. `rejected` lives on `profiles.role`. `inactive` on `profiles.is_active=false`.
 - **Migration number collision check:** `ls supabase/migrations/` AND `grep -r "supabase/migrations/NNNN" docs/superpowers/plans/` for unexecuted plans before picking next number.
+- **Spec prose drifts from reality 3× per session at scale (S051):** spec referenced `lock_at` column (doesn't exist; reality is `poll_closes_at`), `white_captain_id`/`black_captain_id` columns on matchdays (don't exist; reality is `match_players.is_captain`), `poll_votes.vote IS NULL` (column is `choice`, NOT NULL). Verify EVERY column / function / enum / view name against `database.types.ts` BEFORE writing the SQL — even when spec was written by someone who built the schema.
 
-## TypeScript + Supabase RPC typing (S028, S045)
+## TypeScript + Supabase RPC typing (S028, S045, S051)
 - **Vercel builds with `tsc -b` (project refs)** — stricter than local `tsc --noEmit`. Run `node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build` before pushing. Catches TS6133 unused vars + stricter generated RPC arg types.
 - **Optional RPC args: conditional spread, never `null`.** `...(x ? { p_field: x } : {})` matches generated `T | undefined`. Never `null as unknown as null` (silences local but fails strict build). RPC args that should be nullable need `DEFAULT NULL` in PL/pgSQL or generator marks them required.
 - **`as unknown as Json` for jsonb RPC args** — Supabase generated `Json` carries an index signature `[k: string]: Json | undefined` that hand-written interfaces lack.
 - **Defensive `??`-normalisation when persisted-state shape evolves** — adding a field deserialises legacy state with `undefined`; normalise every field in the read path rather than version-bumping.
+- **Allocate `ArrayBuffer` explicitly when typing-strict TS demands `Uint8Array<ArrayBuffer>`** — default `new Uint8Array(n)` returns the looser `Uint8Array<ArrayBufferLike>` (which can be `SharedArrayBuffer`); lib.dom strict typings on PushManager.subscribe.applicationServerKey and other `BufferSource`-strict APIs reject it. Pattern: `const buf = new ArrayBuffer(n); const view = new Uint8Array(buf);`.
 
 ## Auth + signup flow (S019–S020, S038)
 - **Supabase "Confirm email" must stay OFF for FFC Phase 1** (admin approval is the gate). Flipping ON re-breaks `Signup.tsx` Stage 1 silent-stuck — `signUp()` returns `session: null`, `onAuthStateChange` never fires. Fix the inbox-handler before flipping.
@@ -100,7 +102,7 @@ The original prose-heavy lessons (S008–S049) are archived at [`_archive/lesson
 - **Single consolidated commit for entangled multi-task slice** — when 3+ tasks edit overlapping files, one feat(s###) commit with task breakdown beats artificially split commits.
 - **Pre-existing-vs-new ESLint triage at slice close** — `git blame -L line,line file` on each error. Pre-existing errors out of scope.
 
-## Realtime + Edge Functions (S030, S048, S049)
+## Realtime + Edge Functions (S030, S048, S049, S051)
 - **`ALTER PUBLICATION supabase_realtime ADD TABLE`** required before `postgres_changes` fires. Verify via `pg_publication_tables`. Filter supports ONE column; secondary filters apply client-side.
 - **Migration 0012 DEFAULT PRIVILEGES covers `authenticated` only, NOT `service_role`.** Any new table that needs Edge Function (service_role) DML access must emit explicit `GRANT … TO service_role` in the same migration.
 - **Two-bearer Edge Function auth** — `Authorization: Bearer <legacy-jwt>` for the Functions gateway + `X-<custom>-Secret` for function-internal caller-auth. Decouples function from Supabase's `sb_secret_*` vs legacy-JWT key model.
@@ -109,8 +111,11 @@ The original prose-heavy lessons (S008–S049) are archived at [`_archive/lesson
 - **Two-layer defense for SECURITY DEFINER RPCs** — Layer 1: helper-function NULL safety (`COALESCE(is_admin(), false)`). Layer 2: `REVOKE EXECUTE FROM PUBLIC` + `GRANT EXECUTE TO authenticated`. Either alone shuts out anon; both together survive helper bugs and signature regressions.
 - **base64url tokens via `gen_random_bytes` + 3 `replace()` calls** (URL-safe vs Postgres `encode(..., 'base64')` which produces `+`/`/`/`=`).
 - **Two-statement burn-then-mint under snapshot isolation needs `pg_advisory_xact_lock`** to serialise concurrent calls.
+- **`current_profile_id()` returns NULL inside pg_cron contexts** — cron runs as the postgres superuser, no `auth.uid`. Helpers that depend on it (`is_admin`, `is_captain_of`, etc.) all return null/false. RPCs invoked from a cron job must NOT route through admin-guarded RPCs; either inline the work inside a SECURITY DEFINER function or write a service-role-only variant.
+- **Idempotent unique partial index for cron retry safety** — `CREATE UNIQUE INDEX … (cols) WHERE kind = 'X'` + `INSERT … ON CONFLICT DO NOTHING` lets a 5-min cron with 10-min lookback overlap itself without inserting duplicates. The index encodes the dedupe rule alongside the data instead of in helper code.
+- **Two-bearer pattern is a reusable template for trigger-driven Edge Functions** — Vault `service_role_key` + `dispatch_shared_secret`, EF env `LEGACY_SERVICE_ROLE_JWT` + `DISPATCH_SHARED_SECRET`, trigger sends `Authorization: Bearer <jwt>` (gateway) + `X-Dispatch-Secret: <secret>` (caller-auth). Reused 3× in S051 (auth-purge + signup-outcome + auto-lock infra) — each new EF is now a 30-line mod off the S048 base.
 
-## Process / framing (S008, S015, S025, S038, S050)
+## Process / framing (S008, S015, S025, S038, S050, S051)
 - **Frame decisions before drafting** when multiple downstream artifacts depend on them — 15 min framing saves 30+ min re-draft.
 - **Research-before-close** — when user flags cross-cutting concern mid-session, research it before closing even if otherwise done. Trades 15 min now for 60+ min cold-start research next session.
 - **Swap infrastructure hygiene debt early** — anon key → publishable key, build tool versions, naming conventions. "Will work for now" is a debt trap when migration cost grows linearly with app size.
@@ -121,3 +126,5 @@ The original prose-heavy lessons (S008–S049) are archived at [`_archive/lesson
 - **Archive-don't-delete** preserves prose for future grep without bloating live context (`tasks/_archive/`). Reusable any time durable docs grow past their useful-context size.
 - **Per-domain grouping for lessons > chronological listing** — future-me / fresh subagent wants "what's the rule for schema verification", not "what happened in S028". Grouped sections are scan-friendly.
 - **For files with row patterns, programmatic reconstruction beats Edit chains.** `awk + sort + Bash heredoc` rewrite is cleaner than sequential Edit calls when restructuring an indexable list.
+- **Probe-before-trace.** When a "trivial-but-blocked" task arrives, first step is environment probe (`which pdftocairo pdf2svg inkscape potrace gs magick`), not assuming a tool exists. When all probes fail, a 30-second `pip install pymupdf` pivot beat hand-tracing. Generalises: scope the toolchain before scoping the work.
+- **PyMuPDF for PDF → SVG when source is genuine vector.** `page.get_drawings()` count + `page.get_images()` zero-count is the **probe**. When both indicators say "vector source", `page.get_svg_image()` is a faithful 1:1 conversion. Avoids the "complex hand-traced logo" trap. Generalises: probe a PDF before tracing a PNG of it.

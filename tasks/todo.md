@@ -1,64 +1,70 @@
 # FFC Todo
 
-## NEXT SESSION — S051
+## NEXT SESSION — S052
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: `88f73f9` (S050 close) or later on `main`.
-- Migrations on live DB: **40** (unchanged since S049).
+- Expected tip: `7a47dfd` (S051 close, 2A-F vote reminders) or later on `main`.
+- Migrations on live DB: **45** (S051 added 0041 → 0045).
 
-**S051 agenda — live device acceptance for the S049 stack + carry-over Phase 2A Tasks 4–6 (deferred from S050 docs-only session):**
+**S052 agenda — Phase 2 close-out via single-Thursday live acceptance (or post-Phase-2 mini-tasks if Thursday hasn't landed):**
 
-1. **Live verification of the S049 UI restructure on production.**
-   - Tap bell with no notifications → empty-state copy ("No notifications yet.")
-   - INSERT a test notification via SQL editor → bell badge increments live (realtime sub on `notifications`)
-   - Tap notification row → marks read (gold dot disappears, weight reduces) + deeplinks per `notificationDeeplinks.ts` resolver
-   - "Mark all read" header link clears every unread row at once
-   - Tap top-bar avatar → drawer slides in from right with Profile / Settings / Sign out
-   - Tap backdrop or ESC → drawer closes; route change closes drawer
-   - Bottom nav has 3 tabs only (🗳 Poll · 🏆 Leaderboard · 📅 Matches); admins see no extra tab
-   - /profile + /settings + /settings/rules render their own back-button header (no top-bar)
-   - Other screens (Poll, Leaderboard, Matches, MatchDetail, FormationPlanner, CaptainHelper, all admin pages) get the top-bar
-   - Profile avatar: initials no longer escape the rounded square; camera badge still visible bottom-right
-   - Top-bar avatar refreshes immediately after upload + display-name save (custom event)
+1. **Phase 2 close: V3.0:122 8-box acceptance on a real Thursday matchday.**
+   - [ ] No vote-chasing in WhatsApp — push reminders alone cover non-voters (vote-reminders cron firing at T-24h / T-3h / T-15m before `poll_closes_at`).
+   - [ ] Roster locks itself at the deadline (`auto-lock-matchdays` cron); confirmed/waitlist players get `roster_locked` push.
+   - [ ] Captain pair auto-set on lock (`auto_pick_captains_on_lock`); admin gets `captain_auto_picked` push with one-tap override deeplink → CaptainHelper shows gold "Auto-picked at lock" banner; manual override clears the pill.
+   - [ ] Confirmed player drops post-lock → admins + captains see CaptainDropoutBanner appear realtime → "Promote from waitlist" or "Roll for new captain" button works.
+   - [ ] Ref runs entire match on console (no paper).
+   - [ ] Goals / cards / MOTM time-stamped at moment of capture.
+   - [ ] After full-time, ref taps SUBMIT → admin gets push within 30 seconds.
+   - [ ] Admin opens review screen, taps APPROVE → leaderboard updates without manual entry.
 
-2. **Leaderboard column scroll + landscape acceptance.**
-   - Portrait: table scrolls horizontally; rank + player columns stay sticky on left
-   - All new columns visible: P · W · D · L · GF · Win% · Last 5 (W/L/D pills) · Pts
-   - Win % matches `wins / (wins+draws+losses)` rounded to integer
-   - Last 5 pills: green for W, red for L, grey for D — newest right or left? confirm matches expected ordering from existing `v_player_last5`
-   - Rotate iPhone to landscape → leaderboard fills full screen width (max-width override)
-   - Rotate back to portrait → screen returns to mobile-capped layout
-   - Other screens unaffected by orientation change
-   - Top-3 medal tinting still works (gold/silver/bronze)
+2. **Carry-over from S051 (everything built but not yet exercised on real production with auth-gated screens):**
+   - Bell + notifications panel realtime (S049)
+   - Top-bar avatar drawer (S049)
+   - 3-tab bottom nav (S049)
+   - Leaderboard expanded columns + landscape orientation (S049)
+   - Delete-account flow end-to-end (S049 soft-delete + S051 mig 0041 hard-purge of auth.users + push_subscriptions cleanup)
+   - Resend signup-outcome email (approve/reject any pending_signups → applicant receives branded email; pre-flight done — `RESEND_API_KEY` set)
+   - iPhone Safari non-standalone iOS-gate → IosInstallPrompt opens, master stays OFF
+   - iPhone PWA installed → push subscribe + delivery
+   - Chrome desktop → push subscribe + INSERT notification → push within 2s
+   - Captain reroll live test on a real matchday (accumulates from S037)
 
-3. **Delete-account flow end-to-end.**
-   - Settings → Delete account pill (red border, no "coming soon" label) → tap
-   - Confirm sheet shows consequence copy ("stats stay as Deleted player")
-   - Type DELETE in capitals → Delete button activates
-   - Tap Delete → RPC fires → success → automatically signs out → /login
-   - Verify in DB: `SELECT deleted_at, display_name, avatar_url, auth_user_id, is_active FROM profiles WHERE id = ...`
-   - Verify leaderboard: deleted profile no longer appears in /leaderboard rankings
-   - Verify match history: matches the deleted player participated in still load with "Deleted player" name
-   - Verify re-signup: same email/Google account can sign up again, lands on ghost-claim picker
-
-4. **Phase 2A Tasks 4–6** (carry-over from the original S049 plan):
-   - **Task 4 — `pushSubscribe.ts` lib + `IosInstallPrompt.tsx` component.** Create `ffc/src/lib/pushSubscribe.ts` with `urlBase64ToUint8Array(base64)` (W3C URL-safe base64 decoder), `isIosNonStandalone()` (UA + display-mode + legacy navigator.standalone check), `subscribeAndPersist(profileId)` (uses `swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })`, upserts `push_subscriptions` row), `unsubscribeAndDelete(profileId)`. Both return `{ ok: true } | { ok: false, reason: string }`. Plus `ffc/src/components/IosInstallPrompt.tsx` (3-step modal portal) + scoped CSS.
-   - **Task 5 — wire master-toggle in `Settings.tsx`.** Extend existing master pill handler. On ON: iOS-gate → `Notification.requestPermission()` → `subscribeAndPersist(profile.id)` → `patchProfile({ push_prefs: { ...prefs, master: true } })`. On OFF: `unsubscribeAndDelete` → patchProfile master:false. Add `masterBusy`, `masterError`, `iosInstallOpen` state.
-   - **Task 6 — multi-device E2E acceptance.** Chrome desktop subscribe → INSERT notification → push within 2s → tap deeplinks. iPhone Safari non-standalone: master ON → install prompt → master stays OFF. iPhone PWA installed: subscribe + push working. Master OFF: row deleted. 410 path best-effort.
-
-**Pre-flight reminder:** all S048 pre-flight (Vault `service_role_key` + `dispatch_shared_secret`, Edge Function env VAPID + DISPATCH_SHARED_SECRET + LEGACY_SERVICE_ROLE_JWT, Vercel `VITE_VAPID_PUBLIC_KEY`) is complete. No additional manual setup needed.
+3. **Optional polish if Thursday hasn't landed:**
+   - **Resend custom sender domain** — verify a domain in Resend, set `NOTIFY_FROM` env on `notify-signup-outcome` EF (default is `onboarding@resend.dev`).
+   - **Phase 3 mockup-first work** — V3.0:139–148 backlog. Highest-impact items: player analytics page + H2H comparison (re-added by user this session). Per CLAUDE.md operating rule #1, build mockups in `mockups/` first before implementing.
 
 **Carry-over backlog (still in flight):**
+- **Live device acceptance for 2B-B/C/D/E/F chain** on a real Thursday matchday (accumulates from S041). End-to-end ref console → ref entry → admin review → approve flow. Now also exercises new top-bar / drawer / notifications panel + auto-pick + dropout banner.
 
-- **Live device acceptance for 2B-B/C/D/E/F chain** on a real Thursday matchday (accumulates from S041). End-to-end ref console → ref entry → admin review → approve flow. Now also exercises new top-bar / drawer / notifications panel.
-- **Captain reroll live test** on MD31 (accumulates from S037, blocked on live conditions).
+**Backburner:** *(empty — everything from S050 backburner shipped this session)*
 
-**Backburner:**
+## Completed in S051 (28/APR/2026, Work PC)
 
-- **auth.users hard-purge Edge Function** for `delete_my_account` follow-up — current soft-delete leaves the auth row in place. Re-signup works because `auth_user_id` is cleared. Full purge requires `auth.admin.deleteUser()` from a service-role Edge Function (only admin client can call it). Probably name: `purge-deleted-auth-user`. Trigger on `profiles.deleted_at` transition NULL → NOT NULL.
-- **Email notification on signup approve/reject** — Supabase Edge Function (`notify-signup-outcome`) triggered by a database webhook on `pending_signups.resolution` change. Email provider: [Resend](https://resend.com) free tier (100 emails/day, no card). Edge Function needs `RESEND_API_KEY` env var.
-- **Vector FFC crest SVG** — current crest is PNG only. Low-priority polish.
+### Phase 2A close — push client + auth purge + Resend + SVG + auto-lock + auto-pick + vote reminders
+
+**3 commits, 5 migrations. Live DB: 40 → 45. `main` clean.**
+
+- [x] **V3.0 backlog re-add.** Player analytics + H2H comparison restored to Phase 3 backlog (V3.0:139–148) after user flagged they'd dropped during V2.5 consolidation.
+- [x] **Quick-win 1 — Phase 2A push client (Tasks 4 + 5)** in commit `7d82b6a`. New `lib/pushSubscribe.ts` (~165 LOC: `urlBase64ToUint8Array` allocates fresh `ArrayBuffer` to satisfy `Uint8Array<ArrayBuffer>` strict typing for PushManager.subscribe; `isIosNonStandalone` UA + display-mode + legacy navigator.standalone triple-check incl. iPad-MacIntel-with-touch; `subscribeAndPersist` idempotent upsert on `(profile_id, endpoint)`; `unsubscribeAndDelete` best-effort). New `components/IosInstallPrompt.tsx` (~50 LOC) 3-step modal portal + scoped CSS with `safe-area-inset-bottom` padding. `Settings.tsx` `handleMasterToggle`: iOS-gate → permission → subscribe/unsubscribe → patchProfile flow with `masterBusy`/`Error`/`iosInstallOpen` state. Existing prompt-tile button now routes through the same handler. Typed `VITE_VAPID_PUBLIC_KEY` in `env.d.ts`.
+- [x] **Quick-win 2 — auth.users hard-purge** (mig 0041 + EF `purge-deleted-auth-user`). Migration patches `delete_my_account` to stash `auth_user_id` in audit payload BEFORE nulling. New `purge_auth_user_trigger()` AFTER UPDATE OF `deleted_at` ON `profiles` fires only on NULL → NOT NULL transition with non-null OLD.auth_user_id; calls EF via pg_net with two-bearer auth (Vault `service_role_key` + `dispatch_shared_secret`, mirroring S048 mig 0035). EF validates `X-Dispatch-Secret`, calls `auth.admin.deleteUser` (404 = idempotent success), best-effort prunes `push_subscriptions` for the deleted profile.
+- [x] **Quick-win 3 — Resend signup-outcome scaffold** (mig 0042 + EF `notify-signup-outcome`). Trigger AFTER UPDATE OF `resolution` ON `pending_signups` on the `pending → approved/rejected` transition; same two-bearer auth. EF builds branded HTML for both outcomes (escaped `<>` in display_name + reason; approved → `https://ffc-gilt.vercel.app/login`; rejected → includes `rejection_reason`); POSTs to Resend HTTP API (`fetch`, no npm dep). `RESEND_API_KEY` set as Supabase project secret via `npx supabase secrets set` (verified via `supabase secrets list`).
+- [x] **Quick-win 4 — Vector FFC crest SVG** in commit `227f0f7`. Probed environment: no `pdftocairo`/`pdf2svg`/`inkscape`/`potrace`/`gs`/ImageMagick installed. `pip install pymupdf`; `python -c "import fitz; doc=fitz.open(...); print(page.get_drawings())"` confirmed the PDF was pure vector (26 paths + 0 raster images). `page.get_svg_image(matrix=fitz.Identity)` extracted a faithful ~11.5 KB SVG (37 lines) preserving brand tokens `#ebe7e0` cream + `#b0a48a` gold. Copied to `ffc/public/`. Swapped 5 in-app `<img>` references PNG → SVG: Login + Signup + ResetPassword (×2) + Matches splitc-logo (×2). PWA manifest icons + sw.ts push notification icons stay PNG (browser/OS spec compliance).
+- [x] **Phase 2A-D + 2A-E** (mig 0043 + 0044 fix). 3 enum values added (`captain_auto_picked` / `captain_assigned` / `you_are_in`); `is_captain_of(matchday)` STABLE SECURITY DEFINER helper; `promote_from_waitlist(uuid)` 1-arg overload alongside existing S012 `(uuid, uuid)` admin overload (different arity → no PG conflict; captain-or-admin gated; finds next waitlisted yes-voter at position `roster_cap + 1` by `committed_at`); `auto_lock_matchday(matchday)` (idempotent, partitioned `roster_locked` notifications via ROW_NUMBER, conditionally calls auto-pick); `auto_pick_captains_on_lock(matchday)` (top `suggest_captain_pairs` + INLINE `match_players` UPDATE, audit `payload.auto_picked = true` for UI detection, notifies both captains + admins). **Migration 0044 fix**: caught at design review that `set_matchday_captains` requires `is_admin()` which fails in cron context (`current_profile_id()` is NULL); inlined the captain UPDATE inside auto_pick to bypass the guard. `notify_dropout_after_lock_trigger()` AFTER UPDATE OF `cancelled_at` ON `poll_votes` — fires `dropout_after_lock` to admins + captains with `payload.was_captain` derivation. `app_settings.auto_pick_captains` default `{"enabled": true}`. pg_cron `auto-lock-matchdays` `* * * * *` against `poll_closes_at <= now() AND roster_locked_at IS NULL`. New `CaptainDropoutBanner.tsx` (~210 LOC realtime sub on `notifications` filtered to current user, client-filters to dropout_after_lock + matchday match, two flavours via `payload.was_captain`, marks notifications read on action). CaptainHelper integration: banner above mode toggle + `autoPickedAt` audit-log fetch (queries most recent `set_matchday_captains` audit on `match.id`; if `payload_jsonb->>'auto_picked' === true` → set state; re-runs on `match?.id` change OR `saving` toggle so manual override clears the gold pill) + announcer banner.
+- [x] **Phase 2A-F vote reminders** in commit `7a47dfd` (mig 0045). `vote_reminder` enum value; unique partial index `vote_reminder_unique_idx` for cron-retry idempotency; 3 `app_settings` rows (each window flippable independently); `enqueue_vote_reminders()` SECURITY DEFINER returning insert count, with 3 CTEs (`windows` cross-joins matchdays with 3 trigger labels, `active_windows` filters by trigger_at within 10-min lookback + app_settings flag, `non_voters` joins active non-rejected non-soft-deleted profiles whose push_prefs.master + .vote_reminder both true via COALESCE default, LEFT JOIN poll_votes filtered to non-cancelled, picks pv.id IS NULL); pg_cron `vote-reminders` `*/5 * * * *`. Targeting interpretation: spec said "WHERE vote IS NULL" but `poll_votes.choice` is NOT NULL — chose non-yes-voters only (people who said no/maybe are engaged enough). Settings.tsx PushPrefs gains `vote_reminder` toggle.
+- [x] **Verification.** `tsc -b` EXIT 0 + `vite build` EXIT 0 after each commit. PWA precache 11 → 12 entries (+SVG asset) → ~1612 KiB. Live DB push: 5 migrations applied successfully. Both pg_cron jobs verified live: `auto-lock-matchdays` (`* * * * *`) + `vote-reminders` (`*/5 * * * *`). Both EFs deployed: `purge-deleted-auth-user` + `notify-signup-outcome`.
+
+### S051 patterns / lessons (additive)
+
+- **Two-bearer pattern reused 3× this session** (mig 0041 + 0042 + 0043 cron infrastructure). S048's notify-dispatch design (Vault `service_role_key` + `dispatch_shared_secret` + matching env vars on the EF + `Authorization: Bearer <jwt>` for the gateway + `X-Dispatch-Secret` for caller-auth) is now a 30-line **template** for any trigger-driven Edge Function. Centralising the pattern in S048 paid off heavily.
+- **PyMuPDF for PDF → SVG when source is genuine vector.** `page.get_drawings()` count + `page.get_images()` zero-count is the **probe**. When both indicators say "vector source", `page.get_svg_image()` is a faithful 1:1 conversion — no auto-tracer needed. Avoids the "complex laurel-wreath logo by hand" trap.
+- **Idempotent unique partial index for cron retry idempotency.** `CREATE UNIQUE INDEX … (cols) WHERE kind = 'X'` + `INSERT … ON CONFLICT DO NOTHING` lets a 5-min cron with 10-min lookback overlap itself without inserting duplicates. The index encodes the dedupe rule alongside the data instead of in helper code.
+- **`current_profile_id()` is NULL inside pg_cron.** Cron runs as the postgres superuser, no auth.uid context. Helpers that depend on `current_profile_id()` (`is_admin`, `is_captain_of`, etc.) all return null/false in cron context. RPCs called from cron should never go through admin-guarded functions; either inline the work or write service-role-callable variants.
+- **Audit `payload.auto_picked` flag as UI detector.** Simpler than a dedicated column on matchdays/matches. Latest-entry-wins semantics + re-running the effect on `saving` toggle keeps the UI in sync — auto-pick pill auto-clears when admin overrides via the manual flow.
+- **Probe-before-trace.** `which pdftocairo pdf2svg inkscape potrace gs magick` before assuming a tool exists. When all probes fail, a 30-second `pip install pymupdf` pivot beat hand-tracing. **Generalises:** when a "trivial-but-blocked" task arrives, the first step is environment probe, not writing code that assumes a tool exists.
+- **Allocate `ArrayBuffer` explicitly when typing-strict TS demands `Uint8Array<ArrayBuffer>`.** Default `new Uint8Array(n)` returns the looser `ArrayBufferLike` (which can be `SharedArrayBuffer`); lib.dom strict typings on PushManager.subscribe.applicationServerKey reject it.
+- **Spec-vs-schema drift caught 3× this session** — spec referenced `lock_at` (column doesn't exist; used `poll_closes_at`), `white_captain_id`/`black_captain_id` columns on matchdays (don't exist; derived via `match_players.is_captain`), `poll_votes.vote IS NULL` (column is `choice`, NOT NULL). Generalises CLAUDE.md operating rule #7: verify spec column/function/enum names against `database.types.ts` BEFORE writing the SQL.
 
 ## Completed in S050 (28/APR/2026, Work PC)
 
