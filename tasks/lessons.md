@@ -110,9 +110,14 @@ The original prose-heavy lessons (S008–S049) are archived at [`_archive/lesson
 - **base64url tokens via `gen_random_bytes` + 3 `replace()` calls** (URL-safe vs Postgres `encode(..., 'base64')` which produces `+`/`/`/`=`).
 - **Two-statement burn-then-mint under snapshot isolation needs `pg_advisory_xact_lock`** to serialise concurrent calls.
 
-## Process / framing (S008, S015, S025, S038)
+## Process / framing (S008, S015, S025, S038, S050)
 - **Frame decisions before drafting** when multiple downstream artifacts depend on them — 15 min framing saves 30+ min re-draft.
 - **Research-before-close** — when user flags cross-cutting concern mid-session, research it before closing even if otherwise done. Trades 15 min now for 60+ min cold-start research next session.
 - **Swap infrastructure hygiene debt early** — anon key → publishable key, build tool versions, naming conventions. "Will work for now" is a debt trap when migration cost grows linearly with app size.
 - **User-driven post-deploy feedback round** — when mockups + spec are approved, ship 90% solution + one live testing pass beats iterating speculatively. User must be available to drive in one sitting.
 - **Always check `git log --oneline -10` at session start** before acting on instructions in prior session docs. Commits landing AFTER a session's close log may supersede the log's decisions.
+- **Three-option (A/B/C) cleanup proposal before touching durable files.** Mass-edit operations on lessons / planning docs / indexes deserve a "what gets dropped" preview — same shape as a destructive-action confirm sheet in the app. User picks in one message.
+- **Profile context-file bloat by file size FIRST, then by load frequency.** CLAUDE.md sends every prompt; INDEX.md reads once at session-start. Same byte saving in CLAUDE.md is worth ~5× the saving elsewhere. Triggering condition for re-running an audit: any context file crossing 30 KB or 1,000 lines.
+- **Archive-don't-delete** preserves prose for future grep without bloating live context (`tasks/_archive/`). Reusable any time durable docs grow past their useful-context size.
+- **Per-domain grouping for lessons > chronological listing** — future-me / fresh subagent wants "what's the rule for schema verification", not "what happened in S028". Grouped sections are scan-friendly.
+- **For files with row patterns, programmatic reconstruction beats Edit chains.** `awk + sort + Bash heredoc` rewrite is cleaner than sequential Edit calls when restructuring an indexable list.

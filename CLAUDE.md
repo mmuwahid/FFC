@@ -2,14 +2,15 @@
 
 FFC is a mobile-first PWA for managing a weekly 7v7 friends football league: Monday poll → Thursday game cycle, with match history, leaderboard, seasons, awards, and WhatsApp share integration.
 
-## Current state (S049 close, 28/APR/2026)
-- **Phase:** Phase 1 complete; Phase 2 in flight (Slice 2A push backend + 2B Live Match Console).
-- **Live:** https://ffc-gilt.vercel.app · `main` clean.
+## Current state (S050 close, 28/APR/2026)
+- **Phase:** Phase 1 complete; Phase 2 in flight (Slice 2A push backend + 2B Live Match Console). S050 was a docs-only housekeeping pass — no app code, no migrations.
+- **Live:** https://ffc-gilt.vercel.app · `main` clean at `88f73f9`.
 - **Migrations on live DB:** 40 (`0001` → `0040_delete_my_account_rpc`).
 - **Authoritative plan:** `planning/FFC-masterplan-V3.0.md`.
 - **Session history:** `sessions/INDEX.md` + per-session logs at `sessions/S###/session-log.md`. Do not duplicate session narratives here.
 - **Durable lessons:** `tasks/lessons.md` (inherits PadelHub's lessons too).
 - **Open todo:** `tasks/todo.md` (`## NEXT SESSION` is the live agenda; older session blocks live in `tasks/_archive/`).
+- **Maintenance reminder:** if any of CLAUDE.md / todo.md / lessons.md / INDEX.md crosses 30 KB or 1,000 lines, re-run the S050 trim cycle.
 
 ## Stack
 - **Frontend:** React 19 + Vite 8 + TypeScript 6 (PWA via `vite-plugin-pwa`, `injectManifest` strategy + `src/sw.ts`)

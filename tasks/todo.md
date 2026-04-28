@@ -1,13 +1,13 @@
 # FFC Todo
 
-## NEXT SESSION — S050
+## NEXT SESSION — S051
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: `b711fbf` (S049 close) or later on `main`.
-- Migrations on live DB: **40** (S049 added 0038 + 0039 + 0040).
+- Expected tip: `88f73f9` (S050 close) or later on `main`.
+- Migrations on live DB: **40** (unchanged since S049).
 
-**S050 agenda — live device acceptance for the entire S049 stack + carry-over Phase 2A Tasks 4–6:**
+**S051 agenda — live device acceptance for the S049 stack + carry-over Phase 2A Tasks 4–6 (deferred from S050 docs-only session):**
 
 1. **Live verification of the S049 UI restructure on production.**
    - Tap bell with no notifications → empty-state copy ("No notifications yet.")
@@ -59,6 +59,28 @@
 - **auth.users hard-purge Edge Function** for `delete_my_account` follow-up — current soft-delete leaves the auth row in place. Re-signup works because `auth_user_id` is cleared. Full purge requires `auth.admin.deleteUser()` from a service-role Edge Function (only admin client can call it). Probably name: `purge-deleted-auth-user`. Trigger on `profiles.deleted_at` transition NULL → NOT NULL.
 - **Email notification on signup approve/reject** — Supabase Edge Function (`notify-signup-outcome`) triggered by a database webhook on `pending_signups.resolution` change. Email provider: [Resend](https://resend.com) free tier (100 emails/day, no card). Edge Function needs `RESEND_API_KEY` env var.
 - **Vector FFC crest SVG** — current crest is PNG only. Low-priority polish.
+
+## Completed in S050 (28/APR/2026, Work PC)
+
+### Context-file trim — archive history + distill lessons
+
+**Docs-only session. 1 commit `88f73f9`. No migration, no app code, no Vercel artifact change.**
+
+- [x] **Audit + diagnosis.** Measured 4 context files at 498 KB total (CLAUDE.md 69 KB / todo.md 206 KB / lessons.md 69 KB / INDEX.md 154 KB). Worst offender: CLAUDE.md L3 = 58,114 chars on a single line, growing a narrative blob per session from S028 onward. Presented Option A (aggressive) / B (conservative) / C (diagnose-only); user picked A.
+- [x] **Trim CLAUDE.md (69 KB → 12 KB, 83% reduction).** Replaced L3 mega-paragraph with fresh `## Current state (S049 close, 28/APR/2026)` block. Dropped outdated `## Current state (S020 close)` + `### Next session (S021)` sections. Re-wrote `## Live operational gotchas (durable)` section from scratch with 17 cross-session-applicable rules. Added `## Per-screen brand tokens` section listing the 12 in-app screens sharing the brand palette. Operating Rules grew 12 → 13 (added `tsc -b` strict-build before push, generalised Rule 7 to cover function signatures + enum values + view projection too).
+- [x] **Archive todo.md history (206 KB → 15 KB, 93% reduction).** `tail -n +88` extracted S001–S048 "Completed in" history blocks to `tasks/_archive/todo-history-pre-s049.md`. `head -n 87` kept NEXT SESSION + S049 close-out. Appended footer pointing to archive + per-session logs.
+- [x] **Strip INDEX.md archaeology (154 KB → 125 KB, 19% reduction).** Extracted all `^| S0` rows via awk, sorted by session number, reconstructed file = header + 49 sorted rows + live S050 pointer. Dropped all 22 `### Prior next-session pointer (kept for archaeology)` stubs. Smallest reduction by % because the bulk is in the row prose itself (which is the canonical session-by-session record we want to keep).
+- [x] **Distill lessons.md (69 KB → 17 KB, 76% reduction).** Copied original to `tasks/_archive/lessons-pre-distill.md` (151 lines preserved verbatim). Wrote new file from scratch: 23 inherited PadelHub Critical Rules at top, then 60-odd FFC-specific lessons grouped into 9 domain sections (mockup safe-area / Windows+OneDrive / schema verification / TS+RPC typing / auth+signup / Vercel deploy / React+UI / realtime+Edge / process). Each rule a one-liner tagged with originating session(s).
+- [x] **Verification + commit.** Final byte counts: 167,818 total (down from 498,362). 66% reduction. History fully preserved in `tasks/_archive/`. Git: 4 modified files + 1 new dir staged → committed `88f73f9` with detailed body breakdown → pushed clean fast-forward `05b9b4d..88f73f9`.
+
+### S050 patterns / lessons (additive)
+
+- **Aggressive history archiving + concise rule-distillation > slow accumulation.** Each session naturally appends "Completed in" blocks + paragraph-blob lessons; left alone, this grew context size 5× over ~30 sessions. The fix is structural — archive the historical blocks, distill rules to one-liners — not editorial. Triggering condition for re-running this audit: any context file crossing 30 KB or 1,000 lines.
+- **Profile context-file bloat by file size FIRST, then by load frequency.** CLAUDE.md is sent every prompt; INDEX.md is read once on session-start. Same byte saving in CLAUDE.md is worth ~5× the same saving in a per-session-load file. Audit highest-ROI first.
+- **Three-option (A/B/C) cleanup proposal before touching anything.** Mass-edit operations on durable files (lessons, planning docs, indexes) deserve a "what gets dropped" preview — same shape as a destructive-action confirm sheet in the app. User picked in one message.
+- **Archive-don't-delete preserves prose for future grep without bloating live context.** `tasks/_archive/` keeps the originals accessible. Reusable any time durable docs grow past their useful-context size.
+- **Per-domain grouping for lessons > chronological listing.** Future-me / fresh subagent wants "what's the rule for schema verification" — chronological listing forces a linear read; grouped sections are scan-friendly.
+- **For files with row patterns, programmatic reconstruction beats Edit chains.** INDEX.md had 22 stubs interspersed with 49 rows. `awk + sort + Bash heredoc` rewrite was cleaner than sequential Edit calls.
 
 ## Completed in S049 (28/APR/2026, Work PC)
 
