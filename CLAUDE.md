@@ -4,7 +4,7 @@ FFC is a mobile-first PWA for managing a weekly 7v7 friends football league: Mon
 
 ## Current state (S052 close, 28/APR/2026)
 - **Phase:** Phase 1 complete. Phase 2A + Phase 2B code-complete (S051). Phase 2 live acceptance still owed on a real Thursday matchday. **S052 = GitHub-issue fix-pack** — issues #2 (Poll No/Maybe feedback) · #3 (Leaderboard portrait col fit) · #4 (Settings restructure + drawer Install + Admin moved out) · #5 (Matches stale-on-tab-return) · #6 (Admin scroll-to-top) · #7 (admin_delete_player RPC + EditSheet delete button) closed. Issue #1 deferred per user (pills stay).
-- **Live:** https://ffc-gilt.vercel.app · `main` at `608d1dc` + S052 fix-pack pending push.
+- **Live:** https://ffc-gilt.vercel.app · `main` clean at `be8c8dd`.
 - **Migrations on live DB:** 46 (`0001` → `0046_admin_delete_player_rpc`). S052 added 0046.
 - **pg_cron jobs live:** `auto-lock-matchdays` (`* * * * *`) · `vote-reminders` (`*/5 * * * *`).
 - **Edge Functions live:** `notify-dispatch` (S048) · `purge-deleted-auth-user` (S051) · `notify-signup-outcome` (S051; `RESEND_API_KEY` set as Supabase project secret).
