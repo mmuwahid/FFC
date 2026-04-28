@@ -1,21 +1,66 @@
 # FFC Todo
 
-## NEXT SESSION — S048
+## NEXT SESSION — S049
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S047 close commit on `main`.
-- Migrations on live DB: **33** (S047 added migration 0033 `admin_rpc_revoke_public`).
+- Expected tip: S048 close commit on `main`.
+- Migrations on live DB: **36** (S048 added 0034 + 0035 + 0036).
 
-**S048 agenda:**
+**S049 agenda — finish Slice 2A (Tasks 4–6 of `docs/superpowers/plans/2026-04-27-phase2-slice-2A-A-B-C.md`):**
 
-1. **Live device acceptance for the 2B-B/C/D/E/F chain** on a real Thursday matchday. Accumulates from S041. End-to-end flow: admin mints ref link from AdminMatches → opens link on phone → KICK OFF → log goals/cards/MOTM → END MATCH → review → SUBMIT → admin opens MatchEntryReview screen → APPROVE → leaderboard updates with no manual entry. Now also exercises the new MOTM picker + Notes editor + admin nav badge from S047.
-2. **Captain reroll live test** on MD31 (accumulates from S037, blocked on live conditions).
-3. **Phase 2A kickoff** — Web Push delivery (push_subscriptions table + notify-dispatch Edge Function + service-worker handler + VAPID lifecycle) per masterplan V3.0. Includes `ALTER PUBLICATION supabase_realtime ADD TABLE pending_match_entries` which would let the AdminMatches CTA + Settings nav badge live-update without a manual refresh.
+1. **Task 4 — `pushSubscribe.ts` lib + `IosInstallPrompt.tsx` component.**
+   - Create `ffc/src/lib/pushSubscribe.ts` with: `urlBase64ToUint8Array(base64)` (W3C URL-safe base64 decoder), `isIosNonStandalone()` (UA + display-mode + legacy navigator.standalone check), `subscribeAndPersist(profileId)` (uses `swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })`, upserts `push_subscriptions` row keyed on `(profile_id, endpoint)`), `unsubscribeAndDelete(profileId)`. Both return `{ ok: true } | { ok: false, reason: string }`.
+   - Create `ffc/src/components/IosInstallPrompt.tsx` — single-screen modal portal showing 3-step install instructions (Share → Add to Home Screen → open from home screen), brand-themed.
+   - Create `ffc/src/styles/ios-install-prompt.css` — scope-root brand tokens + dialog layout (~50–80 LOC).
+   - Plan source: Task 4 of slice plan.
+
+2. **Task 5 — Wire master-toggle in `Settings.tsx`.**
+   - Extend the existing master pill toggle handler. On ON: iOS-gate via `isIosNonStandalone()` → `Notification.requestPermission()` → `subscribeAndPersist(profile.id)` → `patchProfile({ push_prefs: { ...prefs, master: true } })`. On OFF: `unsubscribeAndDelete(profile.id)` → patchProfile master:false. Add `masterBusy`, `masterError`, `iosInstallOpen` state. Render `<IosInstallPrompt onDismiss={() => setIosInstallOpen(false)} />` conditionally; render `masterError` inline.
+   - Plan source: Task 5 of slice plan.
+
+3. **Task 6 — End-to-end multi-device verification on prod.**
+   - Chrome desktop: subscribe → DevTools → Application → push_subscriptions row in DB → SQL editor `INSERT INTO public.notifications ...` → notification appears within 2s → tap deeplinks to `/poll`.
+   - iPhone Safari non-standalone: master ON → install prompt renders → master stays OFF → dismiss works.
+   - iPhone PWA installed: subscribe → second row in DB → notification appears → tap deeplinks correctly.
+   - Master OFF: row deleted, unsubscribe call succeeds.
+   - 410 path best-effort (per plan): clear browser site data + retrigger → confirm Edge Function deleted_invalid increments + row removed. OR mark deferred to slice 2A-D.
+
+**Pre-flight reminder:** ALL pre-flight steps from S048 are complete. Vault has `service_role_key` (legacy JWT) + `dispatch_shared_secret`. Edge Function env has `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `DISPATCH_SHARED_SECRET`, `LEGACY_SERVICE_ROLE_JWT`. Vercel has `VITE_VAPID_PUBLIC_KEY` for all three environments. No additional manual setup needed for S049.
+
+**Carry-over backlog (still in flight):**
+
+- **Live device acceptance for 2B-B/C/D/E/F chain** on a real Thursday matchday (accumulates from S041). End-to-end ref console → ref entry → admin review → approve flow.
+- **Captain reroll live test** on MD31 (accumulates from S037, blocked on live conditions).
 
 **Backburner:**
 
 - **Email notification on approve/reject** — when admin approves or rejects a signup, send a transactional email to the player so they know to open the app (or that their application was declined). Implementation path: Supabase Edge Function (`notify-signup-outcome`) triggered by a database webhook on `pending_signups.resolution` changing from `pending` → `approved`/`rejected`. Email provider: [Resend](https://resend.com) free tier (100 emails/day, no card). Approved email: "Welcome to FFC — you're in, open the app and start voting." Rejected email: "Your FFC signup wasn't approved — contact an admin." Edge Function needs `RESEND_API_KEY` env var in Supabase project settings.
+
+## Completed in S048 (27/APR/2026, Work PC)
+
+### Phase 2 Slice 2A foundation — push backend (Tasks 1–3 of 7)
+
+**3 migrations this slice (0034 + 0035 + 0036). Live DB now at 36 migrations.**
+
+- [x] **Brainstorm + plan committed.** Bundled scope = end-to-end push (button → phone). Trigger = pg_net only. iOS = install-first modal. Service-role secret = Vault. Plan written to `docs/superpowers/plans/2026-04-27-phase2-slice-2A-A-B-C.md` (946 lines, 7 tasks). Commit `30d8935`.
+- [x] **Pre-flight (manual user steps):** VAPID keypair generated; `VITE_VAPID_PUBLIC_KEY` set in Vercel for all three environments (non-Sensitive); VAPID public/private/subject set in Supabase Edge Function secrets; Vault secret `service_role_key` created (later replaced with legacy JWT after `PA`-prefix paste artifact + new-style key mismatch found mid-Task-2); Vault secret `dispatch_shared_secret` added during Task 2 fix; pg_net availability verified empty pre-migration.
+- [x] **Task 1 — Migration 0034 push foundation.** `push_subscriptions` table (8 cols + UNIQUE (profile_id, endpoint) + plain index + RLS with 3 split SELECT/INSERT/DELETE policies via `current_profile_id()`); `notifications.delivered_at` column + `notifications_undelivered_idx` partial index; `ALTER PUBLICATION supabase_realtime ADD TABLE pending_match_entries` idempotent guarded; `pg_net` extension; `notify_dispatch_trigger()` SECURITY DEFINER reading `vault.decrypted_secrets` and POSTing to Edge Function URL; AFTER INSERT trigger; REVOKE EXECUTE FROM PUBLIC. Schema drift caught: live DB had out-of-band `push_subscriptions` table (0 rows, diverged shape) — user picked drop-and-recreate per plan. Types regen 2183 → 2185 lines. tsc -b EXIT 0. Commit `ffc4079`.
+- [x] **Task 2 — `notify-dispatch` Edge Function.** Created `supabase/functions/notify-dispatch/{deno.json, index.ts}` (~120 LOC) per plan: receives notification row from trigger, fans out via `web-push@3.6.7`, marks `delivered_at`, prunes 410/404 dead subscriptions. Auth gate via `Authorization: Bearer` env var match. Initial deploy: commit `a308600`. **Verification surfaced 3 production blockers** (Vault `PA` typo + Supabase auth dual-key trap + missing service_role grants) → all fixed in commit `9ee8b7c`: migrations 0035 (trigger sends `Authorization: Bearer <legacy-jwt>` AND `X-Dispatch-Secret: <shared-secret>` — two-bearer model decoupling gateway-auth from function-auth) + 0036 (service_role DML grants on push_subscriptions + notifications) + Edge Function update (replaced SERVICE_ROLE_KEY check with DISPATCH_SHARED_SECRET; added LEGACY_SERVICE_ROLE_JWT env var for `createClient` because supabase-js doesn't RLS-bypass with `sb_secret_*`). End-to-end verified: trigger-fired path → `net._http_response` shows `200 {"dispatched":0,"failed":0,"deleted_invalid":0}`. Pipeline operational.
+- [x] **Task 3 — vite-plugin-pwa strategy switch + sw.ts.** `ffc/vite.config.ts`: `generateSW` → `injectManifest` + `srcDir` + `filename` + `injectManifest` block. New `ffc/src/sw.ts` (~80 LOC) with `precacheAndRoute(self.__WB_MANIFEST)` + `cleanupOutdatedCaches()` + install/activate (skipWaiting + clients.claim) + push handler (parses payload, builds notification with icon/badge/tag/data, `event.waitUntil(showNotification)`) + notificationclick (focus existing or openWindow) + 7-kind `DEFAULT_DEEPLINK` map + `deeplinkFor()` helper. New `ffc/tsconfig.sw.json` (WebWorker lib + vite-plugin-pwa/client types) referenced from root tsconfig; `tsconfig.app.json` excludes `src/sw.ts`. `workbox-precaching@^7.4.0` added to devDependencies. Build: tsc EXIT 0; vite EXIT 0; `dist/sw.js` 17.04 kB / 5.77 kB gzip; PWA precache 11 entries / 1565 KiB. `__WB_MANIFEST` replaced at build time. Commit `eba2aa0`.
+
+### S048 gotchas / lessons (additive)
+
+- **Subagent over-applying system reminders.** A subagent dispatched for Task 3 read the malware-warning system reminders that fire on every file read and interpreted them as a blanket refusal instruction, declining the entire implementation. Re-dispatched with explicit clarification that those reminders are an automated safety guard against malware (not a stop-signal for legitimate user-authorized work on the user's own project) — second attempt completed Task 3 cleanly. **Future implementer prompts should include this disclaimer up front** so a fresh subagent doesn't lose half a session-equivalent to confusion.
+- **Dashboard paste artifacts.** The Vault `service_role_key` got a stray `PA` prefix from a copy-paste artifact (length 221 instead of 219) — not detected at create time, surfaced only when Task 2's auth check failed. **Defensive verification step after every secret create/update:** `SELECT length(decrypted_secret), substring(decrypted_secret, 1, 5)` to confirm the shape before assuming it'll work. Apply to all future Vault writes.
+- **Supabase auth-key dual model trap.** This is a major one. `Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')` inside an Edge Function returns the new-style `sb_secret_*` key (length 41), not the legacy JWT. **Two consequences:** (a) the Supabase Functions gateway in front of Edge Functions only accepts legacy JWT bearers — `sb_secret_*` returns `UNAUTHORIZED_INVALID_JWT_FORMAT`. (b) `supabase-js`'s `createClient` accepts both as bearer tokens at construction but only the legacy JWT actually bypasses RLS — passing `sb_secret_*` results in `42501 permission denied for table` errors. **Fix pattern:** maintain a separate `LEGACY_SERVICE_ROLE_JWT` env var (set by hand via dashboard) for `createClient`, and use a custom shared-secret in a custom header for caller-auth so you don't depend on Supabase's key system at all. Documented inline in `notify-dispatch/index.ts` head comment.
+- **Migration 0012 DEFAULT PRIVILEGES does NOT cover service_role.** New tables created in `public` get DML grants for `authenticated` only; `service_role` only inherits REFERENCES/TRIGGER/TRUNCATE. If an Edge Function (or any service-role caller) needs to read/write a new table, **emit explicit `GRANT ... TO service_role` in the same migration that creates the table**. CLAUDE.md previously documented "rely on 0012's DEFAULT PRIVILEGES" — that note is amended at S048 close.
+- **Two-bearer auth model for Supabase Edge Functions.** When the gateway's bearer constraint (legacy JWT only) conflicts with what your function-internal env contains (`sb_secret_*`), decouple: `Authorization: Bearer <legacy-jwt>` for the gateway, `X-<custom>-Secret: <shared-secret>` for your function's caller-auth check. The function knows nothing about Supabase's two-key system and won't drift if Supabase changes their key model. Reusable pattern for any future Edge Function called by Postgres triggers.
+- **`net.http_post` body accepts `jsonb` directly** — no `::text` cast needed. The plan's `body := jsonb_build_object(...)::text` was conservative; passing jsonb directly is simpler and works.
+- **`tsconfig.sw.json` for service-worker source isolation** — sibling of `tsconfig.app.json` and `tsconfig.node.json`, referenced from root `tsconfig.json`. WebWorker lib + `vite-plugin-pwa/client` types differ from app's DOM lib + `vite/client` types. Composite-build pattern keeps both compiling cleanly under one `tsc -b` invocation. ~30 lines of options duplication; well worth it.
+- **vite-plugin-pwa `generateSW` → `injectManifest` switch checklist:** keep `manifest`, `registerType`, `devOptions`; add `srcDir`, `filename`, `injectManifest`; remove `workbox` block (generateSW-only); install `workbox-precaching` explicitly; cache-busting handled by workbox revision-keyed manifest + `cleanupOutdatedCaches()`. `cacheId`/`buildId` no longer needed.
+- **Diagnostic-via-extra-endpoint pattern** for Edge Functions when log access is unavailable. Temporarily add `if (req.headers.get('x-diag') === '<token>') return JSON with limited fingerprints`. Use `crypto.subtle.digest('SHA-256', ...)` for prefix-only fingerprints that let you compare-without-revealing. Remove diagnostic before final commit. Used in S048 to confirm `SUPABASE_SERVICE_ROLE_KEY` env contained `sb_secret_*` (SHA prefix `91dbb07db94b1456`).
+- **Plan + brainstorm gates pay off when reality surprises.** Schema drift on `push_subscriptions` and the auth-model trap both surfaced cleanly because the implementer subagents escalated `NEEDS_CONTEXT` / `DONE_WITH_CONCERNS` rather than masking the issues. Saved a destructive ALTER-table mess + saved an unverifiable-in-production push pipeline.
 
 ## Completed in S047 (27/APR/2026, Work PC)
 
