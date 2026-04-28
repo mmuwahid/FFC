@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../lib/AppContext'
 import { MatchDetailSheet } from '../components/MatchDetailSheet'
 import type { Database } from '../lib/database.types'
+import { AvatarSheet, compressImage } from './ProfileAvatarSheet'
 
 /* §3.14 Player Profile — Phase 1 Depth-B slice (S023).
  * Route: /profile?profile_id=<uuid>&season_id=<uuid>
@@ -597,6 +598,12 @@ export function Profile() {
   const [posError, setPosError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
+  const [avatarSheetOpen, setAvatarSheetOpen] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerWrapRef = useRef<HTMLDivElement>(null)
 
@@ -780,6 +787,55 @@ export function Profile() {
     setSheetOpen(false)
   }
 
+  async function handleAvatarFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !profile) return
+    e.target.value = ''
+    setAvatarUploading(true)
+    setAvatarError(null)
+    try {
+      const blob = await compressImage(file)
+      const path = `${profile.id}.jpg`
+      const { error: upErr } = await supabase.storage
+        .from('avatars')
+        .upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+      if (upErr) throw upErr
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+      const urlWithBust = `${publicUrl}?t=${Date.now()}`
+      const { error: dbErr } = await supabase
+        .from('profiles')
+        .update({ avatar_url: urlWithBust })
+        .eq('id', profile.id)
+      if (dbErr) throw dbErr
+      setProfile((prev) => prev ? { ...prev, avatar_url: urlWithBust } : prev)
+      setAvatarSheetOpen(false)
+    } catch (err: unknown) {
+      setAvatarError(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setAvatarUploading(false)
+    }
+  }
+
+  async function handleRemoveAvatar() {
+    if (!profile) return
+    setAvatarUploading(true)
+    setAvatarError(null)
+    try {
+      await supabase.storage.from('avatars').remove([`${profile.id}.jpg`])
+      const { error: dbErr } = await supabase
+        .from('profiles')
+        .update({ avatar_url: null })
+        .eq('id', profile.id)
+      if (dbErr) throw dbErr
+      setProfile((prev) => prev ? { ...prev, avatar_url: null } : prev)
+      setAvatarSheetOpen(false)
+    } catch (err: unknown) {
+      setAvatarError(err instanceof Error ? err.message : 'Remove failed')
+    } finally {
+      setAvatarUploading(false)
+    }
+  }
+
   const isSelf = viewProfileId !== null && viewProfileId === selfProfileId
   const isAdminViewingOther = !isSelf && (selfRole === 'admin' || selfRole === 'super_admin')
   const selectedSeason = seasons?.find((s) => s.id === selectedSeasonId) ?? null
@@ -843,16 +899,34 @@ export function Profile() {
 
       {/* === Hero band === */}
       <div className="pf-hero">
-        {profile.avatar_url ? (
-          <img
-            className={`pf-avatar${isSelf ? '' : ' pf-avatar--other'}`}
-            src={profile.avatar_url}
-            alt=""
-          />
+        {isSelf ? (
+          <button
+            className="pf-avatar-wrap"
+            onClick={() => { setAvatarError(null); setAvatarSheetOpen(true) }}
+            disabled={avatarUploading}
+            aria-label="Change profile photo"
+          >
+            {profile.avatar_url ? (
+              <img src={profile.avatar_url} alt="" className="pf-avatar" />
+            ) : (
+              <span className="pf-avatar">{initials(profile.display_name)}</span>
+            )}
+            {avatarUploading ? (
+              <span className="pf-avatar-busy" aria-hidden>⏳</span>
+            ) : (
+              <span className="pf-avatar-cam" aria-hidden>📷</span>
+            )}
+          </button>
         ) : (
-          <div className={`pf-avatar${isSelf ? '' : ' pf-avatar--other'}`} aria-hidden>
-            {initials(profile.display_name)}
-          </div>
+          <>
+            {profile.avatar_url ? (
+              <img src={profile.avatar_url} alt="" className="pf-avatar pf-avatar--other" />
+            ) : (
+              <div className="pf-avatar pf-avatar--other" aria-hidden>
+                {initials(profile.display_name)}
+              </div>
+            )}
+          </>
         )}
         <div className="pf-identity">
           <div className="pf-name-row">
@@ -986,6 +1060,20 @@ export function Profile() {
           onSortChange={handleSortChange}
           onSave={handleSavePositions}
           onClose={() => setSheetOpen(false)}
+        />
+      )}
+
+      {/* === Avatar upload sheet === */}
+      {avatarSheetOpen && (
+        <AvatarSheet
+          uploading={avatarUploading}
+          error={avatarError}
+          hasAvatar={!!profile.avatar_url}
+          cameraInputRef={cameraInputRef}
+          galleryInputRef={galleryInputRef}
+          onRemove={handleRemoveAvatar}
+          onClose={() => setAvatarSheetOpen(false)}
+          onFileChange={handleAvatarFile}
         />
       )}
     </div>
