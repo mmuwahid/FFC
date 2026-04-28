@@ -3,6 +3,12 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../lib/AppContext'
+import {
+  isIosNonStandalone,
+  subscribeAndPersist,
+  unsubscribeAndDelete,
+} from '../lib/pushSubscribe'
+import { IosInstallPrompt } from '../components/IosInstallPrompt'
 import type { Database } from '../lib/database.types'
 
 /* §3.16 Settings — Phase 1 Depth-B (S024 slice 4).
@@ -109,6 +115,11 @@ export function Settings() {
   )
   const [promptDismissed, setPromptDismissed] = useState(false)
 
+  // Master push toggle wiring (S050 Task 5)
+  const [masterBusy, setMasterBusy] = useState(false)
+  const [masterError, setMasterError] = useState<string | null>(null)
+  const [iosInstallOpen, setIosInstallOpen] = useState(false)
+
   // Admin-only: pending match entries count (S047 nav badge).
   // Fetched only when role is admin/super_admin; non-admins don't see the row at all.
   const [pendingEntriesCount, setPendingEntriesCount] = useState<number>(0)
@@ -198,23 +209,79 @@ export function Settings() {
 
   async function handlePushToggle(key: keyof PushPrefs, val: boolean) {
     if (!profile) return
-    // Permission coupling: turning master ON while permission === 'default' requests it
-    if (key === 'master' && val && permission === 'default') {
-      try {
-        const result = await Notification.requestPermission()
-        setPermission(result)
-        if (result !== 'granted') {
-          // Revert
-          return
-        }
-      } catch {
-        return
-      }
+
+    if (key === 'master') {
+      // Master gates the full subscribe/unsubscribe lifecycle.
+      // Children just write to push_prefs jsonb.
+      await handleMasterToggle(val)
+      return
     }
+
     const nextPrefs: PushPrefs = { ...profile.push_prefs, [key]: val }
     setProfile({ ...profile, push_prefs: nextPrefs })
     const res = await patchProfile({ push_prefs: nextPrefs as unknown as never })
     if (!res.ok) setToast("Couldn't save notification preferences.")
+  }
+
+  async function handleMasterToggle(val: boolean) {
+    if (!profile || masterBusy) return
+    setMasterError(null)
+
+    if (val) {
+      // ===== Master ON ===========================================
+      // 1. iOS gate: if we're on iPhone/iPad outside a PWA, point them at the install flow.
+      if (isIosNonStandalone()) {
+        setIosInstallOpen(true)
+        return // master stays OFF
+      }
+      // 2. Permission gate.
+      let perm: NotificationPermission | 'unsupported' = permission
+      if (permission === 'default') {
+        try {
+          perm = await Notification.requestPermission()
+          setPermission(perm)
+        } catch {
+          setMasterError("Couldn't request notification permission.")
+          return
+        }
+      }
+      if (perm !== 'granted') {
+        // Permission denied or unsupported — leave master OFF.
+        return
+      }
+      // 3. Subscribe + persist + flip the pref.
+      setMasterBusy(true)
+      const sub = await subscribeAndPersist(profile.id)
+      if (!sub.ok) {
+        setMasterBusy(false)
+        setMasterError(sub.reason || "Couldn't enable push.")
+        return
+      }
+      const nextPrefs: PushPrefs = { ...profile.push_prefs, master: true }
+      setProfile({ ...profile, push_prefs: nextPrefs })
+      const res = await patchProfile({ push_prefs: nextPrefs as unknown as never })
+      setMasterBusy(false)
+      if (!res.ok) {
+        setMasterError("Saved subscription but couldn't update preferences. Try again.")
+      }
+      return
+    }
+
+    // ===== Master OFF ============================================
+    setMasterBusy(true)
+    const unsub = await unsubscribeAndDelete(profile.id)
+    if (!unsub.ok) {
+      setMasterBusy(false)
+      setMasterError(unsub.reason || "Couldn't disable push.")
+      return
+    }
+    const nextPrefs: PushPrefs = { ...profile.push_prefs, master: false }
+    setProfile({ ...profile, push_prefs: nextPrefs })
+    const res = await patchProfile({ push_prefs: nextPrefs as unknown as never })
+    setMasterBusy(false)
+    if (!res.ok) {
+      setMasterError("Removed subscription but couldn't update preferences.")
+    }
   }
 
   function isValidName(s: string) {
@@ -316,13 +383,7 @@ export function Settings() {
             <button
               type="button"
               className="st-btn-primary"
-              onClick={async () => {
-                try {
-                  const r = await Notification.requestPermission()
-                  setPermission(r)
-                  if (r === 'granted') handlePushToggle('master', true)
-                } catch { /* ignore */ }
-              }}
+              onClick={() => handlePushToggle('master', true)}
             >
               Enable notifications
             </button>
@@ -361,9 +422,15 @@ export function Settings() {
           <PillToggle
             on={profile.push_prefs.master}
             onChange={v => handlePushToggle('master', v)}
-            disabled={showDeniedTile}
+            disabled={showDeniedTile || masterBusy}
           />
         </div>
+        {masterBusy && (
+          <div className="st-push-hint">Working&hellip;</div>
+        )}
+        {masterError && (
+          <div className="st-push-hint" style={{ color: 'var(--danger, #e63349)' }}>{masterError}</div>
+        )}
         <div className={`st-push-children ${masterOff ? 'st-push-disabled' : ''}`}>
           {PUSH_EVENTS.map(e => (
             <div key={e.key} className="st-push-item">
@@ -381,6 +448,7 @@ export function Settings() {
           )}
         </div>
       </section>
+      <IosInstallPrompt open={iosInstallOpen} onClose={() => setIosInstallOpen(false)} />
 
       {/* ============ Row 3: Positions ============ */}
       <section className="st-section">

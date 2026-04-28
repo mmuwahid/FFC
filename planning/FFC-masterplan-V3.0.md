@@ -142,6 +142,8 @@ Things on the radar but not committed:
 - Photo-OCR fallback (only if live console proves unreliable).
 - Multi-season comparison stats.
 - Match highlights / video clip attachments.
+- **Player analytics page** — per-player deep stats (form curve, goal/MOTM/card trends, win-rate by partner/opponent, streaks). Originally scoped under "Phase 4 — Extras" in V1.0–V2.4; restored 28/APR/2026 (S050 prep) after user flagged it had dropped out of V2.5+ consolidation.
+- **Head-to-head (H2H) comparison** — pick two players, surface side-by-side career stats and direct match-up record (games shared a side, games on opposing sides, win-rate when together vs apart, goal differentials). Same provenance as player analytics; restored 28/APR/2026.
 
 ---
 
