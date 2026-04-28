@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../lib/AppContext'
@@ -112,7 +113,13 @@ export function Settings() {
   // Fetched only when role is admin/super_admin; non-admins don't see the row at all.
   const [pendingEntriesCount, setPendingEntriesCount] = useState<number>(0)
 
-  // Delete-account toast
+  // Delete-account state (S049 — RPC live; soft-delete via migration 0040)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteText, setDeleteText] = useState('')
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  // Generic toast
   const [toast, setToast] = useState<string | null>(null)
 
   // Load profile
@@ -242,6 +249,8 @@ export function Settings() {
     setProfile({ ...profile, display_name: trimmed })
     setNameDraft(trimmed)
     setNameSaving(false)
+    // S049 — notify top-bar to refetch display name.
+    window.dispatchEvent(new Event('ffc:profile-changed'))
   }
 
   async function handleSignOut() {
@@ -254,8 +263,28 @@ export function Settings() {
     navigate('/login')
   }
 
-  function handleDeleteAccount() {
-    setToast('Delete account — coming soon.')
+  function openDeleteSheet() {
+    setDeleteOpen(true)
+    setDeleteText('')
+    setDeleteError(null)
+  }
+
+  async function confirmDelete() {
+    if (deleteText.trim() !== 'DELETE') {
+      setDeleteError('Type DELETE in capitals to confirm.')
+      return
+    }
+    setDeleteBusy(true)
+    setDeleteError(null)
+    const { error: err } = await supabase.rpc('delete_my_account')
+    if (err) {
+      setDeleteError(err.message ?? "Couldn't delete account. Try again.")
+      setDeleteBusy(false)
+      return
+    }
+    // Success — sign out + leave the screen.
+    try { await signOut() } catch { /* ignore */ }
+    navigate('/login', { replace: true })
   }
 
   if (loading) return <div className="st-loading">Loading&hellip;</div>
@@ -409,8 +438,8 @@ export function Settings() {
         <div className="st-account">
           <div className="st-account-email">{profile.email ?? session?.user?.email ?? '—'}</div>
           <button type="button" className="st-btn-signout" onClick={handleSignOut}>Sign out</button>
-          <button type="button" className="st-btn-delete" onClick={handleDeleteAccount}>
-            Delete account <span className="st-soon">coming soon</span>
+          <button type="button" className="st-btn-delete st-btn-delete--active" onClick={openDeleteSheet}>
+            Delete account
           </button>
         </div>
       </section>
@@ -447,6 +476,54 @@ export function Settings() {
         <div className="st-toast" onAnimationEnd={() => setToast(null)}>
           {toast}
         </div>
+      )}
+
+      {deleteOpen && createPortal(
+        <div className="st-delete-root" role="dialog" aria-modal="true" aria-label="Delete account">
+          <button
+            type="button"
+            className="st-delete-backdrop"
+            onClick={() => !deleteBusy && setDeleteOpen(false)}
+            aria-label="Cancel"
+          />
+          <div className="st-delete-panel">
+            <div className="st-delete-title">Delete account?</div>
+            <div className="st-delete-body">
+              <p>This action soft-deletes your profile. Your stats stay on the leaderboard as <strong>Deleted player</strong> so historical match results remain intact.</p>
+              <p>You can rejoin later by signing up again — an admin will need to re-approve you.</p>
+              <p className="st-delete-confirm-prompt">Type <strong>DELETE</strong> to confirm:</p>
+              <input
+                className="st-delete-input"
+                type="text"
+                value={deleteText}
+                onChange={(e) => { setDeleteText(e.target.value); setDeleteError(null) }}
+                placeholder="DELETE"
+                autoCapitalize="characters"
+                disabled={deleteBusy}
+              />
+              {deleteError && <div className="st-delete-error">{deleteError}</div>}
+            </div>
+            <div className="st-delete-actions">
+              <button
+                type="button"
+                className="st-delete-cancel"
+                onClick={() => setDeleteOpen(false)}
+                disabled={deleteBusy}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="st-delete-confirm"
+                onClick={confirmDelete}
+                disabled={deleteBusy || deleteText.trim() !== 'DELETE'}
+              >
+                {deleteBusy ? 'Deleting…' : 'Delete account'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

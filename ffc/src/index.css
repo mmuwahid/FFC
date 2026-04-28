@@ -1720,6 +1720,7 @@ textarea.auth-input {
   flex-shrink: 0;
   box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--accent) 50%, transparent);
   object-fit: cover;
+  overflow: hidden;
 }
 .pf-avatar--other { background: var(--surface-2); color: var(--text); box-shadow: none; }
 .pf-avatar-wrap {
@@ -2454,6 +2455,16 @@ textarea.auth-input {
   border: 1px dashed var(--border);
   font-weight: 600; font-size: 13px; cursor: pointer;
   display: flex; align-items: center; justify-content: space-between;
+}
+/* S049 — active delete pill (red text + red border) once the RPC is wired. */
+.st-btn-delete--active {
+  color: var(--danger, #e63349);
+  border-color: color-mix(in srgb, var(--danger, #e63349) 50%, transparent);
+  border-style: solid;
+  justify-content: center;
+}
+.st-btn-delete--active:hover {
+  background: color-mix(in srgb, var(--danger, #e63349) 10%, transparent);
 }
 .st-soon {
   font-size: 10px; letter-spacing: 0.1em;
@@ -4769,4 +4780,565 @@ textarea.auth-input {
   white-space: nowrap;
   font-size: 13px;
   padding: 6px 12px;
+}
+
+/* ── S049 Top-bar right actions ───────────────────────────────────────── */
+
+.app-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.app-topbar-bell {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  color: var(--text, #f2ead6);
+  font-size: 18px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+.app-topbar-bell:hover { background: var(--surface-2, rgba(255, 255, 255, 0.04)); }
+.app-topbar-bell-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e63349;
+  color: #f2ead6;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px var(--bg, #0e1826);
+  pointer-events: none;
+}
+.app-topbar-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: var(--accent, #e5ba5b);
+  color: #0e1826;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+.app-topbar-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.app-topbar-avatar-initials {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ── S049 Avatar drawer (right slide-in) ──────────────────────────────── */
+
+.app-drawer-root {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+.app-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  animation: app-drawer-fade-in 160ms ease-out;
+}
+.app-drawer-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(86vw, 320px);
+  background: var(--bg, #0e1826);
+  border-left: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--safe-top, 0px);
+  padding-bottom: var(--safe-bottom, 0px);
+  padding-right: var(--safe-right, 0px);
+  animation: app-drawer-slide-in 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@keyframes app-drawer-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes app-drawer-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.app-drawer-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+.app-drawer-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--accent, #e5ba5b);
+  color: #0e1826;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 16px;
+}
+.app-drawer-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.app-drawer-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text, #f2ead6);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-drawer-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  gap: 4px;
+}
+.app-drawer-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 12px;
+  border-radius: 10px;
+  background: transparent;
+  border: none;
+  color: var(--text, #f2ead6);
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+.app-drawer-item:hover { background: var(--surface-2, rgba(255, 255, 255, 0.04)); }
+.app-drawer-item-ico {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.app-drawer-item-label { flex: 1; }
+.app-drawer-chevron {
+  color: var(--text-muted, rgba(242, 234, 214, 0.55));
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.app-drawer-item--danger {
+  margin-top: 12px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  padding-top: 18px;
+  border-radius: 0;
+  color: var(--danger, #e63349);
+}
+
+/* ── S049 Notifications panel (top slide-down) ─────────────────────────── */
+
+.app-notif-root {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+.app-notif-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  animation: app-drawer-fade-in 160ms ease-out;
+}
+.app-notif-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  max-height: 80vh;
+  background: var(--bg, #0e1826);
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--safe-top, 0px);
+  padding-inline: max(var(--safe-left, 0px), 16px) max(var(--safe-right, 0px), 16px);
+  animation: app-notif-slide-down 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  max-width: 560px;
+  margin-inline: auto;
+}
+@keyframes app-notif-slide-down {
+  from { transform: translateY(-12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.app-notif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0 10px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+.app-notif-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text, #f2ead6);
+}
+.app-notif-mark-all {
+  background: transparent;
+  border: none;
+  color: var(--accent, #e5ba5b);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.app-notif-mark-all:disabled { opacity: 0.5; }
+.app-notif-list {
+  overflow-y: auto;
+  flex: 1;
+  padding-block: 6px;
+}
+.app-notif-empty,
+.app-notif-error {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-muted, rgba(242, 234, 214, 0.6));
+  font-size: 14px;
+}
+.app-notif-error { color: var(--danger, #e63349); }
+.app-notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 8px;
+  border-radius: 10px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  position: relative;
+}
+.app-notif-item:hover { background: var(--surface-2, rgba(255, 255, 255, 0.04)); }
+.app-notif-item--unread { background: rgba(229, 186, 91, 0.06); }
+.app-notif-item-ico {
+  font-size: 20px;
+  width: 28px;
+  flex-shrink: 0;
+  text-align: center;
+}
+.app-notif-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.app-notif-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #f2ead6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-notif-item-text {
+  font-size: 13px;
+  color: var(--text-muted, rgba(242, 234, 214, 0.65));
+  line-height: 1.4;
+}
+.app-notif-item-time {
+  font-size: 11px;
+  color: var(--text-muted, rgba(242, 234, 214, 0.45));
+  margin-top: 2px;
+}
+.app-notif-item-dot {
+  position: absolute;
+  top: 16px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent, #e5ba5b);
+}
+.app-notif-item--read .app-notif-item-title { font-weight: 500; }
+
+/* ── S049 Leaderboard table — horizontal scroll + landscape break-out ── */
+
+.lb-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-inline: -16px; /* break out of .app-main 16px gutter for full-bleed table */
+  padding-inline: 16px;
+  padding-bottom: 8px;
+  /* Hide scrollbars on iOS Safari overlay-style; keep gutter for desktop. */
+  scrollbar-width: thin;
+}
+.lb-table-grid {
+  display: grid;
+  grid-template-columns:
+    44px                    /* rank      (sticky) */
+    minmax(180px, 1.5fr)    /* player    (sticky) */
+    36px                    /* P  matches played */
+    32px                    /* W  wins */
+    32px                    /* D  draws */
+    32px                    /* L  losses */
+    36px                    /* GF goals scored */
+    52px                    /* Win% */
+    140px                   /* Last 5 pills */
+    44px;                   /* Pts */
+  align-items: center;
+  gap: 0;
+  min-width: 760px;          /* forces horizontal scroll on portrait */
+  position: relative;
+}
+.lb-table-grid--header {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted, rgba(242, 234, 214, 0.55));
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding-block: 10px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  background: var(--bg, #0e1826);
+}
+.lb-table-grid--row {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+  padding-block: 10px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  color: var(--text, #f2ead6);
+  font-size: 13px;
+}
+.lb-table-grid--row:hover { background: var(--surface-2, rgba(255, 255, 255, 0.03)); }
+.lb-table-grid--row.lb-row--gold   { background: rgba(229, 186, 91, 0.08); }
+.lb-table-grid--row.lb-row--silver { background: rgba(190, 190, 200, 0.06); }
+.lb-table-grid--row.lb-row--bronze { background: rgba(184, 115, 51, 0.06); }
+.lb-cell {
+  padding-inline: 6px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.lb-cell--num {
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.lb-cell--rank {
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+.lb-cell--player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-inline: 8px 12px;
+}
+.lb-cell--player .lb-name-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+.lb-cell--player .lb-name {
+  font-weight: 600;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lb-cell--pts { font-weight: 700; }
+.lb-cell--last5 {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-start;
+  padding-inline: 6px;
+}
+.lb-last5-pill {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #0e1826;
+  flex-shrink: 0;
+}
+.lb-last5-pill--W { background: #4fbf93; }
+.lb-last5-pill--L { background: #e63349; color: #f2ead6; }
+.lb-last5-pill--D { background: rgba(242, 234, 214, 0.35); color: #0e1826; }
+.lb-last5-empty { color: var(--text-muted, rgba(242, 234, 214, 0.4)); font-size: 14px; }
+
+/* Sticky columns — first two cells stay anchored on horizontal scroll. */
+.lb-cell--sticky-1 {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--bg, #0e1826);
+}
+.lb-cell--sticky-2 {
+  position: sticky;
+  left: 44px; /* matches rank-column width */
+  z-index: 2;
+  background: var(--bg, #0e1826);
+}
+.lb-table-grid--row .lb-cell--sticky-1,
+.lb-table-grid--row .lb-cell--sticky-2 {
+  background: var(--bg, #0e1826);
+}
+.lb-table-grid--row.lb-row--gold .lb-cell--sticky-1,
+.lb-table-grid--row.lb-row--gold .lb-cell--sticky-2 {
+  background: #1a1f2c; /* opaque variant tinted gold via overlay below */
+}
+.lb-table-grid--row.lb-row--silver .lb-cell--sticky-1,
+.lb-table-grid--row.lb-row--silver .lb-cell--sticky-2 {
+  background: #1a1f2c;
+}
+.lb-table-grid--row.lb-row--bronze .lb-cell--sticky-1,
+.lb-table-grid--row.lb-row--bronze .lb-cell--sticky-2 {
+  background: #1a1f2c;
+}
+
+/* Landscape break-out — scoped to leaderboard so the rest of the app stays
+ * mobile-capped. Body class is toggled in Leaderboard.tsx mount effect. */
+body.is-leaderboard-landscape #root {
+  max-width: none;
+}
+body.is-leaderboard-landscape .lb-table-grid {
+  /* Keep min-width identical so sticky offsets line up; the wider viewport
+   * just means more columns fit without horizontal scroll. */
+}
+
+/* ── S049 Delete-account confirm sheet ────────────────────────────────── */
+
+.st-delete-root {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.st-delete-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.st-delete-panel {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: var(--bg, #0e1826);
+  border: 1px solid color-mix(in srgb, var(--danger, #e63349) 40%, transparent);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px -10px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.st-delete-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--danger, #e63349);
+  padding: 18px 20px 0;
+}
+.st-delete-body {
+  padding: 14px 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text, #f2ead6);
+}
+.st-delete-body p { margin: 0 0 12px; }
+.st-delete-body strong { color: var(--text, #f2ead6); }
+.st-delete-confirm-prompt { color: var(--text-muted, rgba(242, 234, 214, 0.7)); }
+.st-delete-input {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  color: var(--text, #f2ead6);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+.st-delete-input:focus {
+  outline: none;
+  border-color: var(--danger, #e63349);
+}
+.st-delete-error {
+  margin-top: 10px;
+  color: var(--danger, #e63349);
+  font-size: 13px;
+}
+.st-delete-actions {
+  display: flex;
+  gap: 8px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+.st-delete-cancel,
+.st-delete-confirm {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+.st-delete-cancel {
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  color: var(--text, #f2ead6);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+}
+.st-delete-confirm {
+  background: var(--danger, #e63349);
+  color: #f2ead6;
+  border: none;
+}
+.st-delete-confirm:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

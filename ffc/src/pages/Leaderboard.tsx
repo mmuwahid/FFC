@@ -104,8 +104,9 @@ function sortKeyValue(s: StandingEmbed, sort: SortKey): number {
     case 'wins':
       return s.wins ?? 0
     case 'last5_form':
-      // Proxy until v_player_last5 join lands: recent wins ≈ total wins for
-      // Phase 1's tiny dataset. Accepts a stale proxy per spec "stale-up-to-60s".
+      // S049: actual W-count over last 5 (from last5ByProfile, threaded via
+      // sortKeyValueWithLast5 below). This branch is only reached via the
+      // legacy plain sortKeyValue used in tiebreaks — fall back to total wins.
       return s.wins ?? 0
     case 'points':
     default:
@@ -464,6 +465,23 @@ export function Leaderboard() {
     navigate(`/profile?profile_id=${pid}&season_id=${selectedSeasonId}`)
   }
 
+  /* S049 — Leaderboard fills the screen in landscape orientation by
+   * overriding the global #root max-width (560px) for as long as this
+   * screen is mounted. body class added on mount, removed on unmount.
+   * matchMedia listener flips it as the device rotates. */
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: landscape)')
+    const update = () => {
+      document.body.classList.toggle('is-leaderboard-landscape', mq.matches)
+    }
+    update()
+    mq.addEventListener('change', update)
+    return () => {
+      mq.removeEventListener('change', update)
+      document.body.classList.remove('is-leaderboard-landscape')
+    }
+  }, [])
+
   /* Pull-to-refresh — only arms when scroll is already at top to avoid
    * competing with normal scrolling. */
   const onTouchStart = (e: React.TouchEvent) => {
@@ -722,96 +740,89 @@ export function Leaderboard() {
 
         {!loading && hasAnyStandings && rankedWithRank && (
           <>
-            <div className="lb-row lb-row--header">
-              <span className="lb-h-rank" aria-hidden />
-              <span className="lb-h-avatar" aria-hidden />
-              <span className="lb-h-player">Player</span>
-              <span className="lb-h-wdl">
-                <span className="lb-w">W</span>
-                <span className="lb-d">D</span>
-                <span className="lb-l">L</span>
-              </span>
-              <span className="lb-h-mp">MP</span>
-              <span className="lb-h-cards" aria-hidden>Cards</span>
-              <span className="lb-h-pts">Pts</span>
-            </div>
+            {/* S049 — table-grid layout with horizontal scroll for portrait
+             * (sticky rank + player columns), full-width fill in landscape via
+             * the body.is-leaderboard-landscape class set in the orientation
+             * effect above. */}
+            <div className="lb-table-wrap">
+              <div className="lb-table-grid lb-table-grid--header">
+                <span className="lb-cell lb-cell--rank lb-cell--sticky-1" aria-hidden />
+                <span className="lb-cell lb-cell--player lb-cell--sticky-2">Player</span>
+                <span className="lb-cell lb-cell--num">P</span>
+                <span className="lb-cell lb-cell--num">W</span>
+                <span className="lb-cell lb-cell--num">D</span>
+                <span className="lb-cell lb-cell--num">L</span>
+                <span className="lb-cell lb-cell--num">GF</span>
+                <span className="lb-cell lb-cell--num">Win%</span>
+                <span className="lb-cell lb-cell--last5">Last 5</span>
+                <span className="lb-cell lb-cell--num">Pts</span>
+              </div>
 
-            {rankedWithRank.map(({ row, rank }) => {
-              if (!row.profile_id) return null
-              const isSelf = row.profile_id === profileId
-              const medal = isCurrentSeason && rank !== null && rank <= 3
-                ? rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'
-                : null
-              const trophy = !isCurrentSeason && rank !== null && rank <= 3 ? '🏆' : null
-              const top3Class = medal
-                ? rank === 1
-                  ? ' lb-row--gold'
-                  : rank === 2
-                    ? ' lb-row--silver'
-                    : ' lb-row--bronze'
-                : ''
-              const wins = row.wins ?? 0
-              const draws = row.draws ?? 0
-              const losses = row.losses ?? 0
-              const mp = wins + draws + losses
-              return (
-                <button
-                  key={row.profile_id}
-                  type="button"
-                  className={`lb-row${top3Class}`}
-                  onClick={() => handleRowTap(row.profile_id!)}
-                >
-                  <span className="lb-rank">{medal ?? trophy ?? rank}</span>
-                  <Avatar
-                    name={row.display_name ?? '?'}
-                    url={row.profile?.avatar_url ?? null}
-                    self={isSelf}
-                  />
-                  <div className="lb-name-block">
-                    <div className="lb-name">{row.display_name ?? 'Unknown'}</div>
-                    <PositionPills
-                      primary={row.profile?.primary_position ?? null}
-                      secondary={row.profile?.secondary_position ?? null}
-                      motms={row.motms ?? 0}
-                    />
-                  </div>
-                  <span className="lb-wdl">
-                    <span className="lb-w">{wins}</span>
-                    <span className="lb-d">{draws}</span>
-                    <span className="lb-l">{losses}</span>
-                  </span>
-                  <span className="lb-mp">{mp}</span>
-                  <span className="lb-cards" aria-label={`${row.yellows ?? 0} yellow, ${row.reds ?? 0} red`}>
-                    {(row.yellows ?? 0) > 0 && (
-                      <span className="lb-card lb-card--yellow">
-                        <span className="lb-card-box lb-card-box--yellow" aria-hidden />
-                        {row.yellows}
+              {rankedWithRank.map(({ row, rank }) => {
+                if (!row.profile_id) return null
+                const isSelf = row.profile_id === profileId
+                const medal = isCurrentSeason && rank !== null && rank <= 3
+                  ? rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'
+                  : null
+                const trophy = !isCurrentSeason && rank !== null && rank <= 3 ? '🏆' : null
+                const top3Class = medal
+                  ? rank === 1
+                    ? ' lb-row--gold'
+                    : rank === 2
+                      ? ' lb-row--silver'
+                      : ' lb-row--bronze'
+                  : ''
+                const wins = row.wins ?? 0
+                const draws = row.draws ?? 0
+                const losses = row.losses ?? 0
+                const mp = wins + draws + losses
+                const winPct = mp > 0 ? Math.round((wins / mp) * 100) : 0
+                const last5 = last5ByProfile.get(row.profile_id!) ?? []
+                return (
+                  <button
+                    key={row.profile_id}
+                    type="button"
+                    className={`lb-table-grid lb-table-grid--row${top3Class}`}
+                    onClick={() => handleRowTap(row.profile_id!)}
+                  >
+                    <span className="lb-cell lb-cell--rank lb-cell--sticky-1">
+                      {medal ?? trophy ?? rank}
+                    </span>
+                    <span className="lb-cell lb-cell--player lb-cell--sticky-2">
+                      <Avatar
+                        name={row.display_name ?? '?'}
+                        url={row.profile?.avatar_url ?? null}
+                        self={isSelf}
+                      />
+                      <span className="lb-name-block">
+                        <span className="lb-name">{row.display_name ?? 'Unknown'}</span>
+                        <PositionPills
+                          primary={row.profile?.primary_position ?? null}
+                          secondary={row.profile?.secondary_position ?? null}
+                          motms={row.motms ?? 0}
+                        />
                       </span>
-                    )}
-                    {(row.reds ?? 0) > 0 && (
-                      <span className="lb-card lb-card--red">
-                        <span className="lb-card-box lb-card-box--red" aria-hidden />
-                        {row.reds}
-                      </span>
-                    )}
-                  </span>
-                  <span className="lb-pts">{row.points ?? 0}</span>
-                  {(() => {
-                    const strip = last5ByProfile.get(row.profile_id!) ?? []
-                    if (strip.length === 0) return null
-                    return (
-                      <span className="lb-last5" aria-label={`Last ${strip.length} results`}>
-                        {strip.map((o, i) => (
-                          <span key={i} className={`lb-form lb-form--${o}`} aria-hidden>
-                            {o}
-                          </span>
-                        ))}
-                      </span>
-                    )
-                  })()}
-                </button>
-              )
-            })}
+                    </span>
+                    <span className="lb-cell lb-cell--num">{mp}</span>
+                    <span className="lb-cell lb-cell--num">{wins}</span>
+                    <span className="lb-cell lb-cell--num">{draws}</span>
+                    <span className="lb-cell lb-cell--num">{losses}</span>
+                    <span className="lb-cell lb-cell--num">{row.goals ?? 0}</span>
+                    <span className="lb-cell lb-cell--num">{winPct}%</span>
+                    <span className="lb-cell lb-cell--last5" aria-label={`Last ${last5.length} results`}>
+                      {last5.length === 0
+                        ? <span className="lb-last5-empty">—</span>
+                        : last5.map((o, i) => (
+                            <span key={i} className={`lb-last5-pill lb-last5-pill--${o}`} aria-hidden>
+                              {o}
+                            </span>
+                          ))}
+                    </span>
+                    <span className="lb-cell lb-cell--num lb-cell--pts">{row.points ?? 0}</span>
+                  </button>
+                )
+              })}
+            </div>
 
             {notPlayed && notPlayed.length > 0 && (
               <div className="lb-not-played">

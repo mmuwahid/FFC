@@ -809,6 +809,8 @@ export function Profile() {
       if (dbErr) throw dbErr
       setProfile((prev) => prev ? { ...prev, avatar_url: urlWithBust } : prev)
       setAvatarSheetOpen(false)
+      // S049 — notify the top-bar avatar to refresh.
+      window.dispatchEvent(new Event('ffc:profile-changed'))
     } catch (err: unknown) {
       setAvatarError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
@@ -829,6 +831,8 @@ export function Profile() {
       if (dbErr) throw dbErr
       setProfile((prev) => prev ? { ...prev, avatar_url: null } : prev)
       setAvatarSheetOpen(false)
+      // S049 — notify the top-bar avatar to refresh.
+      window.dispatchEvent(new Event('ffc:profile-changed'))
     } catch (err: unknown) {
       setAvatarError(err instanceof Error ? err.message : 'Remove failed')
     } finally {

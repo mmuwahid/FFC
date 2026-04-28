@@ -1163,6 +1163,7 @@ export type Database = {
           auth_user_id: string | null
           avatar_url: string | null
           created_at: string
+          deleted_at: string | null
           display_name: string
           email: string | null
           id: string
@@ -1188,6 +1189,7 @@ export type Database = {
           auth_user_id?: string | null
           avatar_url?: string | null
           created_at?: string
+          deleted_at?: string | null
           display_name: string
           email?: string | null
           id?: string
@@ -1213,6 +1215,7 @@ export type Database = {
           auth_user_id?: string | null
           avatar_url?: string | null
           created_at?: string
+          deleted_at?: string | null
           display_name?: string
           email?: string | null
           id?: string
@@ -1696,6 +1699,7 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      delete_my_account: { Args: never; Returns: undefined }
       delete_season: { Args: { p_season_id: string }; Returns: undefined }
       demote_admin: { Args: { p_profile_id: string }; Returns: undefined }
       dismiss_friendly_flag: {
