@@ -249,14 +249,14 @@ export function Matches() {
                   <div className="splitc">
                     <div className={`splitc-half splitc-white${blackWon ? ' splitc-loser' : ''}`}>
                       <div className="splitc-logo splitc-logo-white">
-                        <img src="/ffc-logo.png" alt="FFC" />
+                        <img src="/ffc-logo.svg" alt="FFC" />
                       </div>
                       <span className="splitc-team-label">WHITE</span>
                       <span className="splitc-score splitc-score-white">{m.score_white}</span>
                     </div>
                     <div className={`splitc-half splitc-black${whiteWon ? ' splitc-loser' : ''}`}>
                       <div className="splitc-logo splitc-logo-black">
-                        <img src="/ffc-logo.png" alt="FFC" />
+                        <img src="/ffc-logo.svg" alt="FFC" />
                       </div>
                       <span className="splitc-team-label right">BLACK</span>
                       <span className="splitc-score splitc-score-black">{m.score_black}</span>

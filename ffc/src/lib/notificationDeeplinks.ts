@@ -28,6 +28,9 @@ const DEFAULT_BY_KIND: Partial<Record<NotificationKind, string>> = {
   draft_reroll_started: '/poll',
   reroll_triggered_by_opponent: '/poll',
   captain_dropout_needs_replacement: '/poll',
+  captain_auto_picked: '/poll',     // overridden by payload deeplink in payload-key block
+  captain_assigned: '/poll',
+  you_are_in: '/poll',
   formation_reminder: '/poll',
   formation_shared: '/poll',
 }
@@ -39,6 +42,13 @@ export function deeplinkForNotification(kind: NotificationKind, payload: Json): 
   if (explicit) return explicit
   // Kind-specific overrides that need a payload id.
   if (kind === 'dropout_after_lock' && p && typeof p['matchday_id'] === 'string') {
+    return `/matchday/${p['matchday_id']}/captains`
+  }
+  if (kind === 'captain_auto_picked' && p && typeof p['matchday_id'] === 'string') {
+    return `/matchday/${p['matchday_id']}/captains`
+  }
+  if (kind === 'captain_assigned' && p && typeof p['matchday_id'] === 'string') {
+    // Captain lands on Captain Helper to confirm + plan formation.
     return `/matchday/${p['matchday_id']}/captains`
   }
   if (kind === 'match_entry_approved' && p && typeof p['match_id'] === 'string') {

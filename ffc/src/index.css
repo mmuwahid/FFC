@@ -5436,3 +5436,100 @@ body.is-leaderboard-landscape .lb-table-grid {
   border: none;
   cursor: pointer;
 }
+
+/* =============================================================
+   CaptainDropoutBanner — S050 Phase 2A-D
+   ============================================================= */
+.cdb-banner {
+  margin: 12px 16px 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.10);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: var(--text, #f2ead6);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cdb-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.cdb-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+.cdb-text strong {
+  font-weight: 600;
+  color: var(--accent, #e5ba5b);
+}
+.cdb-error {
+  font-size: 12px;
+  color: var(--danger, #e63349);
+}
+.cdb-actions {
+  display: flex;
+  gap: 8px;
+}
+.cdb-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.cdb-btn-primary {
+  background: var(--accent, #e5ba5b);
+  color: #0e1826;
+}
+.cdb-btn-ghost {
+  background: transparent;
+  color: var(--text-muted, rgba(242, 234, 214, 0.78));
+  border-color: var(--border, rgba(255, 255, 255, 0.12));
+}
+.cdb-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.cdb-stack-hint {
+  font-size: 11px;
+  color: var(--text-muted, rgba(242, 234, 214, 0.6));
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.cdb-toast {
+  margin: 8px 16px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(79, 191, 147, 0.14);
+  border: 1px solid rgba(79, 191, 147, 0.4);
+  color: var(--text, #f2ead6);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Auto-pick announcer banner inside Captain Helper. */
+.ch-autopick-banner {
+  margin: 8px 16px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(229, 186, 91, 0.10);
+  border: 1px solid rgba(229, 186, 91, 0.35);
+  color: var(--text, #f2ead6);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ch-autopick-banner-icon {
+  font-size: 14px;
+}
+.ch-autopick-banner-text strong {
+  color: var(--accent, #e5ba5b);
+  font-weight: 600;
+}

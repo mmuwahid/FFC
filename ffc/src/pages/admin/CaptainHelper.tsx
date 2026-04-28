@@ -39,6 +39,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 import { useApp } from '../../lib/AppContext'
 import { supabase } from '../../lib/supabase'
+import { CaptainDropoutBanner } from '../../components/CaptainDropoutBanner'
 import type { Database } from '../../lib/database.types'
 
 type PlayerPosition = Database['public']['Enums']['player_position']
@@ -150,9 +151,11 @@ function formatTime(iso: string): string {
 export function CaptainHelper() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { role } = useApp()
+  const { role, profileId } = useApp()
 
   const [loading, setLoading] = useState(true)
+  // S050 Phase 2A-E: detect whether the current pair was auto-picked at lock.
+  const [autoPickedAt, setAutoPickedAt] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [matchday, setMatchday] = useState<MatchdayLite | null>(null)
   const [match, setMatch] = useState<MatchLite | null>(null)
@@ -339,6 +342,40 @@ export function CaptainHelper() {
   useEffect(() => {
     void loadAll()
   }, [loadAll])
+
+  // S050 Phase 2A-E: detect whether the most recent set_matchday_captains
+  // audit entry for this match was the auto-pick (payload.auto_picked = true).
+  // Re-runs when match changes; cleared if a later admin override audit entry
+  // is found without the auto_picked flag.
+  useEffect(() => {
+    if (!match?.id) {
+      setAutoPickedAt(null)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      const { data } = await supabase
+        .from('admin_audit_log')
+        .select('payload_jsonb, created_at')
+        .eq('target_entity', 'matches')
+        .eq('target_id', match.id)
+        .eq('action', 'set_matchday_captains')
+        .order('created_at', { ascending: false })
+        .limit(1)
+      if (cancelled) return
+      const row = data?.[0]
+      if (!row) {
+        setAutoPickedAt(null)
+        return
+      }
+      const payload = isPlainObject(row.payload_jsonb) ? row.payload_jsonb : null
+      const autoPicked = payload?.['auto_picked'] === true
+      setAutoPickedAt(autoPicked ? row.created_at : null)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [match?.id, saving])
 
   const candidateById = useMemo(() => {
     const map: Record<string, Candidate> = {}
@@ -538,6 +575,26 @@ export function CaptainHelper() {
         </div>
         <span className="ch-locked-chip">🔒 Roster locked</span>
       </div>
+
+      {/* S050 Phase 2A-D — dropout-after-lock realtime banner */}
+      {profileId && id && (
+        <CaptainDropoutBanner
+          matchdayId={id}
+          currentUserId={profileId}
+          onPromoted={() => void loadAll()}
+          onRerollRequested={() => void loadAll()}
+        />
+      )}
+
+      {/* S050 Phase 2A-E — auto-pick announcer when this pair was system-set at lock */}
+      {autoPickedAt && (
+        <div className="ch-autopick-banner" role="status">
+          <span className="ch-autopick-banner-icon" aria-hidden>✨</span>
+          <span className="ch-autopick-banner-text">
+            <strong>Auto-picked at lock.</strong> Roll or pick a new pair to override.
+          </span>
+        </div>
+      )}
 
       <div className="ch-mode-toggle" role="tablist">
         <button
@@ -976,4 +1033,8 @@ function ConfirmSheet({
       </div>
     </div>
   )
+}
+
+function isPlainObject(x: unknown): x is Record<string, unknown> {
+  return typeof x === 'object' && x !== null && !Array.isArray(x)
 }

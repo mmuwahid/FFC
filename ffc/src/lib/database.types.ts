@@ -1651,6 +1651,14 @@ export type Database = {
         Returns: string
       }
       archive_season: { Args: { p_season_id: string }; Returns: undefined }
+      auto_lock_matchday: {
+        Args: { p_matchday_id: string }
+        Returns: undefined
+      }
+      auto_pick_captains_on_lock: {
+        Args: { p_matchday_id: string }
+        Returns: undefined
+      }
       ban_player: {
         Args: { p_ends_at: string; p_profile_id: string; p_reason: string }
         Returns: string
@@ -1764,6 +1772,7 @@ export type Database = {
         Returns: Json
       }
       is_admin: { Args: never; Returns: boolean }
+      is_captain_of: { Args: { p_matchday_id: string }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       lock_roster: { Args: { p_matchday_id: string }; Returns: undefined }
       log_admin_action: {
@@ -1783,10 +1792,12 @@ export type Database = {
         }[]
       }
       promote_admin: { Args: { p_profile_id: string }; Returns: undefined }
-      promote_from_waitlist: {
-        Args: { p_departing_profile: string; p_matchday_id: string }
-        Returns: string
-      }
+      promote_from_waitlist:
+        | { Args: { p_matchday_id: string }; Returns: string }
+        | {
+            Args: { p_departing_profile: string; p_matchday_id: string }
+            Returns: string
+          }
       record_no_shows: {
         Args: { p_match_id: string; p_profile_ids: string[] }
         Returns: undefined
@@ -1983,6 +1994,9 @@ export type Database = {
         | "captain_dropout_needs_replacement"
         | "formation_reminder"
         | "formation_shared"
+        | "captain_auto_picked"
+        | "captain_assigned"
+        | "you_are_in"
       pending_match_status: "pending" | "approved" | "rejected"
       player_position: "GK" | "DEF" | "CDM" | "W" | "ST"
       poll_choice: "yes" | "no" | "maybe"
@@ -2166,6 +2180,9 @@ export const Constants = {
         "captain_dropout_needs_replacement",
         "formation_reminder",
         "formation_shared",
+        "captain_auto_picked",
+        "captain_assigned",
+        "you_are_in",
       ],
       pending_match_status: ["pending", "approved", "rejected"],
       player_position: ["GK", "DEF", "CDM", "W", "ST"],

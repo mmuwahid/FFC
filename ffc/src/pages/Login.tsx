@@ -115,7 +115,7 @@ export function Login() {
   return (
     <section className="auth-screen">
       <div className="auth-hero">
-        <img className="auth-crest" src="/ffc-logo.png" alt="FFC crest" />
+        <img className="auth-crest" src="/ffc-logo.svg" alt="FFC crest" />
       </div>
 
       <form className="auth-form" onSubmit={handleSignIn} noValidate>

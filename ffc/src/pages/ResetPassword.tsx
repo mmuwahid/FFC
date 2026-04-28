@@ -43,7 +43,7 @@ export function ResetPassword() {
     return (
       <section className="auth-screen">
         <div className="auth-hero">
-          <img className="auth-crest" src="/ffc-logo.png" alt="FFC crest" />
+          <img className="auth-crest" src="/ffc-logo.svg" alt="FFC crest" />
         </div>
         <div className="auth-waiting">
           <div className="auth-waiting-icon" aria-hidden>✓</div>
@@ -59,7 +59,7 @@ export function ResetPassword() {
   return (
     <section className="auth-screen">
       <div className="auth-hero">
-        <img className="auth-crest" src="/ffc-logo.png" alt="FFC crest" />
+        <img className="auth-crest" src="/ffc-logo.svg" alt="FFC crest" />
       </div>
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
         <h2 className="auth-title">Set new password</h2>

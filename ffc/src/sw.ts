@@ -38,13 +38,21 @@ const DEFAULT_DEEPLINK: Record<string, string> = {
   result_posted: '/matches',
   motm_announced: '/matches',
   dropout_after_lock: '/matchday', // appended by handler if matchday_id present
+  captain_auto_picked: '/matchday',
+  captain_assigned: '/matchday',
+  you_are_in: '/poll',
 }
 
 function deeplinkFor(data: PushPayload): string {
   // Explicit deeplink wins if present.
   if (data.payload?.deeplink) return data.payload.deeplink
-  // dropout_after_lock → /matchday/:id/captains
-  if (data.kind === 'dropout_after_lock' && data.payload?.matchday_id) {
+  // matchday-scoped captain flows + dropout → /matchday/:id/captains
+  if (
+    (data.kind === 'dropout_after_lock' ||
+      data.kind === 'captain_auto_picked' ||
+      data.kind === 'captain_assigned') &&
+    data.payload?.matchday_id
+  ) {
     return `/matchday/${data.payload.matchday_id}/captains`
   }
   // motm_announced / result_posted with match_id → /match/:id
