@@ -1687,6 +1687,10 @@ export type Database = {
     }
     Functions: {
       accept_substitute: { Args: { p_matchday_id: string }; Returns: undefined }
+      admin_add_guest: {
+        Args: { p_display_name: string; p_matchday_id: string }
+        Returns: string
+      }
       admin_delete_player: {
         Args: { p_profile_id: string }
         Returns: undefined
@@ -1715,6 +1719,16 @@ export type Database = {
           p_score_white: number
         }
         Returns: string
+      }
+      admin_update_match_draft: {
+        Args: {
+          p_black_guests: string[]
+          p_black_roster: string[]
+          p_match_id: string
+          p_white_guests: string[]
+          p_white_roster: string[]
+        }
+        Returns: undefined
       }
       approve_match_entry: {
         Args: { p_edits?: Json; p_pending_id: string }
