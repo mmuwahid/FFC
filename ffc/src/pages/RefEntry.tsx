@@ -106,9 +106,15 @@ export function RefEntry() {
       <section className="ref-entry ref-entry--center">
         <h1 className="ref-entry-title">Roster not yet locked</h1>
         <p className="ref-entry-copy">
-          The admin hasn't locked the roster yet. Refresh once they have, or ask
-          them to share a fresh ref link.
+          The admin hasn't locked the roster yet. Tap Refresh once they have.
         </p>
+        <button
+          type="button"
+          className="ref-entry-cta ref-entry-cta--secondary"
+          onClick={() => session.refresh()}
+        >
+          ↻ Refresh
+        </button>
       </section>
     )
   }

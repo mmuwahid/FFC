@@ -85,6 +85,7 @@ export function useMatchSession(token: string | undefined) {
   const [error, setError] = useState<string | null>(null)
   const [storageKey, setStorageKey] = useState<string | null>(null)
   const [kickoffAt, setKickoffAt] = useState<string | null>(null)
+  const [fetchKey, setFetchKey] = useState(0)
 
   // Resolve storage key from token (async because Web Crypto is async). The
   // setState calls inside this and the next effect are intentional async-arrival
@@ -105,8 +106,11 @@ export function useMatchSession(token: string | undefined) {
   }, [token])
 
   // Once we have the storage key, hydrate persisted state and fetch matchday.
+  // `fetchKey` increments on manual refresh; re-running this effect re-checks
+  // whether the roster has been locked since last load.
   useEffect(() => {
     if (!storageKey || !token) return
+    setMode('loading')
     let cancelled = false
     const persisted = readPersisted(storageKey)
 
@@ -134,7 +138,8 @@ export function useMatchSession(token: string | undefined) {
         }
       })
     return () => { cancelled = true }
-  }, [storageKey, token])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchKey is intentional refresh trigger
+  }, [storageKey, token, fetchKey])
 
   // Persist whenever mode or kickoffAt change (and we have a key).
   useEffect(() => {
@@ -179,6 +184,7 @@ export function useMatchSession(token: string | undefined) {
     endMatch,
     confirmSubmit,
     reopenLive,
+    refresh: () => setFetchKey((k) => k + 1),
     sessionStorageKey: storageKey,
   }
 }
