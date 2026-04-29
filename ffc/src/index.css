@@ -6393,6 +6393,54 @@ body.is-leaderboard-landscape .lb-table-grid {
   color: var(--muted);
 }
 
+/* Add player button */
+.rs-add-player-btn {
+  background: none;
+  border: 1px solid rgba(229,186,91,0.35);
+  border-radius: 14px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rs-add-player-btn:hover { background: rgba(229,186,91,0.08); }
+
+/* Add player sheet */
+.rs-sheet--tall { max-height: 70vh; }
+.rs-player-list {
+  overflow-y: auto;
+  max-height: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rs-player-empty {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  padding: 16px 0;
+  font-style: italic;
+}
+.rs-player-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  background: rgba(255,255,255,0.04);
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.12s;
+}
+.rs-player-row:hover:not(:disabled) { background: rgba(255,255,255,0.09); }
+.rs-player-row:disabled { opacity: 0.5; cursor: not-allowed; }
+.rs-player-name { flex: 1; font-size: 14px; color: var(--text); }
+.rs-player-add { font-size: 18px; font-weight: 300; color: var(--success); line-height: 1; }
+
 /* Toast */
 .rs-toast {
   position: fixed;
