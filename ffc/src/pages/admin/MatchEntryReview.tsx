@@ -23,6 +23,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import type { Database, Json } from '../../lib/database.types'
+import { shareMatchCard } from '../../lib/shareMatchCard'
 import '../../styles/match-entry-review.css'
 
 type TeamColor = Database['public']['Enums']['team_color']
@@ -153,6 +154,12 @@ export function MatchEntryReview() {
   const [editNotes, setEditNotes] = useState<string | null>(null)
   const [editMotm, setEditMotm] = useState<{ profile_id: string | null; guest_id: string | null } | null>(null)
 
+  // Success state — set after approve_match_entry succeeds.
+  const [approvedMatchId, setApprovedMatchId] = useState<string | null>(null)
+  const [approvedScore, setApprovedScore] = useState<{ white: number; black: number } | null>(null)
+  const [shareBusy, setShareBusy] = useState(false)
+  const [shareError, setShareError] = useState<string | null>(null)
+
   type Sheet =
     | { kind: 'approve' }
     | { kind: 'reject' }
@@ -256,13 +263,18 @@ export function MatchEntryReview() {
           (edits.score_black as number | undefined) ?? data.entry.score_black,
         )
       }
-      const { error } = await supabase.rpc('approve_match_entry', {
+      // Capture approved scores before the RPC (edits may override entry values).
+      const finalWhite = (edits.score_white as number | undefined) ?? data.entry.score_white
+      const finalBlack = (edits.score_black as number | undefined) ?? data.entry.score_black
+
+      const { data: matchId, error } = await supabase.rpc('approve_match_entry', {
         p_pending_id: id,
         p_edits: edits as unknown as Json,
       })
       if (error) throw error
       openSheet(null)
-      navigate('/admin/matches')
+      setApprovedScore({ white: finalWhite, black: finalBlack })
+      setApprovedMatchId(matchId as string)
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -323,6 +335,41 @@ export function MatchEntryReview() {
       data.players.map((p) => ({ team: p.team, goals: p.goals })),
     )
   }, [data, effectiveScoreWhite, effectiveScoreBlack])
+
+  // ── Success state: shown after approve_match_entry completes ──
+  if (approvedMatchId) {
+    return (
+      <section className="mer-screen mer-success">
+        <div className="mer-success-icon">✓</div>
+        <h1 className="mer-success-title">Match approved</h1>
+        <div className="mer-success-score">
+          WHITE {approvedScore?.white ?? 0} – {approvedScore?.black ?? 0} BLACK
+        </div>
+        {shareError && <div className="mer-error">{shareError}</div>}
+        <button
+          type="button"
+          className="mer-action-btn mer-action-btn--share"
+          onClick={async () => {
+            setShareBusy(true)
+            setShareError(null)
+            const result = await shareMatchCard(approvedMatchId)
+            setShareBusy(false)
+            if (result.kind === 'error') setShareError(result.message)
+          }}
+          disabled={shareBusy}
+        >
+          {shareBusy ? 'Generating card…' : '📲 Share to WhatsApp'}
+        </button>
+        <button
+          type="button"
+          className="mer-action-btn mer-action-btn--secondary"
+          onClick={() => navigate('/admin/matches')}
+        >
+          Done
+        </button>
+      </section>
+    )
+  }
 
   if (loading) {
     return (
