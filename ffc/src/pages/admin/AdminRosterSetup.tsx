@@ -1,31 +1,18 @@
 /**
- * Admin Roster Setup — /admin/roster-setup
- * Issue #11: allows admin to view and correct the team rosters for a matchday
- * after the captain pick draft has run. Also serves as the fallback path when
- * no captain draft has happened (admin assigns from scratch).
+ * Admin Roster Setup — /admin/roster-setup  (Issue #20 rewrite)
  *
- * Interaction model (S055 hybrid, issue #15):
- *   1. Tap a pool chip with NO active target → auto-fills next empty slot,
- *      alternating White → Black → White → Black (team with fewer filled
- *      slots wins; tie → White).
- *   2. Tap an empty slot → it becomes the "active target"; next pool chip
- *      tap fills that specific slot (preserves explicit-target flow for
- *      e.g. putting a GK in slot 1).
- *   3. Tap × on a filled slot → player returns to pool, slot becomes empty.
- *   4. Tap × on a pool chip → uncommits player/guest entirely (RPC); next
- *      waitlister auto-promotes into the freed pool slot if any.
- *   5. Waitlist (yes-voters past roster_cap by committed_at) renders below
- *      the pool; tap to promote them into the actionable pool (UI-only).
- *   6. "+ Add guest" → opens name sheet (name only).
- *   7. "+ Add player" → opens search sheet, calls admin_add_commitment.
+ * Three-phase workflow:
+ *   1. Pool  — manage Unassigned / Waitlist / Removed; team slots locked
+ *   2. Teams — roster locked; tap chips to auto-assign W→B→W→B
+ *   3. Saved — read-only; Edit re-enters Teams phase
  *
- * RPCs used:
- *   create_match_draft         — if no draft match exists yet
- *   admin_update_match_draft   — if a draft match already exists
- *   admin_add_guest            — create a match_guest (name only)
- *   admin_add_commitment       — mark a registered player as confirmed
- *   admin_cancel_commitment    — uncommit a registered player (S055)
- *   admin_cancel_guest         — soft-cancel a guest (S055)
+ * Pool player statuses:
+ *   unassigned — within cap, available for team assignment
+ *   waitlist   — over cap; admin must manually promote to unassigned
+ *   removed    — × once on unassigned/waitlist; × again deletes completely
+ *
+ * Team slot tracks originalStatus so removing from a slot returns the
+ * player to the correct section.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -36,6 +23,8 @@ import type { Database } from '../../lib/database.types'
 type PlayerPosition = Database['public']['Enums']['player_position']
 type TeamColor = Database['public']['Enums']['team_color']
 type MatchFormat = Database['public']['Enums']['match_format']
+type PlayerStatus = 'unassigned' | 'waitlist' | 'removed'
+type Phase = 'pool' | 'team' | 'saved'
 
 interface MatchdayOption {
   id: string
@@ -50,6 +39,7 @@ interface PoolPlayer {
   primary_position: PlayerPosition | null
   isGuest: boolean
   guestId?: string
+  status: PlayerStatus
 }
 
 interface RegisteredPlayer {
@@ -60,9 +50,7 @@ interface RegisteredPlayer {
 
 type TeamSlot =
   | { kind: 'empty' }
-  | { kind: 'filled'; player: PoolPlayer }
-
-type ActiveTarget = { team: TeamColor; slotIndex: number } | null
+  | { kind: 'filled'; player: PoolPlayer; originalStatus: PlayerStatus }
 
 interface DraftMatch {
   id: string
@@ -102,21 +90,17 @@ export function AdminRosterSetup() {
   const [toast, setToast] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  // Roster state
+  const [phase, setPhase] = useState<Phase>('pool')
+  const [nextTeam, setNextTeam] = useState<TeamColor>('white')
+
   const [pool, setPool] = useState<PoolPlayer[]>([])
-  const [waitlist, setWaitlist] = useState<PoolPlayer[]>([])
   const [white, setWhite] = useState<TeamSlot[]>([])
   const [black, setBlack] = useState<TeamSlot[]>([])
-  const [activeTarget, setActiveTarget] = useState<ActiveTarget>(null)
   const [draftMatch, setDraftMatch] = useState<DraftMatch | null>(null)
   const [format, setFormat] = useState<MatchFormat>('7v7')
-  // Tracks all profile IDs currently in the pool or in a slot (confirmed)
-  const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set())
-  // Profile ID currently being cancelled via the pool × button (UI busy lock)
-  const [cancellingId, setCancellingId] = useState<string | null>(null)
 
   // Add guest sheet
-  const [guestSheet, setGuestSheet] = useState<{ team: TeamColor } | null>(null)
+  const [guestSheet, setGuestSheet] = useState(false)
   const [guestName, setGuestName] = useState('')
   const [guestBusy, setGuestBusy] = useState(false)
 
@@ -124,7 +108,7 @@ export function AdminRosterSetup() {
   const [playerSheet, setPlayerSheet] = useState(false)
   const [allPlayers, setAllPlayers] = useState<RegisteredPlayer[]>([])
   const [playerSearch, setPlayerSearch] = useState('')
-  const [playerBusy, setPlayerBusy] = useState<string | null>(null) // profile_id being added
+  const [playerBusy, setPlayerBusy] = useState<string | null>(null)
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -144,7 +128,6 @@ export function AdminRosterSetup() {
         .order('kickoff_at', { ascending: false })
         .limit(20)
       if (err) { setError(err.message); setLoading(false); return }
-
       const opts: MatchdayOption[] = (data ?? []).map((md) => {
         const seasonDefault = (md.seasons as unknown as { default_format: MatchFormat } | null)?.default_format ?? '7v7'
         return {
@@ -181,7 +164,8 @@ export function AdminRosterSetup() {
   const loadRoster = useCallback(async (mdId: string, fmt: MatchFormat) => {
     setLoading(true)
     setError(null)
-    setActiveTarget(null)
+    setPhase('pool')
+    setNextTeam('white')
 
     const cap = rosterCap(fmt)
     const half = halfCap(fmt)
@@ -210,34 +194,28 @@ export function AdminRosterSetup() {
         .maybeSingle()
       if (matchErr) throw matchErr
 
-      const allProfiles: PoolPlayer[] = (voteRows ?? []).map((v) => {
+      // Assign statuses: first cap profiles = unassigned, rest = waitlist
+      const profilePlayers: PoolPlayer[] = (voteRows ?? []).map((v, i) => {
         const p = v.profiles as unknown as { id: string; display_name: string; primary_position: PlayerPosition | null } | null
         return {
           id: p?.id ?? v.profile_id ?? '',
           display_name: p?.display_name ?? '—',
           primary_position: p?.primary_position ?? null,
           isGuest: false,
+          status: (i < cap ? 'unassigned' : 'waitlist') as PlayerStatus,
         }
       })
 
-      const allGuests: PoolPlayer[] = (guestRows ?? []).map((g) => ({
+      const guestPlayers: PoolPlayer[] = (guestRows ?? []).map((g) => ({
         id: g.id,
         display_name: g.display_name,
         primary_position: null,
         isGuest: true,
         guestId: g.id,
+        status: 'unassigned' as PlayerStatus,
       }))
 
-      // Partition registered yes-voters: top `cap` by committed_at → pool-eligible,
-      // rest → waitlist (issue #15). Guests are always pool — admin added them deliberately.
-      const profilesPoolEligible = allProfiles.slice(0, cap)
-      const profilesWaitlist = allProfiles.slice(cap)
-
-      // Track which profile IDs are committed for this matchday (pool + waitlist + slots)
-      const confirmedSet = new Set(allProfiles.map(p => p.id))
-      setConfirmedIds(confirmedSet)
-      setWaitlist(profilesWaitlist)
-
+      const allCommitted = [...profilePlayers, ...guestPlayers]
       const emptyWhite: TeamSlot[] = Array.from({ length: half }, () => ({ kind: 'empty' as const }))
       const emptyBlack: TeamSlot[] = Array.from({ length: half }, () => ({ kind: 'empty' as const }))
 
@@ -252,7 +230,6 @@ export function AdminRosterSetup() {
 
         const assignedProfileIds = new Set<string>()
         const assignedGuestIds = new Set<string>()
-
         const whiteSlots: TeamSlot[] = [...emptyWhite]
         const blackSlots: TeamSlot[] = [...emptyBlack]
         let wi = 0; let bi = 0
@@ -260,37 +237,33 @@ export function AdminRosterSetup() {
         for (const mp of mpRows ?? []) {
           let player: PoolPlayer | undefined
           if (mp.profile_id) {
-            // Look up across full profile list (slot may hold a player that ranked
-            // beyond the cap when the draft was originally created — they stay in
-            // their slot, not in the waitlist).
-            player = allProfiles.find(p => p.id === mp.profile_id)
+            player = allCommitted.find(p => p.id === mp.profile_id && !p.isGuest)
             if (player) assignedProfileIds.add(mp.profile_id)
           } else if (mp.guest_id) {
-            player = allGuests.find(g => g.guestId === mp.guest_id)
-            if (player) assignedGuestIds.add(mp.guest_id)
+            player = allCommitted.find(p => p.isGuest && p.guestId === mp.guest_id)
+            if (player) assignedGuestIds.add(mp.guest_id!)
           }
           if (!player) continue
-          if (mp.team === 'white' && wi < half) { whiteSlots[wi++] = { kind: 'filled', player }; continue }
-          if (mp.team === 'black' && bi < half) { blackSlots[bi++] = { kind: 'filled', player } }
+          const originalStatus = player.status
+          if (mp.team === 'white' && wi < half) {
+            whiteSlots[wi++] = { kind: 'filled', player, originalStatus }
+          } else if (mp.team === 'black' && bi < half) {
+            blackSlots[bi++] = { kind: 'filled', player, originalStatus }
+          }
         }
 
         setWhite(whiteSlots)
         setBlack(blackSlots)
-        // Pool excludes assigned + waitlisted; waitlist excludes assigned (a waitlister
-        // already placed on the field by the captain pick stays in the slot, not the waitlist).
-        const assignedWaitlisters = profilesWaitlist.filter(p => assignedProfileIds.has(p.id))
-        if (assignedWaitlisters.length > 0) {
-          setWaitlist(profilesWaitlist.filter(p => !assignedProfileIds.has(p.id)))
-        }
-        setPool([
-          ...profilesPoolEligible.filter(p => !assignedProfileIds.has(p.id)),
-          ...allGuests.filter(g => !assignedGuestIds.has(g.guestId!)),
-        ])
+        setPool(allCommitted.filter(p =>
+          !(p.isGuest ? assignedGuestIds.has(p.guestId!) : assignedProfileIds.has(p.id))
+        ))
+        setPhase('saved')
       } else {
         setDraftMatch(null)
         setWhite(emptyWhite)
         setBlack(emptyBlack)
-        setPool([...profilesPoolEligible, ...allGuests])
+        setPool(allCommitted)
+        setPhase('pool')
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e))
@@ -307,121 +280,78 @@ export function AdminRosterSetup() {
     loadRoster(selectedMdId, md.effective_format)
   }, [selectedMdId, matchdays, loadRoster])
 
-  // ── Slot tap ──────────────────────────────────────────────────────────────
-  function tapSlot(team: TeamColor, idx: number) {
-    const slots = team === 'white' ? white : black
-    if (slots[idx].kind === 'filled') return
-    setActiveTarget(prev =>
-      prev?.team === team && prev?.slotIndex === idx ? null : { team, slotIndex: idx }
-    )
+  // ── Pool chip actions ─────────────────────────────────────────────────────
+  function deleteFromPool(player: PoolPlayer) {
+    if (player.status === 'removed') {
+      setPool(prev => prev.filter(p => p.id !== player.id))
+    } else {
+      setPool(prev => prev.map(p => p.id === player.id ? { ...p, status: 'removed' as PlayerStatus } : p))
+    }
   }
 
-  // ── Chip tap: assign to active target OR auto-fill alternating (issue #15) ─
+  function promoteToUnassigned(player: PoolPlayer) {
+    setPool(prev => prev.map(p => p.id === player.id ? { ...p, status: 'unassigned' as PlayerStatus } : p))
+  }
+
+  // ── Phase transitions ─────────────────────────────────────────────────────
+  function lockRoster() {
+    const wc = white.filter(s => s.kind === 'filled').length
+    const bc = black.filter(s => s.kind === 'filled').length
+    setNextTeam(wc <= bc ? 'white' : 'black')
+    setPhase('team')
+  }
+
+  function unlockRoster() {
+    setPhase('pool')
+  }
+
+  function editRoster() {
+    const wc = white.filter(s => s.kind === 'filled').length
+    const bc = black.filter(s => s.kind === 'filled').length
+    setNextTeam(wc <= bc ? 'white' : 'black')
+    setPhase('team')
+  }
+
+  // ── Auto-assign chip to next alternating slot ─────────────────────────────
   function tapChip(player: PoolPlayer) {
-    // Path A — explicit target set: fill that slot, then advance target.
-    if (activeTarget) {
-      const { team, slotIndex } = activeTarget
+    const tryOrder: TeamColor[] = nextTeam === 'white' ? ['white', 'black'] : ['black', 'white']
+    for (const team of tryOrder) {
+      const slots = team === 'white' ? white : black
+      const emptyIdx = slots.findIndex(s => s.kind === 'empty')
+      if (emptyIdx === -1) continue
       const setSlots = team === 'white' ? setWhite : setBlack
+      const originalStatus = player.status
       setSlots(prev => {
         const next = [...prev]
-        next[slotIndex] = { kind: 'filled', player }
+        next[emptyIdx] = { kind: 'filled', player, originalStatus }
         return next
       })
       setPool(prev => prev.filter(p => p.id !== player.id))
-      const slots = team === 'white' ? white : black
-      let nextIdx: number | null = null
-      for (let i = slotIndex + 1; i < slots.length; i++) {
-        if (slots[i].kind === 'empty') { nextIdx = i; break }
-      }
-      setActiveTarget(nextIdx !== null ? { team, slotIndex: nextIdx } : null)
+      setNextTeam(team === 'white' ? 'black' : 'white')
       return
     }
-
-    // Path B — no target: auto-fill alternating W → B → W → B (tie → white).
-    const whiteCount = white.filter(s => s.kind === 'filled').length
-    const blackCount = black.filter(s => s.kind === 'filled').length
-    let team: TeamColor = whiteCount <= blackCount ? 'white' : 'black'
-    let slots = team === 'white' ? white : black
-    let slotIdx = slots.findIndex(s => s.kind === 'empty')
-    if (slotIdx === -1) {
-      // First-choice team is full; fall back to the other team.
-      team = team === 'white' ? 'black' : 'white'
-      slots = team === 'white' ? white : black
-      slotIdx = slots.findIndex(s => s.kind === 'empty')
-    }
-    if (slotIdx === -1) {
-      showToast('Both teams full — remove a player first')
-      return
-    }
-    const setSlots = team === 'white' ? setWhite : setBlack
-    setSlots(prev => {
-      const next = [...prev]
-      next[slotIdx] = { kind: 'filled', player }
-      return next
-    })
-    setPool(prev => prev.filter(p => p.id !== player.id))
   }
 
-  // ── Remove from slot → return to pool ────────────────────────────────────
-  function removeSlot(team: TeamColor, idx: number) {
+  // ── Remove from slot → restore original status, recalculate next team ─────
+  function removeFromSlot(team: TeamColor, idx: number) {
     const slots = team === 'white' ? white : black
     const slot = slots[idx]
     if (slot.kind !== 'filled') return
-    const player = slot.player
+    const { player, originalStatus } = slot
     const setSlots = team === 'white' ? setWhite : setBlack
     setSlots(prev => {
       const next = [...prev]
       next[idx] = { kind: 'empty' }
       return next
     })
-    setPool(prev => [...prev, player])
-    setActiveTarget({ team, slotIndex: idx })
-  }
-
-  // ── Pool chip × → uncommit player/guest entirely (issue #15) ─────────────
-  async function handleCancelPoolChip(p: PoolPlayer) {
-    if (!selectedMdId || cancellingId) return
-    setCancellingId(p.id)
-    try {
-      if (p.isGuest && p.guestId) {
-        const { error: err } = await supabase.rpc(
-          'admin_cancel_guest',
-          { p_guest_id: p.guestId }
-        )
-        if (err) throw err
-      } else {
-        const { error: err } = await supabase.rpc(
-          'admin_cancel_commitment',
-          { p_matchday_id: selectedMdId, p_profile_id: p.id }
-        )
-        if (err) throw err
-      }
-      setPool(prev => prev.filter(x => x.id !== p.id))
-      if (!p.isGuest) {
-        setConfirmedIds(prev => {
-          const next = new Set(prev)
-          next.delete(p.id)
-          return next
-        })
-      }
-      showToast(`${p.display_name} removed`)
-    } catch (e: unknown) {
-      showToast(e instanceof Error ? e.message : 'Failed to remove')
-    } finally {
-      setCancellingId(null)
-    }
-  }
-
-  // ── Waitlist tap → promote to pool (UI-only, issue #15) ──────────────────
-  function promoteWaitlister(p: PoolPlayer) {
-    setWaitlist(prev => prev.filter(x => x.id !== p.id))
-    setPool(prev => [...prev, p])
-    showToast(`${p.display_name} promoted from waitlist`)
+    setPool(prev => [...prev, { ...player, status: originalStatus }])
+    // The team that just lost a player is now behind — make it the next target
+    setNextTeam(team)
   }
 
   // ── Add guest ─────────────────────────────────────────────────────────────
   async function handleAddGuest() {
-    if (!selectedMdId || !guestSheet || !guestName.trim()) return
+    if (!selectedMdId || !guestName.trim()) return
     setGuestBusy(true)
     try {
       const { data: guestId, error: err } = await supabase.rpc(
@@ -436,22 +366,12 @@ export function AdminRosterSetup() {
         primary_position: null,
         isGuest: true,
         guestId: guestId as string,
+        status: 'unassigned',
       }
-      const targetTeam = guestSheet.team
-      const slots = targetTeam === 'white' ? white : black
-      const firstEmpty = slots.findIndex(s => s.kind === 'empty')
-      if (firstEmpty >= 0) {
-        const setSlots = targetTeam === 'white' ? setWhite : setBlack
-        setSlots(prev => {
-          const next = [...prev]
-          next[firstEmpty] = { kind: 'filled', player: newGuest }
-          return next
-        })
-      } else {
-        setPool(prev => [...prev, newGuest])
-      }
-      setGuestSheet(null)
+      setPool(prev => [...prev, newGuest])
+      setGuestSheet(false)
       setGuestName('')
+      showToast(`${newGuest.display_name} added to pool`)
     } catch (e: unknown) {
       showToast(e instanceof Error ? e.message : 'Failed to add guest')
     } finally {
@@ -459,7 +379,7 @@ export function AdminRosterSetup() {
     }
   }
 
-  // ── Add registered player (admin_add_commitment) ──────────────────────────
+  // ── Add registered player ─────────────────────────────────────────────────
   async function handleAddPlayer(p: RegisteredPlayer) {
     if (!selectedMdId) return
     setPlayerBusy(p.id)
@@ -469,22 +389,15 @@ export function AdminRosterSetup() {
         { p_matchday_id: selectedMdId, p_profile_id: p.id } as never
       ) as { error: unknown }
       if (err) throw err
-
       const newPlayer: PoolPlayer = {
         id: p.id,
         display_name: p.display_name,
         primary_position: p.primary_position,
         isGuest: false,
+        status: 'unassigned',
       }
-      setConfirmedIds(prev => new Set([...prev, p.id]))
-      const total = pool.length + white.filter(s => s.kind === 'filled').length + black.filter(s => s.kind === 'filled').length
-      if (total >= cap) {
-        setWaitlist(prev => [...prev, newPlayer])
-        showToast(`${p.display_name} added to waitlist (roster full)`)
-      } else {
-        setPool(prev => [...prev, newPlayer])
-        showToast(`${p.display_name} added to confirmed`)
-      }
+      setPool(prev => [...prev, newPlayer])
+      showToast(`${p.display_name} added`)
     } catch (e: unknown) {
       showToast(e instanceof Error ? e.message : 'Failed to add player')
     } finally {
@@ -515,7 +428,6 @@ export function AdminRosterSetup() {
           } as never
         )
         if (err) throw err
-        showToast('Roster updated')
       } else {
         const { error: err } = await supabase.rpc('create_match_draft', {
           p_matchday_id: selectedMdId,
@@ -525,13 +437,13 @@ export function AdminRosterSetup() {
           p_black_guests: blackGuests,
         })
         if (err) throw err
-        showToast('Roster confirmed')
       }
+      showToast('Roster saved')
+      // Reload to get updated draftMatch.id (if newly created)
       const md = matchdays.find(m => m.id === selectedMdId)
       if (md) await loadRoster(selectedMdId, md.effective_format)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e))
-    } finally {
       setBusy(false)
     }
   }
@@ -539,16 +451,33 @@ export function AdminRosterSetup() {
   // ── Derived ───────────────────────────────────────────────────────────────
   const half = halfCap(format)
   const cap = rosterCap(format)
+  const unassigned = pool.filter(p => p.status === 'unassigned')
+  const waitlisted = pool.filter(p => p.status === 'waitlist')
+  const removedPlayers = pool.filter(p => p.status === 'removed')
   const totalAssigned = white.filter(s => s.kind === 'filled').length + black.filter(s => s.kind === 'filled').length
   const isReady = totalAssigned === cap
   const selectedMd = matchdays.find(m => m.id === selectedMdId)
+  const isReadOnly = draftMatch?.hasResult ?? false
 
+  // confirmedIds: all profile IDs currently in pool or in slots (any status)
+  const confirmedIds = new Set<string>([
+    ...pool.filter(p => !p.isGuest).map(p => p.id),
+    ...white.flatMap(s => s.kind === 'filled' && !s.player.isGuest ? [s.player.id] : []),
+    ...black.flatMap(s => s.kind === 'filled' && !s.player.isGuest ? [s.player.id] : []),
+  ])
   const filteredPlayers = allPlayers.filter(p =>
     !confirmedIds.has(p.id) &&
     p.display_name.toLowerCase().includes(playerSearch.toLowerCase())
   )
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // Next empty slot index per team (for active-slot highlight)
+  const nextWhiteIdx = white.findIndex(s => s.kind === 'empty')
+  const nextBlackIdx = black.findIndex(s => s.kind === 'empty')
+  const nextHint = nextTeam === 'white'
+    ? (nextWhiteIdx >= 0 ? `→ next: White #${nextWhiteIdx + 1}` : (nextBlackIdx >= 0 ? `→ next: Black #${nextBlackIdx + 1}` : null))
+    : (nextBlackIdx >= 0 ? `→ next: Black #${nextBlackIdx + 1}` : (nextWhiteIdx >= 0 ? `→ next: White #${nextWhiteIdx + 1}` : null))
+
+  // ── Guard ─────────────────────────────────────────────────────────────────
   if (!isAdmin) {
     return (
       <div className="rs-screen">
@@ -561,6 +490,33 @@ export function AdminRosterSetup() {
     )
   }
 
+  // ── Slot renderer (filled + empty variants) ───────────────────────────────
+  function renderSlotFilled(slot: { kind: 'filled'; player: PoolPlayer; originalStatus: PlayerStatus }, idx: number, team: TeamColor, editable: boolean) {
+    return (
+      <div key={idx} className="rs-slot rs-slot--filled">
+        <span className="rs-slot-num">{idx + 1}</span>
+        <span className="rs-slot-name-group">
+          <span className="rs-slot-name">{slot.player.display_name}</span>
+          {editable && (
+            <button
+              type="button"
+              className="rs-slot-remove"
+              onClick={() => removeFromSlot(team, idx)}
+              aria-label={`Remove ${slot.player.display_name}`}
+            >×</button>
+          )}
+        </span>
+        {slot.player.primary_position && (
+          <span className={`rs-slot-pos${slot.player.primary_position === 'GK' ? ' rs-slot-pos--gk' : ''}`}>
+            {slot.player.primary_position}
+          </span>
+        )}
+        {slot.player.isGuest && <span className="rs-slot-guest-badge">G</span>}
+      </div>
+    )
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="rs-screen">
 
@@ -568,7 +524,12 @@ export function AdminRosterSetup() {
       <div className="rs-topbar">
         <button className="rs-back" type="button" onClick={() => navigate('/admin')}>‹</button>
         <span className="rs-title">Roster Setup</span>
-        {draftMatch && <span className="rs-draft-badge">DRAFT</span>}
+        {phase === 'saved' && !isReadOnly && (
+          <span className="rs-badge rs-badge--saved">SAVED</span>
+        )}
+        {isReadOnly && (
+          <span className="rs-badge rs-badge--locked">LOCKED</span>
+        )}
       </div>
 
       {/* Matchday selector */}
@@ -589,207 +550,352 @@ export function AdminRosterSetup() {
       {loading && <div className="rs-loading">Loading…</div>}
       {error && <div className="rs-error">{error}</div>}
 
-      {!loading && draftMatch && !draftMatch.hasResult && (
-        <div className="rs-banner rs-banner--warn">
-          Captain pick draft saved — tap × on a player to move them, or add/remove as needed.
-        </div>
-      )}
-      {!loading && draftMatch?.hasResult && (
-        <div className="rs-banner rs-banner--danger">
-          This match already has a result recorded. Roster editing is locked.
-        </div>
-      )}
-
       {!loading && selectedMd && (
         <>
-          {/* Pool */}
-          <div className="rs-pool">
-            <div className="rs-section-head">
-              <span className="rs-section-title">
-                {pool.length > 0 ? `Unassigned (${pool.length})` : 'All players assigned'}
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {activeTarget && (
-                  <span className="rs-target-hint">
-                    → {activeTarget.team} #{activeTarget.slotIndex + 1}
+          {/* Phase indicator */}
+          {!isReadOnly && (
+            <div className="rs-phase-bar">
+              {(['pool', 'team', 'saved'] as Phase[]).map((step, i) => {
+                const label = ['Pool', 'Teams', 'Save'][i]
+                const phases: Phase[] = ['pool', 'team', 'saved']
+                const stepIdx = phases.indexOf(step)
+                const currentIdx = phases.indexOf(phase)
+                const isDone = stepIdx < currentIdx
+                const isActive = stepIdx === currentIdx
+                return (
+                  <span key={step} style={{ display: 'contents' }}>
+                    <div className={`rs-phase-step${isDone ? ' rs-phase-step--done' : isActive ? ' rs-phase-step--active' : ''}`}>
+                      <div className="rs-phase-dot">{isDone ? '✓' : stepIdx + 1}</div>
+                      <span>{label}</span>
+                    </div>
+                    {i < 2 && <div className="rs-phase-divider" />}
                   </span>
-                )}
-                {!draftMatch?.hasResult && (
-                  <button
-                    type="button"
-                    className="rs-add-player-btn"
-                    onClick={() => { setPlayerSheet(true); setPlayerSearch('') }}
-                  >
-                    + Add player
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className="rs-pool-chips">
-              {pool.map(p => (
-                <span
-                  key={p.id}
-                  className={`rs-chip rs-chip--removable${activeTarget ? ' rs-chip--selectable' : ''}`}
-                >
-                  <button
-                    type="button"
-                    className="rs-chip-body"
-                    onClick={() => tapChip(p)}
-                  >
-                    {p.primary_position && (
-                      <span className={`rs-chip-pos rs-chip-pos--${p.primary_position.toLowerCase()}`}>
-                        {p.primary_position}
-                      </span>
-                    )}
-                    {p.isGuest && <span className="rs-chip-guest">G</span>}
-                    {p.display_name}
-                  </button>
-                  {!draftMatch?.hasResult && (
-                    <button
-                      type="button"
-                      className="rs-chip-remove"
-                      onClick={(e) => { e.stopPropagation(); handleCancelPoolChip(p) }}
-                      disabled={cancellingId === p.id}
-                      aria-label={`Remove ${p.display_name} from roster`}
-                    >×</button>
-                  )}
-                </span>
-              ))}
-              {pool.length === 0 && <span className="rs-pool-empty">—</span>}
-            </div>
-          </div>
-
-          {/* Waitlist (yes-voters past roster_cap; tap to promote) */}
-          {waitlist.length > 0 && (
-            <div className="rs-waitlist">
-              <div className="rs-section-head">
-                <span className="rs-section-title">Waitlist ({waitlist.length})</span>
-                <span className="rs-target-hint">tap to promote</span>
-              </div>
-              <div className="rs-pool-chips">
-                {waitlist.map(p => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className="rs-chip rs-waitlist-chip"
-                    onClick={() => promoteWaitlister(p)}
-                  >
-                    {p.primary_position && (
-                      <span className={`rs-chip-pos rs-chip-pos--${p.primary_position.toLowerCase()}`}>
-                        {p.primary_position}
-                      </span>
-                    )}
-                    {p.display_name}
-                  </button>
-                ))}
-              </div>
+                )
+              })}
             </div>
           )}
 
-          {/* Teams */}
-          <div className="rs-teams">
-            {(['white', 'black'] as TeamColor[]).map(team => {
-              const slots = team === 'white' ? white : black
-              const count = slots.filter(s => s.kind === 'filled').length
-              const isFull = count === half
-              const hasEmptySlot = slots.some(s => s.kind === 'empty')
-              return (
-                <div key={team} className="rs-team">
-                  <div className="rs-team-header">
-                    <span className={`rs-team-name rs-team-name--${team}`}>
-                      {team === 'white' ? 'White' : 'Black'}
-                    </span>
-                    <span className={`rs-team-count${isFull ? ' rs-team-count--full' : ''}`}>
-                      {count} / {half}{isFull ? ' ✓' : ''}
-                    </span>
+          {isReadOnly && (
+            <div className="rs-banner rs-banner--danger">
+              This match has a result recorded. Roster is locked.
+            </div>
+          )}
+
+          {/* ═══════════════ POOL PHASE ═══════════════ */}
+          {!isReadOnly && phase === 'pool' && (
+            <>
+              {/* Unassigned */}
+              <div className="rs-pool-section">
+                <div className="rs-section-head">
+                  <span className="rs-section-title">Unassigned ({unassigned.length})</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      type="button"
+                      className="rs-add-player-btn"
+                      onClick={() => { setGuestSheet(true); setGuestName('') }}
+                    >+ Add guest</button>
+                    <button
+                      type="button"
+                      className="rs-add-player-btn"
+                      onClick={() => { setPlayerSheet(true); setPlayerSearch('') }}
+                    >+ Add player</button>
                   </div>
-                  {slots.map((slot, idx) => {
-                    const isActive = activeTarget?.team === team && activeTarget.slotIndex === idx
-                    if (slot.kind === 'filled') {
-                      return (
-                        <div key={idx} className="rs-slot rs-slot--filled">
-                          <span className="rs-slot-num">{idx + 1}</span>
-                          <span className="rs-slot-name">{slot.player.display_name}</span>
-                          {slot.player.primary_position && (
-                            <span className={`rs-slot-pos${slot.player.primary_position === 'GK' ? ' rs-slot-pos--gk' : ''}`}>
-                              {slot.player.primary_position}
-                            </span>
-                          )}
-                          {slot.player.isGuest && <span className="rs-slot-guest-badge">GUEST</span>}
-                          {!draftMatch?.hasResult && (
-                            <button
-                              type="button"
-                              className="rs-slot-remove"
-                              onClick={() => removeSlot(team, idx)}
-                              aria-label={`Remove ${slot.player.display_name}`}
-                            >×</button>
-                          )}
-                        </div>
-                      )
-                    }
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        className={`rs-slot${isActive ? ' rs-slot--active' : ''}`}
-                        onClick={() => tapSlot(team, idx)}
-                        aria-label={`Empty slot ${idx + 1} in ${team} team`}
-                      >
-                        <span className="rs-slot-num">{idx + 1}</span>
-                        <span className="rs-slot-empty">
-                          {isActive ? '← tap a player' : 'tap to target'}
+                </div>
+                <div className="rs-pool-chips">
+                  {unassigned.map(p => (
+                    <div key={p.id} className="rs-chip">
+                      {p.primary_position && (
+                        <span className={`rs-chip-pos${p.primary_position === 'GK' ? ' rs-chip-pos--gk' : ''}`}>
+                          {p.primary_position}
                         </span>
-                      </button>
-                    )
-                  })}
-                  {!draftMatch?.hasResult && !isFull && !hasEmptySlot && (
-                    <button
-                      type="button"
-                      className="rs-slot rs-slot--add"
-                      onClick={() => { setGuestSheet({ team }); setGuestName('') }}
-                    >
-                      <span>+ Add guest</span>
-                    </button>
-                  )}
-                  {!draftMatch?.hasResult && isFull && (
-                    <button
-                      type="button"
-                      className="rs-guest-link"
-                      onClick={() => { setGuestSheet({ team }); setGuestName('') }}
-                    >
-                      + Add guest
-                    </button>
+                      )}
+                      {p.isGuest && <span className="rs-chip-guest">G</span>}
+                      {p.display_name}
+                      <button
+                        type="button"
+                        className="rs-chip-action rs-chip-action--remove"
+                        onClick={() => deleteFromPool(p)}
+                        aria-label={`Remove ${p.display_name}`}
+                      >×</button>
+                    </div>
+                  ))}
+                  {unassigned.length === 0 && (
+                    <span className="rs-pool-empty">No unassigned players</span>
                   )}
                 </div>
-              )
-            })}
-          </div>
+              </div>
 
-          {/* Submit bar */}
-          {!draftMatch?.hasResult && (
-            <div className="rs-submit-bar">
-              <div className="rs-progress">
-                <span>{totalAssigned} / {cap} assigned</span>
-                {isReady
-                  ? <span className="rs-progress-ready">✓ Ready</span>
-                  : <span>{Math.round((totalAssigned / cap) * 100)}%</span>
-                }
+              {/* Waitlist */}
+              {waitlisted.length > 0 && (
+                <>
+                  <hr className="rs-pool-divider" />
+                  <div className="rs-pool-section">
+                    <div className="rs-section-head">
+                      <span className="rs-section-title rs-section-title--waitlist">Waitlist ({waitlisted.length})</span>
+                    </div>
+                    <div className="rs-pool-chips">
+                      {waitlisted.map(p => (
+                        <div key={p.id} className="rs-chip rs-chip--waitlist">
+                          {p.primary_position && (
+                            <span className={`rs-chip-pos${p.primary_position === 'GK' ? ' rs-chip-pos--gk' : ''}`}>
+                              {p.primary_position}
+                            </span>
+                          )}
+                          {p.display_name}
+                          <button
+                            type="button"
+                            className="rs-chip-action rs-chip-action--promote"
+                            onClick={() => promoteToUnassigned(p)}
+                            aria-label={`Promote ${p.display_name} to unassigned`}
+                            title="Move to Unassigned"
+                          >↑</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Removed */}
+              {removedPlayers.length > 0 && (
+                <>
+                  <hr className="rs-pool-divider" />
+                  <div className="rs-pool-section">
+                    <div className="rs-section-head">
+                      <span className="rs-section-title rs-section-title--removed">Removed ({removedPlayers.length})</span>
+                    </div>
+                    <div className="rs-pool-chips">
+                      {removedPlayers.map(p => (
+                        <div key={p.id} className="rs-chip rs-chip--removed">
+                          {p.primary_position && (
+                            <span className={`rs-chip-pos${p.primary_position === 'GK' ? ' rs-chip-pos--gk' : ''}`}>
+                              {p.primary_position}
+                            </span>
+                          )}
+                          {p.display_name}
+                          <button
+                            type="button"
+                            className="rs-chip-action rs-chip-action--remove"
+                            onClick={() => deleteFromPool(p)}
+                            aria-label={`Delete ${p.display_name} completely`}
+                            title="Remove completely"
+                          >×</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Lock button */}
+              <div className="rs-lock-bar">
+                <button
+                  type="button"
+                  className="rs-lock-btn rs-lock-btn--lock"
+                  onClick={lockRoster}
+                  disabled={unassigned.length === 0}
+                >
+                  🔒 Lock Roster — Start Team Assignment
+                </button>
               </div>
-              <div className="rs-progress-bar">
-                <div
-                  className={`rs-progress-fill${isReady ? ' rs-progress-fill--full' : ''}`}
-                  style={{ width: `${(totalAssigned / cap) * 100}%` }}
-                />
+
+              {/* Teams: greyed / locked */}
+              <div className="rs-teams-header">
+                <span className="rs-teams-label">Teams — locked</span>
               </div>
-              <button
-                type="button"
-                className={`rs-btn${isReady ? ' rs-btn--primary-active' : ' rs-btn--primary'}`}
-                disabled={!isReady || busy}
-                onClick={handleSubmit}
-              >
-                {busy ? 'Saving…' : draftMatch ? 'Update Roster' : 'Confirm Roster'}
-              </button>
-            </div>
+              <div className="rs-teams">
+                {(['white', 'black'] as TeamColor[]).map(team => {
+                  const slots = team === 'white' ? white : black
+                  return (
+                    <div key={team} className="rs-team">
+                      <div className="rs-team-header">
+                        <span className={`rs-team-name rs-team-name--${team}`}>
+                          {team === 'white' ? 'White' : 'Black'}
+                        </span>
+                        <span className="rs-team-count">0 / {half}</span>
+                      </div>
+                      {slots.map((_, idx) => (
+                        <div key={idx} className="rs-slot rs-slot--locked">
+                          <span className="rs-slot-num">{idx + 1}</span>
+                          <span className="rs-slot-empty">locked</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          )}
+
+          {/* ═══════════════ TEAM PHASE ═══════════════ */}
+          {!isReadOnly && phase === 'team' && (
+            <>
+              {/* Lock status + Unlock */}
+              <div className="rs-lock-status-bar">
+                <span className="rs-lock-status-label">🔒 Roster Locked</span>
+                <button type="button" className="rs-unlock-btn" onClick={unlockRoster}>
+                  Unlock
+                </button>
+              </div>
+
+              {/* Unassigned chips (selectable) */}
+              <div className="rs-pool-section">
+                <div className="rs-section-head">
+                  <span className="rs-section-title">Unassigned ({unassigned.length})</span>
+                  {nextHint && unassigned.length > 0 && (
+                    <span className="rs-auto-hint">{nextHint}</span>
+                  )}
+                </div>
+                <div className="rs-pool-chips">
+                  {unassigned.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className="rs-chip rs-chip--selectable"
+                      onClick={() => tapChip(p)}
+                    >
+                      {p.primary_position && (
+                        <span className={`rs-chip-pos${p.primary_position === 'GK' ? ' rs-chip-pos--gk' : ''}`}>
+                          {p.primary_position}
+                        </span>
+                      )}
+                      {p.isGuest && <span className="rs-chip-guest">G</span>}
+                      {p.display_name}
+                    </button>
+                  ))}
+                  {unassigned.length === 0 && (
+                    <span className="rs-pool-empty">All players assigned ✓</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Teams: interactive */}
+              <div className="rs-teams-header">
+                <span className="rs-teams-label">Teams</span>
+              </div>
+              <div className="rs-teams">
+                {(['white', 'black'] as TeamColor[]).map(team => {
+                  const slots = team === 'white' ? white : black
+                  const count = slots.filter(s => s.kind === 'filled').length
+                  const isFull = count === half
+                  const firstEmptyIdx = slots.findIndex(s => s.kind === 'empty')
+                  return (
+                    <div key={team} className="rs-team">
+                      <div className="rs-team-header">
+                        <span className={`rs-team-name rs-team-name--${team}`}>
+                          {team === 'white' ? 'White' : 'Black'}
+                        </span>
+                        <span className={`rs-team-count${isFull ? ' rs-team-count--full' : ''}`}>
+                          {count} / {half}{isFull ? ' ✓' : ''}
+                        </span>
+                      </div>
+                      {slots.map((slot, idx) => {
+                        if (slot.kind === 'filled') {
+                          return renderSlotFilled(slot, idx, team, true)
+                        }
+                        const isNext = nextTeam === team && idx === firstEmptyIdx
+                        return (
+                          <div key={idx} className={`rs-slot${isNext ? ' rs-slot--active' : ''}`}>
+                            <span className="rs-slot-num">{idx + 1}</span>
+                            <span className="rs-slot-empty">{isNext ? '← next' : '—'}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Submit bar */}
+              <div className="rs-submit-bar">
+                <div className="rs-progress">
+                  <span>{totalAssigned} / {cap} assigned</span>
+                  {isReady
+                    ? <span className="rs-progress-ready">✓ Ready</span>
+                    : <span>{Math.round((totalAssigned / cap) * 100)}%</span>
+                  }
+                </div>
+                <div className="rs-progress-bar">
+                  <div
+                    className={`rs-progress-fill${isReady ? ' rs-progress-fill--full' : ''}`}
+                    style={{ width: `${(totalAssigned / cap) * 100}%` }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className={`rs-btn${isReady ? ' rs-btn--primary-active' : ' rs-btn--primary'}`}
+                  disabled={!isReady || busy}
+                  onClick={handleSubmit}
+                >
+                  {busy ? 'Saving…' : draftMatch ? 'Update Roster' : 'Confirm Roster'}
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ═══════════════ SAVED / READ-ONLY ═══════════════ */}
+          {(isReadOnly || phase === 'saved') && (
+            <>
+              {!isReadOnly && (
+                <div className="rs-banner rs-banner--info">
+                  Roster saved. Tap Edit to make changes.
+                </div>
+              )}
+
+              <div className="rs-teams-header">
+                <span className="rs-teams-label">Confirmed Roster</span>
+              </div>
+              <div className="rs-teams">
+                {(['white', 'black'] as TeamColor[]).map(team => {
+                  const slots = team === 'white' ? white : black
+                  const count = slots.filter(s => s.kind === 'filled').length
+                  const isFull = count === half
+                  return (
+                    <div key={team} className="rs-team">
+                      <div className="rs-team-header">
+                        <span className={`rs-team-name rs-team-name--${team}`}>
+                          {team === 'white' ? 'White' : 'Black'}
+                        </span>
+                        <span className={`rs-team-count${isFull ? ' rs-team-count--full' : ''}`}>
+                          {count} / {half}{isFull ? ' ✓' : ''}
+                        </span>
+                      </div>
+                      {slots.map((slot, idx) => {
+                        if (slot.kind === 'filled') {
+                          return renderSlotFilled(slot, idx, team, false)
+                        }
+                        return (
+                          <div key={idx} className="rs-slot rs-slot--filled" style={{ opacity: 0.3 }}>
+                            <span className="rs-slot-num">{idx + 1}</span>
+                            <span className="rs-slot-empty">—</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {!isReadOnly && (
+                <div className="rs-submit-bar">
+                  <div className="rs-progress">
+                    <span>{totalAssigned} / {cap} assigned</span>
+                    <span className="rs-progress-ready">✓ Saved</span>
+                  </div>
+                  <div className="rs-progress-bar">
+                    <div className="rs-progress-fill rs-progress-fill--full" style={{ width: '100%' }} />
+                  </div>
+                  <div className="rs-btn-row">
+                    <button type="button" className="rs-btn rs-btn--secondary" onClick={editRoster}>
+                      Edit
+                    </button>
+                    <button type="button" className="rs-btn rs-btn--primary-active" disabled>
+                      Saved ✓
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -798,12 +904,12 @@ export function AdminRosterSetup() {
       {guestSheet && (
         <div
           className="rs-sheet-overlay"
-          onClick={(e) => { if (e.target === e.currentTarget) { setGuestSheet(null); setGuestName('') } }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setGuestSheet(false); setGuestName('') } }}
         >
           <div className="rs-sheet">
             <div className="rs-sheet-handle" />
-            <div className="rs-sheet-title">Add Guest to {guestSheet.team === 'white' ? 'White' : 'Black'}</div>
-            <div className="rs-sheet-subtitle">Guest name only — stats can be added later</div>
+            <div className="rs-sheet-title">Add Guest</div>
+            <div className="rs-sheet-subtitle">Added to unassigned pool — stats can be added later</div>
             <input
               className="rs-sheet-input"
               type="text"
@@ -818,7 +924,7 @@ export function AdminRosterSetup() {
               <button
                 type="button"
                 className="rs-sheet-btn rs-sheet-btn--cancel"
-                onClick={() => { setGuestSheet(null); setGuestName('') }}
+                onClick={() => { setGuestSheet(false); setGuestName('') }}
               >Cancel</button>
               <button
                 type="button"
@@ -842,7 +948,7 @@ export function AdminRosterSetup() {
           <div className="rs-sheet rs-sheet--tall">
             <div className="rs-sheet-handle" />
             <div className="rs-sheet-title">Add Player to Confirmed</div>
-            <div className="rs-sheet-subtitle">Marks them as Yes — they'll appear in the pool above</div>
+            <div className="rs-sheet-subtitle">Marks them as Yes — added to unassigned pool</div>
             <input
               className="rs-sheet-input"
               type="text"
