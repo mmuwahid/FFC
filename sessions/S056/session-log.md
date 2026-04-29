@@ -8,7 +8,7 @@
 - `07c9dfe` 19:51 — payment tracker design spec (Stream A, this orchestrator)
 - `e2a8a33` 19:56 — GitHub issue fix-pack #16/#17/#18-partial/#19 (Stream A)
 - `a84e852` 20:00 — payment tracker implementation plan, 1591 lines (Stream B, parallel agent)
-- `8def94d` 20:01 — migration 0055 `payment_tracker.sql` (`match_fees` + `match_payments` tables, RPCs, triggers, 279 lines — applied to live DB) (Stream B)
+- `8def94d` 20:01 — migration 0055 `payment_tracker.sql` (`match_payment_records` + `payment_windows` tables, 8 RPCs, 2 triggers, realtime publication, 279 lines — applied to live DB) (Stream B)
 - `99fd209` 20:02 — types regen after mig 0055 (Stream B)
 - `f435b1f` 20:03 — payments route + drawer entry skeleton (Stream B)
 - `9b5fcbb` 20:07 — payments season overview + ledger sheet + 358 lines of CSS (Stream B; pushed all 7 commits)
@@ -41,7 +41,7 @@ Locked decisions captured in `docs/superpowers/specs/2026-04-29-payment-tracker-
 - **Workflow:** post-game collection window. Window MUST close before next week's match. Three-screen flow: Season overview → Match drilldown (admin) → Player ledger (self).
 - **UI choice:** Option B compact card layout. User explicitly rejected outline status pills as "ugly + don't match rest of app"; switched to Option C inline status icons (✓ green check / ⏳ amber clock / ✗ red x) consistent with existing leaderboard W/D/L colour family.
 
-Spec includes: data model (3 tables — `match_fees` / `match_payments` / `payment_ledger_view` — with full DDL draft), RPC list, RLS policy outline, screen-by-screen UX flow, audit-log integration plan, edge cases (player joined/left mid-season, refund/dispute path, admin manual override). Implementation plan deferred to a later session.
+Spec includes: data model (2 tables — `match_payment_records` + `payment_windows` — with full DDL draft), 7 RPCs (`open_match_payment_window`, `mark_payment_paid`, `mark_guest_payment_paid`, `close_payment_window`, `reopen_payment_window`, `get_season_payment_summary`, `get_player_payment_ledger`), RLS policy outline, screen-by-screen UX flow, audit-log integration plan, edge cases (player joined/left mid-season, manual close vs auto-close, admin override / reopen).
 
 Doc-only commit. Mockups will follow per CLAUDE.md operating rule #1 before any TSX/migration work.
 
