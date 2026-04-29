@@ -1,0 +1,12 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2",
+    "satori": "npm:satori@0.10",
+    "@resvg/resvg-wasm": "npm:@resvg/resvg-wasm@2",
+    "react": "npm:react@18"
+  },
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  }
+}
