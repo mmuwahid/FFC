@@ -9,6 +9,7 @@ import { Login } from './pages/Login'
 import { Signup } from './pages/Signup'
 import { Poll } from './pages/Poll'
 import { Leaderboard } from './pages/Leaderboard'
+import Awards from './pages/Awards'
 import { Matches } from './pages/Matches'
 import { Profile } from './pages/Profile'
 import { MatchDetail } from './pages/MatchDetail'
@@ -66,6 +67,7 @@ export const router = createBrowserRouter([
     children: [
       { path: 'poll', element: <Poll /> },
       { path: 'leaderboard', element: <Leaderboard /> },
+      { path: 'awards', element: <Awards /> },
       { path: 'matches', element: <Matches /> },
       { path: 'profile', element: <Profile /> },
       { path: 'profile/:id', element: <Profile /> },
