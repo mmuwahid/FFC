@@ -28,10 +28,12 @@ const LEGACY_SERVICE_ROLE_JWT = Deno.env.get('LEGACY_SERVICE_ROLE_JWT')!
 // as the WASM below), or inlined. The local font/SVG files remain in the repo
 // for local `supabase functions serve` development.
 
-// Fonts — fetched from jsDelivr (versioned, reliable CDN). Satori accepts WOFF2.
+// Fonts — fetched from jsDelivr (versioned, reliable CDN). Use .woff format
+// (NOT .woff2) — Satori v0.10 supports TTF/OTF/WOFF only; WOFF2 lacks Brotli
+// decompression in Satori's bundled font-decoder and silently fails to render.
 const [fontInterBuf, fontPlayfairBuf] = await Promise.all([
-  fetch('https://cdn.jsdelivr.net/npm/@fontsource/inter@5/files/inter-latin-600-normal.woff2').then(r => r.arrayBuffer()),
-  fetch('https://cdn.jsdelivr.net/npm/@fontsource/playfair-display@5/files/playfair-display-latin-700-normal.woff2').then(r => r.arrayBuffer()),
+  fetch('https://cdn.jsdelivr.net/npm/@fontsource/inter@5/files/inter-latin-600-normal.woff').then(r => r.arrayBuffer()),
+  fetch('https://cdn.jsdelivr.net/npm/@fontsource/playfair-display@5/files/playfair-display-latin-700-normal.woff').then(r => r.arrayBuffer()),
 ])
 const fontInter = new Uint8Array(fontInterBuf)
 const fontPlayfair = new Uint8Array(fontPlayfairBuf)
