@@ -37,6 +37,14 @@ interface ProfileLite {
   deleted_at: string | null
 }
 
+interface WallOfFameRow {
+  season_id: string
+  season_name: string
+  ballon_dor: ProfileLite | null
+  golden_boot: ProfileLite | null
+  most_motm: ProfileLite | null
+}
+
 const HERO_META: Record<AwardKind, { trophy: string; title: string; metricLabel: (m: number, meta: Record<string, number> | null) => string }> = {
   ballon_dor: {
     trophy: '🏆',
@@ -126,6 +134,7 @@ export default function Awards() {
   const [seasons, setSeasons] = useState<SeasonRow[]>([])
   const [winners, setWinners] = useState<WinnerRow[]>([])
   const [profilesById, setProfilesById] = useState<Record<string, ProfileLite>>({})
+  const [wallOfFame, setWallOfFame] = useState<WallOfFameRow[]>([])
   const [loading, setLoading] = useState(true)
   const [pickerOpen, setPickerOpen] = useState(false)
 
@@ -177,10 +186,52 @@ export default function Awards() {
       }
       if (cancelled) return
 
+      // 5. Wall of Fame — all snapshot rows joined to winner profile.
+      //    Group by season client-side; filter to ENDED seasons; sort by season ended_at desc.
+      type WallRowRaw = {
+        season_id: string
+        award_kind: AwardKind
+        winner_profile_id: string
+        profile: ProfileLite | null
+      }
+      const { data: wallRaw } = await supabase
+        .from('season_awards')
+        .select('season_id, award_kind, winner_profile_id, profile:profiles!winner_profile_id(id, display_name, avatar_url, deleted_at)')
+        .returns<WallRowRaw[]>()
+      if (cancelled) return
+
+      const seasonsById = new Map<string, SeasonRow>()
+      ;(allSeasons ?? []).forEach((s) => seasonsById.set(s.id, s))
+
+      const groupedBySeasonId = new Map<string, WallOfFameRow>()
+      ;(wallRaw ?? []).forEach((row) => {
+        const sourceSeason = seasonsById.get(row.season_id)
+        if (!sourceSeason || sourceSeason.ended_at == null) return
+        let bucket = groupedBySeasonId.get(row.season_id)
+        if (!bucket) {
+          bucket = {
+            season_id: row.season_id,
+            season_name: sourceSeason.name,
+            ballon_dor: null,
+            golden_boot: null,
+            most_motm: null,
+          }
+          groupedBySeasonId.set(row.season_id, bucket)
+        }
+        if (row.profile) bucket[row.award_kind] = row.profile
+      })
+
+      const wallSorted = Array.from(groupedBySeasonId.values()).sort((a, b) => {
+        const aEnded = seasonsById.get(a.season_id)?.ended_at ?? ''
+        const bEnded = seasonsById.get(b.season_id)?.ended_at ?? ''
+        return bEnded.localeCompare(aEnded)
+      })
+
       setSeasons(allSeasons ?? [])
       setSeason(targetSeason)
       setWinners(winnerRows ?? [])
       setProfilesById(profileMap)
+      setWallOfFame(wallSorted)
       setLoading(false)
     }
     void load()
@@ -249,6 +300,45 @@ export default function Awards() {
             if (!row) return null
             return renderHero(row, profilesById, navigate, season?.id ?? '')
           })}
+        </div>
+      )}
+      {!loading && (
+        <div className="aw-wall-section">
+          <div className="aw-wall-title">— Wall of Fame —</div>
+          {wallOfFame.length === 0 ? (
+            <div className="aw-wall-empty">
+              First season — Wall of Fame begins after this season ends.
+            </div>
+          ) : (
+            <div className="aw-wall-table-wrap">
+              <div className="aw-wall-row aw-wall-header">
+                <span>Season</span>
+                <span>🏆 Ballon</span>
+                <span>⚽ Boot</span>
+                <span>⭐ MOTM</span>
+              </div>
+              {wallOfFame.map((row) => (
+                <div key={row.season_id} className="aw-wall-row">
+                  <span className="aw-wall-season">{row.season_name}</span>
+                  {(['ballon_dor', 'golden_boot', 'most_motm'] as AwardKind[]).map((kind) => {
+                    const p = row[kind]
+                    if (!p) return <span key={kind} className="aw-wall-cell aw-wall-cell--empty">—</span>
+                    if (p.deleted_at) return <span key={kind} className="aw-wall-cell aw-wall-cell--deleted">Deleted player</span>
+                    return (
+                      <button
+                        key={kind}
+                        type="button"
+                        className="aw-wall-cell aw-wall-cell--link"
+                        onClick={() => navigate(`/profile?profile_id=${p.id}&season_id=${row.season_id}`)}
+                      >
+                        {p.display_name}
+                      </button>
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </section>
