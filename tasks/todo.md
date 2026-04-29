@@ -4,8 +4,8 @@
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S054 share-PNG close-out on `main`.
-- Migrations on live DB: **49** (S054 added 0048 unlock_roster + 0049 match_card_payload_rpc).
+- Expected tip: S054 close-out at `d289aee` on `main`.
+- Migrations on live DB: **53** (deliberate gap at 0050 from PR #13's 0049/0050 → 0051/0052 renumber). S054 added 0048 (unlock_roster), 0049 (match_card_payload_rpc), 0051 (admin_add_guest), 0052 (admin_update_match_draft), 0053 (admin_add_commitment).
 
 **S055 agenda — Phase 2 + Phase 3 live verification; more Phase 3 backlog:**
 
@@ -14,6 +14,15 @@
    - [ ] Tap Share → `render-match-card` EF generates PNG matching mockup 3-26.
    - [ ] Web Share sheet opens on mobile (or PNG downloads on desktop).
    - [ ] Re-share path on MatchDetailSheet admin footer works.
+
+0a. **S054 issue-fix verification:**
+   - [ ] **#8 Leaderboard restructure** — column order Rank → Player → Pts → MP → W → D → L → GF → Win% → Last 5; avatar gone from Player cell; W cell green / D muted / L red.
+   - [ ] **#12 auth-loading splash** — cold-reopen on logged-in account no longer flashes login screen; instead shows centred FFC crest with subtle pulse until profile loads.
+   - [ ] **#12 Poll skeleton** — switching to Poll tab with existing vote no longer flashes the Yes/Maybe/No prompt before resolving to the existing vote.
+
+0b. **Atomo's S054 PR verification:**
+   - [ ] **PR #13 Roster Setup** — `/admin/roster-setup` loads, defaults to most recent locked matchday; tap-to-assign pool→slot works; +Add guest sheet works; Confirm Roster activates only at exactly 7+7 (or 5+5); edit-mode banner appears on re-entry; Update Roster respects `admin_update_match_draft` (blocked once result recorded).
+   - [ ] **PR #14 Add Player** — "+ Add player" button opens searchable list of registered players not yet confirmed; tapping calls `admin_add_commitment` and adds them to the pool; idempotent on duplicates; rejected/banned players are blocked.
 
 1. **Phase 2 close: V3.0:122 8-box acceptance on a real Thursday matchday** (still pending from S052/S053).
    - [ ] No vote-chasing in WhatsApp — push reminders alone cover non-voters.
@@ -51,13 +60,31 @@
 
 ### Phase 3 share PNG — V3.0:140 shipped end-to-end
 
-**~12 commits. Live DB: 47 → 49. Pushed fast-forward to `main`.**
+**22 commits total this session. Live DB: 47 → 53. All pushed clean fast-forward to `main`. Final HEAD `d289aee`.**
 
-- [x] **Atomo's PR #9 merged.** `unlock_roster` RPC (admin ability to re-open a locked formation). Migration renumbered 0047 → 0048 to avoid collision with S053's `0047_phase3_awards`. Types regenerated (Task 4).
-- [x] **Migration 0049** — `get_match_card_payload` RPC (returns score, teams, MOTM, match number, season for PNG rendering) + `match-cards` storage bucket (public, admin-only upload).
-- [x] **Edge Function `render-match-card`** — Satori + Resvg pipeline generating 1080×1080 PNG. Fonts (Inter 600 + 400) fetched from jsDelivr at module init (WOFF format — WOFF2 not supported by Satori). FFC crest inlined as base64. Match-id-keyed cache in `match-cards` bucket. Admin-only auth via JWT verify + `is_admin()` RPC guard.
-- [x] **Frontend `lib/shareMatchCard.ts`** — Web Share API with PNG download fallback, admin guard, EF invoke wrapper.
-- [x] **Wired** into MatchEntryReview success state (primary share CTA) + MatchDetailSheet admin footer (re-share path).
+- [x] **Atomo's PR #9 merged.** `unlock_roster` RPC (admin ability to re-open a locked formation). Migration renumbered 0047 → 0048 to avoid collision with S053's `0047_phase3_awards`. Types regenerated (Task 4 below).
+- [x] **Migration 0049 `match_card_payload_rpc`** — `get_match_card_payload(uuid) returns jsonb` SECURITY DEFINER + is_admin guard. Returns season name, match_number/total_matches, kickoff label, scores, per-team scorer lists (own-goal scorer listed under THEIR OWN team with own_goals counter), MOTM. Plus private `match-cards` storage bucket (image/png, 512 KB, RLS service-role-write).
+- [x] **Edge Function `render-match-card`** — Satori + Resvg WASM pipeline generating 1080×1080 PNG. Fonts (Inter 600 + Playfair Display 700) fetched from jsDelivr at module init in WOFF format (WOFF2 NOT supported by Satori v0.10 — proactive catch before manual test). FFC crest inlined as base64 SVG (Supabase EF CLI silently drops binary assets in subdirs — proactive catch via remote smoke test). Match-id-keyed cache in `match-cards` bucket. Admin-only auth via JWT verify + `is_admin()` RPC guard. Deployed at v5.
+- [x] **Frontend `lib/shareMatchCard.ts`** — `navigator.share({ files })` with PNG download fallback, EF invoke wrapper. Discriminated `ShareResult` union (shared / cancelled / downloaded / error).
+- [x] **Wired** into MatchEntryReview success state (primary share CTA replacing the pre-existing `navigate('/admin/matches')`) + MatchDetailSheet admin footer (re-share path; gated on `isAdmin && main.approved_at`).
+- [x] **Mockup workflow:** A/B style-compare `3-25` → final mockup `3-26` (with element picks: A's centred crest + serif gold title, B's TEAM WHITE/BLACK split scoreboard with vertical gold-gradient divider, B's tight sans scorer grid, B's gold-pill MOTM, no footer). User added match-number prominence and dropped venue mid-review. OG attribution bug caught (own-goal scorer goes under THEIR OWN team, not the team that benefitted) — spec § 3 + plan Task 4 SQL corrected before implementation.
+
+### Atomo PR #13 merged — Admin Roster Setup screen + 2 RPCs
+
+- [x] **Renumbered 0049/0050 → 0051/0052** to avoid collision with the in-flight S054 share-PNG migration. Force-pushed after rebase, squash-merged at `cbdecac`.
+- [x] **CSS conflict resolved** in `index.css` — both sides additive at end of file; kept both blocks.
+- [x] **Applied 0051 + 0052 to live DB.** Verified `admin_add_guest` and `admin_update_match_draft` RPCs exist. Types regenerated at `98e54e8`.
+
+### Atomo PR #14 merged — admin_add_commitment
+
+- [x] **First clean PR of the day** — no conflicts, correctly numbered 0053. Squash-merged at `71d2a2c`.
+- [x] **Applied 0053 to live DB.** `admin_add_commitment` RPC verified. Types regenerated at `d289aee`.
+
+### Issue fixes
+
+- [x] **#8 Leaderboard restructure** (`930cec7`) — Avatar disc removed from Player cell (component preserved for other surfaces); Pts moves to col 3 right after Player; Last 5 stays last; W/D/L cells coloured success-green / muted-cream / danger-red. Grid min-width unchanged at 604px.
+- [x] **#12 Login + Poll flicker** (`1ba7e71`) — diagnosed as two independent races: AppContext multi-effect race (session resolved before profile, routing guards bounced to `/login` for one render) and React 18's non-batching of state updates inside Promise continuations (Poll's `loadAll` setX calls between awaits caused intermediate renders showing the vote prompt). Fixed by deferring `setLoading(false)` until profile is also settled (with branded splash render) and by wrapping Poll's `loadAll` in a single `dataLoading` flag. Audited Leaderboard / Matches / Profile / CaptainHelper — all clean.
+- [x] **#10 Unlock Roster** + **#11 Admin Roster Setup UI** — closed as duplicates of PR #9 + PR #13.
 - [x] **Two durable lessons captured**: Supabase EF CLI drops binary assets silently; Satori WOFF2 not supported.
 - [x] **Build clean**: `tsc -b` EXIT 0 (zero errors, zero warnings after removing stale `@ts-expect-error`); `vite build` 12 precache entries / 1636 KiB.
 
