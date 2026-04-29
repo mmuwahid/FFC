@@ -5160,14 +5160,14 @@ textarea.auth-input {
   grid-template-columns:
     36px                    /* rank      (sticky) */
     160px                   /* player    (sticky) — fixed width keeps numbers visible on portrait */
+    44px                    /* Pts — moved to col 3 */
     40px                    /* MP matches played */
     32px                    /* W  wins */
     32px                    /* D  draws */
     32px                    /* L  losses */
     36px                    /* GF goals scored */
     52px                    /* Win% */
-    140px                   /* Last 5 pills */
-    44px;                   /* Pts */
+    140px;                  /* Last 5 pills — last column */
   align-items: center;
   gap: 0;
   min-width: 604px;          /* forces horizontal scroll on portrait */
@@ -5236,6 +5236,9 @@ textarea.auth-input {
   white-space: nowrap;
 }
 .lb-cell--pts { font-weight: 700; }
+.lb-cell--num.lb-cell--w { color: var(--success, #4fbf93); }
+.lb-cell--num.lb-cell--d { color: rgba(242, 234, 214, 0.55); }
+.lb-cell--num.lb-cell--l { color: var(--danger, #e63349); }
 .lb-cell--last5 {
   display: flex;
   gap: 4px;

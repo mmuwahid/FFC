@@ -720,7 +720,6 @@ export function Leaderboard() {
             {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
               <div key={i} className="lb-skel-row">
                 <span className="lb-skel-rank" />
-                <span className="lb-skel-avatar" />
                 <span className="lb-skel-name" />
                 <span className="lb-skel-wdl" />
                 <span className="lb-skel-pts" />
@@ -769,6 +768,7 @@ export function Leaderboard() {
               <div className="lb-table-grid lb-table-grid--header">
                 <span className="lb-cell lb-cell--rank lb-cell--sticky-1" aria-hidden />
                 <span className="lb-cell lb-cell--player lb-cell--sticky-2">Player</span>
+                <span className="lb-cell lb-cell--num">Pts</span>
                 <span className="lb-cell lb-cell--num">MP</span>
                 <span className="lb-cell lb-cell--num">W</span>
                 <span className="lb-cell lb-cell--num">D</span>
@@ -776,12 +776,10 @@ export function Leaderboard() {
                 <span className="lb-cell lb-cell--num">GF</span>
                 <span className="lb-cell lb-cell--num">Win%</span>
                 <span className="lb-cell lb-cell--last5">Last 5</span>
-                <span className="lb-cell lb-cell--num">Pts</span>
               </div>
 
               {rankedWithRank.map(({ row, rank }) => {
                 if (!row.profile_id) return null
-                const isSelf = row.profile_id === profileId
                 const medal = isCurrentSeason && rank !== null && rank <= 3
                   ? rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'
                   : null
@@ -810,11 +808,6 @@ export function Leaderboard() {
                       {medal ?? trophy ?? rank}
                     </span>
                     <span className="lb-cell lb-cell--player lb-cell--sticky-2">
-                      <Avatar
-                        name={row.display_name ?? '?'}
-                        url={row.profile?.avatar_url ?? null}
-                        self={isSelf}
-                      />
                       <span className="lb-name-block">
                         <span className="lb-name">{row.display_name ?? 'Unknown'}</span>
                         <PositionPills
@@ -824,10 +817,11 @@ export function Leaderboard() {
                         />
                       </span>
                     </span>
+                    <span className="lb-cell lb-cell--num lb-cell--pts">{row.points ?? 0}</span>
                     <span className="lb-cell lb-cell--num">{mp}</span>
-                    <span className="lb-cell lb-cell--num">{wins}</span>
-                    <span className="lb-cell lb-cell--num">{draws}</span>
-                    <span className="lb-cell lb-cell--num">{losses}</span>
+                    <span className="lb-cell lb-cell--num lb-cell--w">{wins}</span>
+                    <span className="lb-cell lb-cell--num lb-cell--d">{draws}</span>
+                    <span className="lb-cell lb-cell--num lb-cell--l">{losses}</span>
                     <span className="lb-cell lb-cell--num">{row.goals ?? 0}</span>
                     <span className="lb-cell lb-cell--num">{winPct}%</span>
                     <span className="lb-cell lb-cell--last5" aria-label={`Last ${last5.length} results`}>
@@ -839,7 +833,6 @@ export function Leaderboard() {
                             </span>
                           ))}
                     </span>
-                    <span className="lb-cell lb-cell--num lb-cell--pts">{row.points ?? 0}</span>
                   </button>
                 )
               })}
