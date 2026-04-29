@@ -420,6 +420,8 @@ AS $$
 DECLARE
   v_match           record;
   v_matchday        record;
+  v_match_number    int;
+  v_total_matches   int;
   v_season_name     text;
   v_kickoff_iso     text;
   v_kickoff_label   text;
@@ -444,7 +446,8 @@ BEGIN
     RAISE EXCEPTION 'Match must be approved' USING ERRCODE = '22023';
   END IF;
 
-  SELECT md.kickoff_at, md.venue, md.season_id, s.name AS season_name
+  SELECT md.id, md.kickoff_at, md.season_id, md.is_friendly,
+         s.name AS season_name, s.planned_games
     INTO v_matchday
     FROM matchdays md
     JOIN seasons s ON s.id = md.season_id
@@ -457,39 +460,49 @@ BEGIN
     'Dy, DD Mon YYYY'
   );
 
-  -- Aggregate scorers per team. A 'goal' event credits the event.team's list.
-  -- An 'own_goal' event credits the OPPOSITE team's list (with own_goals++).
-  -- Group by (profile_id, guest_id), preserve display name with "Deleted player"
-  -- substitution for soft-deleted profiles.
-  WITH expanded AS (
+  -- Match number = rank of this matchday among non-friendly matchdays in the
+  -- same season, ordered by (kickoff_at, id) ascending. Friendlies excluded so
+  -- league numbering stays stable. Tuple comparison gives stable ordering when
+  -- two matchdays share the same kickoff_at.
+  SELECT COUNT(*)
+    INTO v_match_number
+    FROM matchdays md2
+   WHERE md2.season_id = v_matchday.season_id
+     AND md2.is_friendly = false
+     AND (md2.kickoff_at, md2.id) <= (v_matchday.kickoff_at, v_matchday.id);
+
+  -- Total matches: prefer admin-configured planned_games. Fall back to the
+  -- realised count of non-friendly matchdays if NULL (avoids "Match 12 of NULL").
+  v_total_matches := COALESCE(
+    v_matchday.planned_games,
+    (SELECT COUNT(*) FROM matchdays md3 WHERE md3.season_id = v_matchday.season_id AND md3.is_friendly = false)
+  );
+
+  -- Aggregate scorers per team. event.team is ALWAYS the player's actual team
+  -- — no team-flip on own_goal. The OG marker comes from own_goals > 0 on the
+  -- output row; the team-level score (matches.score_white / score_black) is
+  -- the canonical total and is not re-derived here.
+  -- Soft-deleted profiles render as 'Deleted player'. Guests get a '(G)' suffix
+  -- in the name so the renderer can show the guest indicator without a separate
+  -- field (matches the Section 8 visual decision).
+  WITH grouped AS (
     SELECT
-      CASE WHEN e.event_type = 'goal'     THEN e.team
-           WHEN e.event_type = 'own_goal' THEN CASE WHEN e.team = 'white' THEN 'black' ELSE 'white' END
-      END                                                              AS credit_team,
+      e.team AS credit_team,
       e.profile_id,
       e.guest_id,
-      CASE WHEN e.event_type = 'goal' THEN 1 ELSE 0 END                AS goals_inc,
-      CASE WHEN e.event_type = 'own_goal' THEN 1 ELSE 0 END            AS own_goals_inc
+      SUM(CASE WHEN e.event_type = 'goal'     THEN 1 ELSE 0 END)::int AS goals,
+      SUM(CASE WHEN e.event_type = 'own_goal' THEN 1 ELSE 0 END)::int AS own_goals
     FROM match_events e
     WHERE e.match_id = p_match_id
       AND e.event_type IN ('goal', 'own_goal')
-  ),
-  grouped AS (
-    SELECT
-      credit_team,
-      profile_id,
-      guest_id,
-      SUM(goals_inc)::int      AS goals,
-      SUM(own_goals_inc)::int  AS own_goals
-    FROM expanded
-    GROUP BY credit_team, profile_id, guest_id
+    GROUP BY e.team, e.profile_id, e.guest_id
   ),
   named AS (
     SELECT
       g.credit_team,
       COALESCE(
         CASE WHEN p.deleted_at IS NOT NULL THEN 'Deleted player' ELSE p.display_name END,
-        mg.display_name,
+        CASE WHEN mg.id IS NOT NULL THEN mg.display_name || ' (G)' END,
         'Guest'
       ) AS name,
       g.goals,
@@ -527,9 +540,10 @@ BEGIN
 
   RETURN jsonb_build_object(
     'season_name',    v_season_name,
+    'match_number',   v_match_number,
+    'total_matches',  v_total_matches,
     'kickoff_iso',    v_kickoff_iso,
     'kickoff_label',  v_kickoff_label,
-    'venue',          v_matchday.venue,
     'score_white',    v_match.score_white,
     'score_black',    v_match.score_black,
     'white_scorers',  v_white_scorers,
@@ -576,7 +590,7 @@ If a match exists, call the RPC:
 npx supabase db query --linked "SELECT public.get_match_card_payload('<paste-match-id>'::uuid);" 2>&1 | tail -30
 ```
 
-Expected: a jsonb object with `season_name`, `score_white`, `score_black`, `white_scorers`, `black_scorers`, `motm`.
+Expected: a jsonb object with `season_name`, `match_number` (int), `total_matches` (int), `kickoff_iso`, `kickoff_label`, `score_white`, `score_black`, `white_scorers`, `black_scorers`, `motm`. No `venue` field.
 
 If NO approved match exists yet (live DB has 0 approved matches at S054 start), test the guard instead:
 ```bash
@@ -736,8 +750,9 @@ type Motm = { name: string; is_guest: boolean } | null;
 
 type Props = {
   season_name: string;
+  match_number: number;
+  total_matches: number;
   kickoff_label: string;
-  venue: string | null;
   score_white: number;
   score_black: number;
   white_scorers: Scorer[];
@@ -755,76 +770,118 @@ const COLORS = {
 };
 
 function scorerLine(s: Scorer): string {
-  const parts: string[] = [];
-  if (s.goals > 0) parts.push(s.goals === 1 ? s.name : `${s.name} × ${s.goals}`);
-  if (s.own_goals > 0) parts.push(`${s.name} (OG)`);
-  return parts.join(' · ');
+  // A row appears once per (player, team). Show "Name × N" for normal goals,
+  // "Name (OG)" for an own-goal-only row, or "Name × N (OG)" if the same
+  // player has both (rare but possible). Keep it on a single line.
+  const segments: string[] = [];
+  if (s.goals > 0) segments.push(s.goals === 1 ? s.name : `${s.name} × ${s.goals}`);
+  if (s.own_goals > 0) {
+    if (s.goals > 0) segments.push('(OG)');
+    else             segments.push(`${s.name} (OG)`);
+  }
+  return segments.join(' ');
 }
 
 export function MatchCard(props: Props) {
-  const subline = props.venue ? `${props.kickoff_label} · ${props.venue}` : props.kickoff_label;
+  const meta = `Match ${props.match_number} of ${props.total_matches} · ${props.kickoff_label}`;
 
   return (
     <div style={{
       width: 1080, height: 1080, background: COLORS.bg,
       padding: 64, boxSizing: 'border-box',
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      fontFamily: '"Playfair Display"',
+      fontFamily: 'Inter',
     }}>
-      <img src={props.crestDataUri} width={96} height={96} style={{ marginBottom: 16 }} />
+      <img src={props.crestDataUri} width={120} height={120} style={{ marginBottom: 12 }} />
 
-      <div style={{ fontSize: 56, fontWeight: 700, color: COLORS.accent, letterSpacing: 1 }}>
+      {/* Serif title + meta */}
+      <div style={{
+        fontFamily: 'Playfair Display', fontSize: 64, fontWeight: 700,
+        color: COLORS.accent, letterSpacing: 1.3,
+      }}>
         {props.season_name}
       </div>
-      <div style={{ fontSize: 28, color: COLORS.muted, marginTop: 4 }}>
-        {subline}
+      <div style={{
+        fontFamily: 'Playfair Display', fontSize: 28,
+        color: COLORS.muted, marginTop: 6,
+      }}>
+        {meta}
       </div>
 
+      {/* Scoreboard — split with vertical gold-gradient divider */}
       <div style={{
-        marginTop: 48, fontSize: 200, fontWeight: 700, color: COLORS.text,
-        letterSpacing: 4, lineHeight: 1, display: 'flex', alignItems: 'center',
+        marginTop: 56, display: 'flex', flexDirection: 'row',
+        alignItems: 'center', justifyContent: 'center',
+        gap: 64, width: '100%', maxWidth: 880,
       }}>
-        <span>{props.score_white}</span>
-        <span style={{ color: COLORS.accent, padding: '0 32px' }}>—</span>
-        <span>{props.score_black}</span>
-      </div>
-
-      <div style={{
-        display: 'flex', flexDirection: 'row', justifyContent: 'space-between',
-        gap: 64, marginTop: 48, width: '100%', maxWidth: 880,
-      }}>
-        {(['white', 'black'] as const).map((side) => {
-          const list = side === 'white' ? props.white_scorers : props.black_scorers;
-          return (
-            <div key={side} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {(['white', 'black'] as const).map((side, i) => (
+          <>
+            {i === 1 && (
               <div style={{
-                fontSize: 28, color: COLORS.accent, letterSpacing: 4, textTransform: 'uppercase',
-                paddingBottom: 16, borderBottom: `1px solid ${COLORS.accent}55`, width: '100%', textAlign: 'center',
+                width: 2, height: 220,
+                background: 'linear-gradient(to bottom, transparent, #e5ba5b, transparent)',
+              }} />
+            )}
+            <div key={side} style={{
+              flex: 1, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: 12,
+            }}>
+              <div style={{
+                fontSize: 28, fontWeight: 600, textTransform: 'uppercase',
+                letterSpacing: 6.7, color: COLORS.text,
               }}>{side}</div>
-              <div style={{ fontSize: 28, color: COLORS.text, lineHeight: 1.6, paddingTop: 16, textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
-                {list.length === 0
-                  ? <span style={{ color: COLORS.footer }}>—</span>
-                  : list.map((s, i) => <span key={i}>{scorerLine(s)}</span>)}
+              <div style={{
+                fontSize: 200, fontWeight: 600, lineHeight: 1, color: COLORS.text,
+              }}>
+                {side === 'white' ? props.score_white : props.score_black}
               </div>
             </div>
+          </>
+        ))}
+      </div>
+
+      {/* Scorer grid — same column rhythm as the scoreboard */}
+      <div style={{
+        marginTop: 48, display: 'flex', flexDirection: 'row',
+        alignItems: 'flex-start', gap: 64, width: '100%', maxWidth: 880,
+      }}>
+        {(['white', 'black'] as const).map((side, i) => {
+          const list = side === 'white' ? props.white_scorers : props.black_scorers;
+          return (
+            <>
+              {i === 1 && <div style={{ width: 2 }} />}
+              <div key={side} style={{
+                flex: 1, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', gap: 8,
+                fontSize: 28, color: COLORS.text,
+              }}>
+                {list.length === 0
+                  ? <div style={{ color: COLORS.footer }}>—</div>
+                  : list.map((s, idx) => <div key={idx}>{scorerLine(s)}</div>)}
+              </div>
+            </>
           );
         })}
       </div>
 
-      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        {props.motm && (
-          <div style={{ fontSize: 32, color: COLORS.accent, fontStyle: 'italic', paddingBottom: 12 }}>
-            ✨ Man of the Match — {props.motm.name}
-          </div>
-        )}
-        <div style={{ fontSize: 16, color: COLORS.footer, letterSpacing: 4, textTransform: 'uppercase' }}>
-          ffc-gilt.vercel.app
+      {/* MOTM gold pill — omitted entirely if no MOTM. No footer. */}
+      {props.motm && (
+        <div style={{
+          marginTop: 'auto', alignSelf: 'center',
+          padding: '12px 28px', border: `1px solid ${COLORS.accent}`, borderRadius: 999,
+          fontSize: 24, fontWeight: 600, color: COLORS.accent,
+          textTransform: 'uppercase', letterSpacing: 3.8,
+          display: 'flex',
+        }}>
+          ✨ MOTM · {props.motm.name}
         </div>
-      </div>
+      )}
     </div>
   );
 }
 ```
+
+**Note on the React fragment-in-map pattern:** Satori does not support React `<></>` fragment shorthand inside `.map()` returns reliably. If the divider-injection logic above misbehaves at render time, refactor each scoreboard into an explicit pre-built element list rather than mapped fragments. Test in Task 7 smoke.
 
 Note: Satori requires every JSX element to have a `display` property compatible with flexbox (it does not support normal block layout). The component above uses `display: flex` everywhere there are multiple children. If a layout misbehaves, check that every container has an explicit display.
 
