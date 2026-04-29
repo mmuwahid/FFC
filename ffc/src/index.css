@@ -1171,6 +1171,15 @@ textarea.auth-input {
 .lb-icon-btn--active {
   color: var(--accent);
 }
+.lb-icon-btn--awards {
+  border-color: rgba(229, 186, 91, 0.4);
+  color: var(--accent, #e5ba5b);
+  background: rgba(229, 186, 91, 0.06);
+  box-shadow: 0 0 12px rgba(229, 186, 91, 0.2);
+}
+.lb-icon-btn--awards:hover {
+  background: rgba(229, 186, 91, 0.12);
+}
 .lb-icon-btn-badge {
   position: absolute;
   top: -4px;
