@@ -94,6 +94,15 @@ export function AppDrawer({ open, onClose, displayName, avatarUrl, onSignOut, is
             <span className="app-drawer-item-label">Settings</span>
             <span className="app-drawer-chevron" aria-hidden>›</span>
           </button>
+          <button
+            type="button"
+            className="app-drawer-item"
+            onClick={() => go('/payments')}
+          >
+            <span className="app-drawer-item-ico" aria-hidden>💰</span>
+            <span className="app-drawer-item-label">Payments</span>
+            <span className="app-drawer-chevron" aria-hidden>›</span>
+          </button>
           {isAdmin && (
             <button
               type="button"
