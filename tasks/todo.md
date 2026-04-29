@@ -53,8 +53,9 @@
 - **Awards backfill RPC** — admin-triggered `backfill_season_awards()` to populate `season_awards` for ended seasons predating mig 0047. Wall of Fame stays empty until then OR until S11 ends naturally.
 - **Awards push notification** — when `seasons.ended_at` flips, push admins + winners ("Season N awards are in!"). Easy follow-up using the S048 two-bearer pattern.
 - **Resend custom sender domain** — verify a domain in Resend, set `NOTIFY_FROM` env on `notify-signup-outcome` EF (default is `onboarding@resend.dev`).
-- **Phase 3 backlog continued (V3.0:141–148)**: photo-OCR fallback, multi-season comparison stats, match highlights, video clip attachments. Per CLAUDE.md operating rule #1, build mockups in `mockups/` first.
+- **Phase 3 backlog (post-S054 update)** — multi-season comparison stats · player analytics · H2H comparison · **payment tracker** (NEW) · **player badges / achievements** (NEW) · **injury / unavailable list** (NEW). Per CLAUDE.md operating rule #1, mockups go in `mockups/` first.
 - **Player analytics + H2H** (V3.0:145–146) — first attempt rejected in S053 (mockups didn't land). Re-attempt with different style direction if user wants.
+- **Dropped from backlog (S054 close):** ~~photo-OCR fallback~~ · ~~match highlights / video clips~~ · ~~win streaks / deep form guide~~ — out of scope.
 
 ## Completed in S054 (29/APR/2026, Work PC)
 

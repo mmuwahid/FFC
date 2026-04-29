@@ -136,14 +136,20 @@ When all 8 boxes tick on a real matchday, Phase 2 is closed and Phase 3 planning
 
 Things on the radar but not committed:
 
-- Season-end awards page (Ballon d'Or, Golden Boot, Wall of Fame) — for Season 12 launch.
-- WhatsApp share PNG generator (server-side render of result card).
-- Email notification for unconfirmed signups (complements push).
-- Photo-OCR fallback (only if live console proves unreliable).
+- Season-end awards page (Ballon d'Or, Golden Boot, Wall of Fame) — for Season 12 launch. **[SHIPPED S053]**
+- WhatsApp share PNG generator (server-side render of result card). **[SHIPPED S054]**
+- Email notification for unconfirmed signups (complements push). **[SHIPPED S051]**
 - Multi-season comparison stats.
-- Match highlights / video clip attachments.
 - **Player analytics page** — per-player deep stats (form curve, goal/MOTM/card trends, win-rate by partner/opponent, streaks). Originally scoped under "Phase 4 — Extras" in V1.0–V2.4; restored 28/APR/2026 (S050 prep) after user flagged it had dropped out of V2.5+ consolidation.
 - **Head-to-head (H2H) comparison** — pick two players, surface side-by-side career stats and direct match-up record (games shared a side, games on opposing sides, win-rate when together vs apart, goal differentials). Same provenance as player analytics; restored 28/APR/2026.
+- **Payment tracker** — per-match fee tracking (paid / unpaid / partial), per-player ledger view, season-total reconciliation. Originally scoped under "Phase 4 — Extras" in V1.0–V2.4; restored to Phase 3 backlog 29/APR/2026 (S054 close) after user flagged the omission. Spec + mockup pending.
+- **Player badges / achievements** — gamification layer (e.g. first-MOTM, hat-trick, 10-game win-streak, season-clean-sheet). Originally Phase 4 — Extras. Restored 29/APR/2026 (S054 close). Spec + mockup pending.
+- **Injury / unavailable list** — long-term unavailability flag distinct from poll No/Maybe (e.g. injured 6 weeks, travelling). Surfaces on roster setup + leaderboard as a muted "OUT" badge. Originally Phase 4 — Extras. Restored 29/APR/2026 (S054 close). Spec + mockup pending.
+
+**Dropped from backlog** (29/APR/2026, S054 close):
+- ~~Photo-OCR fallback for ref entry~~ — not pursued; ref console has proven reliable enough.
+- ~~Match highlights / video clip attachments~~ — out of scope at this stage.
+- ~~Win streaks / deep form guide~~ — last-5 strip in Phase 1 covers the need; no deeper drill-down planned.
 
 ---
 
