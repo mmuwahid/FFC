@@ -1695,6 +1695,11 @@ export type Database = {
         Args: { p_display_name: string; p_matchday_id: string }
         Returns: string
       }
+      admin_cancel_commitment: {
+        Args: { p_matchday_id: string; p_profile_id: string }
+        Returns: undefined
+      }
+      admin_cancel_guest: { Args: { p_guest_id: string }; Returns: undefined }
       admin_delete_player: {
         Args: { p_profile_id: string }
         Returns: undefined

@@ -6484,3 +6484,52 @@ body.is-leaderboard-landscape .lb-table-grid {
   white-space: nowrap;
   box-shadow: 0 4px 20px rgba(0,0,0,0.4);
 }
+
+/* Pool chip × button + waitlist (issue #15) */
+.rs-chip-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.rs-chip-remove {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(230, 51, 73, 0.18);
+  color: #f4a3ae;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  transition: background 120ms, color 120ms;
+}
+.rs-chip-remove:hover:not(:disabled) {
+  background: rgba(230, 51, 73, 0.36);
+  color: #fff;
+}
+.rs-chip-remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.rs-waitlist {
+  padding: 10px 14px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.rs-waitlist .rs-section-head {
+  margin-bottom: 6px;
+}
+.rs-waitlist-chip {
+  opacity: 0.55;
+  border-style: dashed !important;
+  cursor: pointer;
+}
+.rs-waitlist-chip:hover {
+  opacity: 1;
+  background: rgba(229, 186, 91, 0.12);
+}

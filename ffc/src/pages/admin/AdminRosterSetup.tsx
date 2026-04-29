@@ -4,18 +4,28 @@
  * after the captain pick draft has run. Also serves as the fallback path when
  * no captain draft has happened (admin assigns from scratch).
  *
- * Interaction model (option B):
- *   1. Tap an empty slot → it becomes the "active target"
- *   2. Tap a pool chip → player fills the active slot
- *   3. Tap × on a filled slot → player returns to pool, slot becomes empty
- *   4. "+ Add guest" → opens name sheet (name only)
- *   5. "+ Add player" → opens search sheet, calls admin_add_commitment, adds to pool
+ * Interaction model (S055 hybrid, issue #15):
+ *   1. Tap a pool chip with NO active target → auto-fills next empty slot,
+ *      alternating White → Black → White → Black (team with fewer filled
+ *      slots wins; tie → White).
+ *   2. Tap an empty slot → it becomes the "active target"; next pool chip
+ *      tap fills that specific slot (preserves explicit-target flow for
+ *      e.g. putting a GK in slot 1).
+ *   3. Tap × on a filled slot → player returns to pool, slot becomes empty.
+ *   4. Tap × on a pool chip → uncommits player/guest entirely (RPC); next
+ *      waitlister auto-promotes into the freed pool slot if any.
+ *   5. Waitlist (yes-voters past roster_cap by committed_at) renders below
+ *      the pool; tap to promote them into the actionable pool (UI-only).
+ *   6. "+ Add guest" → opens name sheet (name only).
+ *   7. "+ Add player" → opens search sheet, calls admin_add_commitment.
  *
  * RPCs used:
  *   create_match_draft         — if no draft match exists yet
  *   admin_update_match_draft   — if a draft match already exists
  *   admin_add_guest            — create a match_guest (name only)
  *   admin_add_commitment       — mark a registered player as confirmed
+ *   admin_cancel_commitment    — uncommit a registered player (S055)
+ *   admin_cancel_guest         — soft-cancel a guest (S055)
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -94,6 +104,7 @@ export function AdminRosterSetup() {
 
   // Roster state
   const [pool, setPool] = useState<PoolPlayer[]>([])
+  const [waitlist, setWaitlist] = useState<PoolPlayer[]>([])
   const [white, setWhite] = useState<TeamSlot[]>([])
   const [black, setBlack] = useState<TeamSlot[]>([])
   const [activeTarget, setActiveTarget] = useState<ActiveTarget>(null)
@@ -101,6 +112,8 @@ export function AdminRosterSetup() {
   const [format, setFormat] = useState<MatchFormat>('7v7')
   // Tracks all profile IDs currently in the pool or in a slot (confirmed)
   const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set())
+  // Profile ID currently being cancelled via the pool × button (UI busy lock)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
 
   // Add guest sheet
   const [guestSheet, setGuestSheet] = useState<{ team: TeamColor } | null>(null)
@@ -181,7 +194,6 @@ export function AdminRosterSetup() {
         .eq('choice', 'yes')
         .is('cancelled_at', null)
         .order('committed_at', { ascending: true })
-        .limit(cap)
       if (voteErr) throw voteErr
 
       const { data: guestRows, error: guestErr } = await supabase
@@ -216,9 +228,15 @@ export function AdminRosterSetup() {
         guestId: g.id,
       }))
 
-      // Track which profile IDs are confirmed for this matchday
+      // Partition registered yes-voters: top `cap` by committed_at → pool-eligible,
+      // rest → waitlist (issue #15). Guests are always pool — admin added them deliberately.
+      const profilesPoolEligible = allProfiles.slice(0, cap)
+      const profilesWaitlist = allProfiles.slice(cap)
+
+      // Track which profile IDs are committed for this matchday (pool + waitlist + slots)
       const confirmedSet = new Set(allProfiles.map(p => p.id))
       setConfirmedIds(confirmedSet)
+      setWaitlist(profilesWaitlist)
 
       const emptyWhite: TeamSlot[] = Array.from({ length: half }, () => ({ kind: 'empty' as const }))
       const emptyBlack: TeamSlot[] = Array.from({ length: half }, () => ({ kind: 'empty' as const }))
@@ -242,6 +260,9 @@ export function AdminRosterSetup() {
         for (const mp of mpRows ?? []) {
           let player: PoolPlayer | undefined
           if (mp.profile_id) {
+            // Look up across full profile list (slot may hold a player that ranked
+            // beyond the cap when the draft was originally created — they stay in
+            // their slot, not in the waitlist).
             player = allProfiles.find(p => p.id === mp.profile_id)
             if (player) assignedProfileIds.add(mp.profile_id)
           } else if (mp.guest_id) {
@@ -255,15 +276,21 @@ export function AdminRosterSetup() {
 
         setWhite(whiteSlots)
         setBlack(blackSlots)
+        // Pool excludes assigned + waitlisted; waitlist excludes assigned (a waitlister
+        // already placed on the field by the captain pick stays in the slot, not the waitlist).
+        const assignedWaitlisters = profilesWaitlist.filter(p => assignedProfileIds.has(p.id))
+        if (assignedWaitlisters.length > 0) {
+          setWaitlist(profilesWaitlist.filter(p => !assignedProfileIds.has(p.id)))
+        }
         setPool([
-          ...allProfiles.filter(p => !assignedProfileIds.has(p.id)),
+          ...profilesPoolEligible.filter(p => !assignedProfileIds.has(p.id)),
           ...allGuests.filter(g => !assignedGuestIds.has(g.guestId!)),
         ])
       } else {
         setDraftMatch(null)
         setWhite(emptyWhite)
         setBlack(emptyBlack)
-        setPool([...allProfiles, ...allGuests])
+        setPool([...profilesPoolEligible, ...allGuests])
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e))
@@ -289,23 +316,50 @@ export function AdminRosterSetup() {
     )
   }
 
-  // ── Chip tap: assign to active target ─────────────────────────────────────
+  // ── Chip tap: assign to active target OR auto-fill alternating (issue #15) ─
   function tapChip(player: PoolPlayer) {
-    if (!activeTarget) return
-    const { team, slotIndex } = activeTarget
+    // Path A — explicit target set: fill that slot, then advance target.
+    if (activeTarget) {
+      const { team, slotIndex } = activeTarget
+      const setSlots = team === 'white' ? setWhite : setBlack
+      setSlots(prev => {
+        const next = [...prev]
+        next[slotIndex] = { kind: 'filled', player }
+        return next
+      })
+      setPool(prev => prev.filter(p => p.id !== player.id))
+      const slots = team === 'white' ? white : black
+      let nextIdx: number | null = null
+      for (let i = slotIndex + 1; i < slots.length; i++) {
+        if (slots[i].kind === 'empty') { nextIdx = i; break }
+      }
+      setActiveTarget(nextIdx !== null ? { team, slotIndex: nextIdx } : null)
+      return
+    }
+
+    // Path B — no target: auto-fill alternating W → B → W → B (tie → white).
+    const whiteCount = white.filter(s => s.kind === 'filled').length
+    const blackCount = black.filter(s => s.kind === 'filled').length
+    let team: TeamColor = whiteCount <= blackCount ? 'white' : 'black'
+    let slots = team === 'white' ? white : black
+    let slotIdx = slots.findIndex(s => s.kind === 'empty')
+    if (slotIdx === -1) {
+      // First-choice team is full; fall back to the other team.
+      team = team === 'white' ? 'black' : 'white'
+      slots = team === 'white' ? white : black
+      slotIdx = slots.findIndex(s => s.kind === 'empty')
+    }
+    if (slotIdx === -1) {
+      showToast('Both teams full — remove a player first')
+      return
+    }
     const setSlots = team === 'white' ? setWhite : setBlack
     setSlots(prev => {
       const next = [...prev]
-      next[slotIndex] = { kind: 'filled', player }
+      next[slotIdx] = { kind: 'filled', player }
       return next
     })
     setPool(prev => prev.filter(p => p.id !== player.id))
-    const slots = team === 'white' ? white : black
-    let nextIdx: number | null = null
-    for (let i = slotIndex + 1; i < slots.length; i++) {
-      if (slots[i].kind === 'empty') { nextIdx = i; break }
-    }
-    setActiveTarget(nextIdx !== null ? { team, slotIndex: nextIdx } : null)
   }
 
   // ── Remove from slot → return to pool ────────────────────────────────────
@@ -322,6 +376,53 @@ export function AdminRosterSetup() {
     })
     setPool(prev => [...prev, player])
     setActiveTarget({ team, slotIndex: idx })
+  }
+
+  // ── Pool chip × → uncommit player/guest entirely (issue #15) ─────────────
+  async function handleCancelPoolChip(p: PoolPlayer) {
+    if (!selectedMdId || cancellingId) return
+    setCancellingId(p.id)
+    try {
+      if (p.isGuest && p.guestId) {
+        const { error: err } = await supabase.rpc(
+          'admin_cancel_guest',
+          { p_guest_id: p.guestId }
+        )
+        if (err) throw err
+      } else {
+        const { error: err } = await supabase.rpc(
+          'admin_cancel_commitment',
+          { p_matchday_id: selectedMdId, p_profile_id: p.id }
+        )
+        if (err) throw err
+      }
+      // Auto-promote first waitlister into the freed pool slot (UI-only).
+      const promoted = waitlist[0] ?? null
+      if (promoted) setWaitlist(prev => prev.slice(1))
+      setPool(prev => {
+        const filtered = prev.filter(x => x.id !== p.id)
+        return promoted ? [...filtered, promoted] : filtered
+      })
+      if (!p.isGuest) {
+        setConfirmedIds(prev => {
+          const next = new Set(prev)
+          next.delete(p.id)
+          return next
+        })
+      }
+      showToast(`${p.display_name} removed`)
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : 'Failed to remove')
+    } finally {
+      setCancellingId(null)
+    }
+  }
+
+  // ── Waitlist tap → promote to pool (UI-only, issue #15) ──────────────────
+  function promoteWaitlister(p: PoolPlayer) {
+    setWaitlist(prev => prev.filter(x => x.id !== p.id))
+    setPool(prev => [...prev, p])
+    showToast(`${p.display_name} promoted from waitlist`)
   }
 
   // ── Add guest ─────────────────────────────────────────────────────────────
@@ -526,24 +627,61 @@ export function AdminRosterSetup() {
             </div>
             <div className="rs-pool-chips">
               {pool.map(p => (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={`rs-chip${activeTarget ? ' rs-chip--selectable' : ''}`}
-                  onClick={() => tapChip(p)}
-                >
-                  {p.primary_position && (
-                    <span className={`rs-chip-pos${p.primary_position === 'GK' ? ' rs-chip-pos--gk' : ''}`}>
-                      {p.primary_position}
-                    </span>
+                <span key={p.id} className="rs-chip-wrap">
+                  <button
+                    type="button"
+                    className={`rs-chip${activeTarget ? ' rs-chip--selectable' : ''}`}
+                    onClick={() => tapChip(p)}
+                  >
+                    {p.primary_position && (
+                      <span className={`rs-chip-pos${p.primary_position === 'GK' ? ' rs-chip-pos--gk' : ''}`}>
+                        {p.primary_position}
+                      </span>
+                    )}
+                    {p.isGuest && <span className="rs-chip-guest">G</span>}
+                    {p.display_name}
+                  </button>
+                  {!draftMatch?.hasResult && (
+                    <button
+                      type="button"
+                      className="rs-chip-remove"
+                      onClick={(e) => { e.stopPropagation(); handleCancelPoolChip(p) }}
+                      disabled={cancellingId === p.id}
+                      aria-label={`Remove ${p.display_name} from roster`}
+                    >×</button>
                   )}
-                  {p.isGuest && <span className="rs-chip-guest">G</span>}
-                  {p.display_name}
-                </button>
+                </span>
               ))}
               {pool.length === 0 && <span className="rs-pool-empty">—</span>}
             </div>
           </div>
+
+          {/* Waitlist (yes-voters past roster_cap; tap to promote) */}
+          {waitlist.length > 0 && (
+            <div className="rs-waitlist">
+              <div className="rs-section-head">
+                <span className="rs-section-title">Waitlist ({waitlist.length})</span>
+                <span className="rs-target-hint">tap to promote</span>
+              </div>
+              <div className="rs-pool-chips">
+                {waitlist.map(p => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="rs-chip rs-waitlist-chip"
+                    onClick={() => promoteWaitlister(p)}
+                  >
+                    {p.primary_position && (
+                      <span className={`rs-chip-pos${p.primary_position === 'GK' ? ' rs-chip-pos--gk' : ''}`}>
+                        {p.primary_position}
+                      </span>
+                    )}
+                    {p.display_name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Teams */}
           <div className="rs-teams">
