@@ -106,9 +106,15 @@ export function RefEntry() {
       <section className="ref-entry ref-entry--center">
         <h1 className="ref-entry-title">Roster not yet locked</h1>
         <p className="ref-entry-copy">
-          The admin hasn't locked the roster yet. Refresh once they have, or ask
-          them to share a fresh ref link.
+          The admin hasn't locked the roster yet. Tap Refresh once they have.
         </p>
+        <button
+          type="button"
+          className="ref-entry-cta ref-entry-cta--secondary"
+          onClick={() => session.refresh()}
+        >
+          ↻ Refresh
+        </button>
       </section>
     )
   }
@@ -853,9 +859,8 @@ function buildSubmitPayload(
           (p.profile_id && e.profile_id === p.profile_id)
           || (p.guest_id && e.guest_id === p.guest_id)
         if (!matches) continue
-        // Goal credit: only the scorer's actual roster team gets the goal.
-        // event.team is the team that *scored* — for a regular goal that's the
-        // scorer's roster team; for an own_goal it's the OPPOSITE roster team.
+        // Goal credit: only regular goals (not own_goals) increment a player's count.
+        // event.team is always the BENEFITING team (the score button the ref tapped).
         if (e.event_type === 'goal' && e.team === team) goals += 1
         else if (e.event_type === 'yellow_card') yellow += 1
         else if (e.event_type === 'red_card') red += 1

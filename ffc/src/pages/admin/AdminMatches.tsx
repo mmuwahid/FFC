@@ -65,6 +65,7 @@ type Sheet =
   | { kind: 'create' }
   | { kind: 'edit_md'; md: MatchdayWithMatch }
   | { kind: 'lock'; md: MatchdayWithMatch }
+  | { kind: 'unlock'; md: MatchdayWithMatch }
   | { kind: 'result'; md: MatchdayWithMatch; mode: 'create' }
   | { kind: 'result_edit'; md: MatchdayWithMatch; match: MatchRow }
   | { kind: 'confirm_friendly'; md: MatchdayWithMatch }
@@ -366,6 +367,7 @@ export function AdminMatches() {
               md={md}
               onEdit={() => setSheet({ kind: 'edit_md', md })}
               onLock={() => setSheet({ kind: 'lock', md })}
+              onUnlock={() => setSheet({ kind: 'unlock', md })}
               onEnterResult={() => setSheet({ kind: 'result', md, mode: 'create' })}
               onEditResult={() => md.match && setSheet({ kind: 'result_edit', md, match: md.match })}
               onDraftForceComplete={() => setSheet({ kind: 'draft_force_complete', md })}
@@ -415,6 +417,24 @@ export function AdminMatches() {
                 onConfirm={async () => {
                   setSheetBusy(true)
                   const { error } = await supabase.rpc('lock_roster', { p_matchday_id: sheet.md.id })
+                  setSheetBusy(false)
+                  if (error) { setError(error.message); return }
+                  setSheet(null)
+                  await loadAll()
+                }}
+                onCancel={() => !sheetBusy && setSheet(null)}
+              />
+            )}
+            {sheet.kind === 'unlock' && (
+              <SimpleConfirmSheet
+                title={`Unlock roster — ${dateLabel(sheet.md.kickoff_at)}`}
+                body="This reopens the roster so you can edit the formation. Re-lock when ready. Blocked if a ref entry is already pending review."
+                confirmLabel="Unlock"
+                busy={sheetBusy}
+                onConfirm={async () => {
+                  setSheetBusy(true)
+                  // @ts-expect-error -- unlock_roster added by migration 0047; regen types after db push
+                  const { error } = await supabase.rpc('unlock_roster', { p_matchday_id: sheet.md.id })
                   setSheetBusy(false)
                   if (error) { setError(error.message); return }
                   setSheet(null)
@@ -538,11 +558,12 @@ export function AdminMatches() {
 // ─── Matchday card ─────────────────────────────────────────────
 
 function MatchdayCard({
-  md, onEdit, onLock, onEnterResult, onEditResult, onDraftForceComplete, onDraftAbandon, onFormation, onPickCaptains, onMintRefLink, mintBusy, onReviewPending,
+  md, onEdit, onLock, onUnlock, onEnterResult, onEditResult, onDraftForceComplete, onDraftAbandon, onFormation, onPickCaptains, onMintRefLink, mintBusy, onReviewPending,
 }: {
   md: MatchdayWithMatch
   onEdit: () => void
   onLock: () => void
+  onUnlock: () => void
   onEnterResult: () => void
   onEditResult: () => void
   onDraftForceComplete: () => void
@@ -618,6 +639,11 @@ function MatchdayCard({
             {!locked && (
               <button type="button" className="auth-btn auth-btn--sheet-cancel admin-md-btn" onClick={onLock}>
                 Lock roster
+              </button>
+            )}
+            {locked && !approved && (
+              <button type="button" className="auth-btn auth-btn--sheet-cancel admin-md-btn" onClick={onUnlock}>
+                🔓 Unlock roster
               </button>
             )}
             <button type="button" className="auth-btn auth-btn--approve admin-md-btn" onClick={onEnterResult}>

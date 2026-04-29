@@ -168,6 +168,18 @@
   cursor: pointer;
 }
 .ref-entry-cta:active { transform: translateY(1px); }
+.ref-entry-cta--secondary {
+  height: 52px;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--rf-accent);
+  font-size: 16px;
+  box-shadow: none;
+  border: 2px solid var(--rf-accent);
+  margin-top: 12px;
+  padding: 0 32px;
+  min-width: 160px;
+}
 
 .ref-entry-cta-hint {
   text-align: center;
