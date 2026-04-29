@@ -104,7 +104,11 @@ export function RoleLayout() {
     setDrawerOpen(false)
   }, [location.pathname])
 
-  if (loading || profileLoading) return <div className="app-loading">Loading&hellip;</div>
+  if (loading || profileLoading) return (
+    <div className="app-splash">
+      <img className="app-splash__crest" src="/ffc-logo.svg" alt="" aria-hidden="true" />
+    </div>
+  )
   if (!session || !role) return <Navigate to="/" replace />
 
   const path = location.pathname

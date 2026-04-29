@@ -126,6 +126,11 @@ export function Poll() {
   const [expandedGuest, setExpandedGuest] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Tracks whether the primary data fetch (loadAll) is in flight.
+  // Prevents intermediate renders — where md is set but myVote/commitments
+  // haven't been populated yet — from showing the "Will you play?" vote
+  // prompt before the user's actual vote state is known (issue #12).
+  const [dataLoading, setDataLoading] = useState(true)
 
   /* §3.15 — Post-lock captain reroll modal state.
    * `dropoutNotif` = latest unactioned `dropout_after_lock` notification for the caller
@@ -141,6 +146,7 @@ export function Poll() {
 
   /* Load active matchday (poll open OR upcoming within 7 days). */
   const loadAll = useCallback(async () => {
+    setDataLoading(true)
     setError(null)
     const nowIso = new Date().toISOString()
     const cutoffIso = new Date(Date.now() + 14 * 86400e3).toISOString()
@@ -154,8 +160,8 @@ export function Poll() {
       .order('kickoff_at', { ascending: true })
       .limit(1)
 
-    if (mdErr) { setError(mdErr.message); return }
-    if (!mdRows || mdRows.length === 0) { setMd('none'); setCommitments([]); return }
+    if (mdErr) { setError(mdErr.message); setDataLoading(false); return }
+    if (!mdRows || mdRows.length === 0) { setMd('none'); setCommitments([]); setDataLoading(false); return }
     const m = mdRows[0] as Matchday
     setMd(m)
 
@@ -363,6 +369,7 @@ export function Poll() {
     } else {
       setDropoutNotif(null)
     }
+    setDataLoading(false)
   }, [profileId])
 
   useEffect(() => { void loadAll() }, [loadAll])
@@ -431,7 +438,7 @@ export function Poll() {
     await loadAll()
   }
 
-  if (md === null) {
+  if (dataLoading || md === null) {
     return (
       <section className="po-screen">
         <SkeletonPoll />

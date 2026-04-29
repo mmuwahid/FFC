@@ -43,7 +43,11 @@ import { AdminRosterSetup } from './pages/admin/AdminRosterSetup' // §issue-11
  * now dead code (file kept for git-history simplicity, not imported). */
 function HomeRoute() {
   const { session, role, loading, profileLoading } = useApp()
-  if (loading || profileLoading) return <div className="app-loading">Loading&hellip;</div>
+  if (loading || profileLoading) return (
+    <div className="app-splash">
+      <img className="app-splash__crest" src="/ffc-logo.svg" alt="" aria-hidden="true" />
+    </div>
+  )
   if (!session) return <Navigate to="/login" replace />
   if (!role) return <Navigate to="/signup" replace />
   return <Navigate to="/poll" replace />

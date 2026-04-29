@@ -54,13 +54,19 @@ export function AppProvider({ children }: AppProviderProps) {
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return
       setSession(data.session)
-      setLoading(false)
+      // Only clear the top-level loading gate when there is no session.
+      // When a session exists the profile effect will clear it after the
+      // profiles row is fetched, preventing the one-render-cycle gap where
+      // loading=false but role=null (which caused the login-screen flicker).
+      if (!data.session) setLoading(false)
     })
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!mounted) return
       setSession(nextSession)
-      setLoading(false)
+      // Same rationale: signed-out transitions can clear loading immediately;
+      // signed-in transitions defer to the profile effect below.
+      if (!nextSession) setLoading(false)
     })
 
     return () => {
@@ -117,6 +123,11 @@ export function AppProvider({ children }: AppProviderProps) {
           setRole(null)
         }
         setProfileLoading(false)
+        // Clear the top-level loading gate now that both session + profile are
+        // settled. This ensures the routing layer never sees loading=false with
+        // role=null when the user IS authenticated (the race that caused the
+        // login-screen flicker on app reopen).
+        setLoading(false)
       })
     return () => {
       cancelled = true
