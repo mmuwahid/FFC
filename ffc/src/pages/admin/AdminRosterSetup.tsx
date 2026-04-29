@@ -8,12 +8,14 @@
  *   1. Tap an empty slot → it becomes the "active target"
  *   2. Tap a pool chip → player fills the active slot
  *   3. Tap × on a filled slot → player returns to pool, slot becomes empty
- *   4. "+ Add guest" in the last free slot → opens name sheet
+ *   4. "+ Add guest" → opens name sheet (name only)
+ *   5. "+ Add player" → opens search sheet, calls admin_add_commitment, adds to pool
  *
  * RPCs used:
- *   create_match_draft      — if no draft match exists yet
- *   admin_update_match_draft — if a draft match already exists (issue #11 edit)
- *   admin_add_guest          — create a match_guest (name only)
+ *   create_match_draft         — if no draft match exists yet
+ *   admin_update_match_draft   — if a draft match already exists
+ *   admin_add_guest            — create a match_guest (name only)
+ *   admin_add_commitment       — mark a registered player as confirmed
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -28,7 +30,6 @@ type MatchFormat = Database['public']['Enums']['match_format']
 interface MatchdayOption {
   id: string
   kickoff_at: string
-  poll_closes_at: string
   roster_locked_at: string | null
   effective_format: MatchFormat
 }
@@ -38,7 +39,13 @@ interface PoolPlayer {
   display_name: string
   primary_position: PlayerPosition | null
   isGuest: boolean
-  guestId?: string  // set when isGuest=true, id = match_guests.id
+  guestId?: string
+}
+
+interface RegisteredPlayer {
+  id: string
+  display_name: string
+  primary_position: PlayerPosition | null
 }
 
 type TeamSlot =
@@ -52,7 +59,6 @@ interface DraftMatch {
   hasResult: boolean
 }
 
-// ─── Date helpers (no new Date(iso) for DATE columns) ────────────────────────
 function fmtDatetime(iso: string): string {
   const d = new Date(iso)
   const day = String(d.getDate()).padStart(2, '0')
@@ -74,8 +80,6 @@ function halfCap(format: MatchFormat): number {
   return format === '7v7' ? 7 : 5
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export function AdminRosterSetup() {
   const navigate = useNavigate()
   const { role } = useApp()
@@ -95,11 +99,19 @@ export function AdminRosterSetup() {
   const [activeTarget, setActiveTarget] = useState<ActiveTarget>(null)
   const [draftMatch, setDraftMatch] = useState<DraftMatch | null>(null)
   const [format, setFormat] = useState<MatchFormat>('7v7')
+  // Tracks all profile IDs currently in the pool or in a slot (confirmed)
+  const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set())
 
   // Add guest sheet
   const [guestSheet, setGuestSheet] = useState<{ team: TeamColor } | null>(null)
   const [guestName, setGuestName] = useState('')
   const [guestBusy, setGuestBusy] = useState(false)
+
+  // Add player sheet
+  const [playerSheet, setPlayerSheet] = useState(false)
+  const [allPlayers, setAllPlayers] = useState<RegisteredPlayer[]>([])
+  const [playerSearch, setPlayerSearch] = useState('')
+  const [playerBusy, setPlayerBusy] = useState<string | null>(null) // profile_id being added
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -115,7 +127,7 @@ export function AdminRosterSetup() {
       setLoading(true)
       const { data, error: err } = await supabase
         .from('matchdays')
-        .select('id, kickoff_at, poll_closes_at, roster_locked_at, format, season_id, seasons:season_id(default_format)')
+        .select('id, kickoff_at, roster_locked_at, format, season_id, seasons:season_id(default_format)')
         .order('kickoff_at', { ascending: false })
         .limit(20)
       if (err) { setError(err.message); setLoading(false); return }
@@ -125,19 +137,31 @@ export function AdminRosterSetup() {
         return {
           id: md.id,
           kickoff_at: md.kickoff_at,
-          poll_closes_at: md.poll_closes_at,
           roster_locked_at: md.roster_locked_at,
           effective_format: (md.format ?? seasonDefault) as MatchFormat,
         }
       })
       setMatchdays(opts)
-
-      // Default to the most recent matchday with a locked roster, or just the first
       const defaultMd = opts.find(m => m.roster_locked_at) ?? opts[0] ?? null
       setSelectedMdId(defaultMd?.id ?? null)
       setLoading(false)
     }
     loadMatchdays()
+  }, [])
+
+  // ── Load all active registered players (for Add Player sheet) ────────────
+  useEffect(() => {
+    async function loadPlayers() {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, display_name, primary_position')
+        .in('role', ['player', 'admin', 'super_admin'])
+        .eq('is_active', true)
+        .is('deleted_at', null)
+        .order('display_name', { ascending: true })
+      setAllPlayers((data ?? []) as RegisteredPlayer[])
+    }
+    loadPlayers()
   }, [])
 
   // ── Load roster for selected matchday ────────────────────────────────────
@@ -150,7 +174,6 @@ export function AdminRosterSetup() {
     const half = halfCap(fmt)
 
     try {
-      // Confirmed poll voters
       const { data: voteRows, error: voteErr } = await supabase
         .from('poll_votes')
         .select('profile_id, committed_at, profiles:profile_id(id, display_name, primary_position)')
@@ -161,7 +184,6 @@ export function AdminRosterSetup() {
         .limit(cap)
       if (voteErr) throw voteErr
 
-      // Guests for this matchday
       const { data: guestRows, error: guestErr } = await supabase
         .from('match_guests')
         .select('id, display_name')
@@ -169,7 +191,6 @@ export function AdminRosterSetup() {
         .is('cancelled_at', null)
       if (guestErr) throw guestErr
 
-      // Existing draft match + its match_players
       const { data: matchRow, error: matchErr } = await supabase
         .from('matches')
         .select('id, result')
@@ -195,7 +216,10 @@ export function AdminRosterSetup() {
         guestId: g.id,
       }))
 
-      // Build empty slots
+      // Track which profile IDs are confirmed for this matchday
+      const confirmedSet = new Set(allProfiles.map(p => p.id))
+      setConfirmedIds(confirmedSet)
+
       const emptyWhite: TeamSlot[] = Array.from({ length: half }, () => ({ kind: 'empty' as const }))
       const emptyBlack: TeamSlot[] = Array.from({ length: half }, () => ({ kind: 'empty' as const }))
 
@@ -231,8 +255,6 @@ export function AdminRosterSetup() {
 
         setWhite(whiteSlots)
         setBlack(blackSlots)
-
-        // Pool = players not yet assigned
         setPool([
           ...allProfiles.filter(p => !assignedProfileIds.has(p.id)),
           ...allGuests.filter(g => !assignedGuestIds.has(g.guestId!)),
@@ -258,10 +280,10 @@ export function AdminRosterSetup() {
     loadRoster(selectedMdId, md.effective_format)
   }, [selectedMdId, matchdays, loadRoster])
 
-  // ── Slot tap: set active target ───────────────────────────────────────────
+  // ── Slot tap ──────────────────────────────────────────────────────────────
   function tapSlot(team: TeamColor, idx: number) {
     const slots = team === 'white' ? white : black
-    if (slots[idx].kind === 'filled') return  // × button handles removal
+    if (slots[idx].kind === 'filled') return
     setActiveTarget(prev =>
       prev?.team === team && prev?.slotIndex === idx ? null : { team, slotIndex: idx }
     )
@@ -278,7 +300,6 @@ export function AdminRosterSetup() {
       return next
     })
     setPool(prev => prev.filter(p => p.id !== player.id))
-    // Advance active target to next empty slot in the same team
     const slots = team === 'white' ? white : black
     let nextIdx: number | null = null
     for (let i = slotIndex + 1; i < slots.length; i++) {
@@ -315,13 +336,12 @@ export function AdminRosterSetup() {
       if (err) throw err
       if (!guestId) throw new Error('No guest ID returned')
       const newGuest: PoolPlayer = {
-        id: guestId,
+        id: guestId as string,
         display_name: guestName.trim(),
         primary_position: null,
         isGuest: true,
-        guestId,
+        guestId: guestId as string,
       }
-      // Place directly into the target team slot if active, else add to pool
       const targetTeam = guestSheet.team
       const slots = targetTeam === 'white' ? white : black
       const firstEmpty = slots.findIndex(s => s.kind === 'empty')
@@ -341,6 +361,33 @@ export function AdminRosterSetup() {
       showToast(e instanceof Error ? e.message : 'Failed to add guest')
     } finally {
       setGuestBusy(false)
+    }
+  }
+
+  // ── Add registered player (admin_add_commitment) ──────────────────────────
+  async function handleAddPlayer(p: RegisteredPlayer) {
+    if (!selectedMdId) return
+    setPlayerBusy(p.id)
+    try {
+      const { error: err } = await supabase.rpc(
+        'admin_add_commitment' as never,
+        { p_matchday_id: selectedMdId, p_profile_id: p.id } as never
+      ) as { error: unknown }
+      if (err) throw err
+
+      const newPlayer: PoolPlayer = {
+        id: p.id,
+        display_name: p.display_name,
+        primary_position: p.primary_position,
+        isGuest: false,
+      }
+      setConfirmedIds(prev => new Set([...prev, p.id]))
+      setPool(prev => [...prev, newPlayer])
+      showToast(`${p.display_name} added to confirmed`)
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : 'Failed to add player')
+    } finally {
+      setPlayerBusy(null)
     }
   }
 
@@ -379,38 +426,36 @@ export function AdminRosterSetup() {
         if (err) throw err
         showToast('Roster confirmed')
       }
-      // Reload to reflect saved state
       const md = matchdays.find(m => m.id === selectedMdId)
       if (md) await loadRoster(selectedMdId, md.effective_format)
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e)
-      setError(msg)
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)
     }
   }
 
-  // ── Derived state ─────────────────────────────────────────────────────────
+  // ── Derived ───────────────────────────────────────────────────────────────
   const half = halfCap(format)
   const cap = rosterCap(format)
-  const whiteCount = white.filter(s => s.kind === 'filled').length
-  const blackCount = black.filter(s => s.kind === 'filled').length
-  const totalAssigned = whiteCount + blackCount
+  const totalAssigned = white.filter(s => s.kind === 'filled').length + black.filter(s => s.kind === 'filled').length
   const isReady = totalAssigned === cap
   const selectedMd = matchdays.find(m => m.id === selectedMdId)
+
+  const filteredPlayers = allPlayers.filter(p =>
+    !confirmedIds.has(p.id) &&
+    p.display_name.toLowerCase().includes(playerSearch.toLowerCase())
+  )
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (!isAdmin) {
     return (
       <div className="rs-screen">
         <div className="rs-topbar">
-          <button className="rs-back" onClick={() => navigate('/admin')}>‹</button>
+          <button className="rs-back" type="button" onClick={() => navigate('/admin')}>‹</button>
           <span className="rs-title">Roster Setup</span>
         </div>
-        <div className="rs-empty-state">
-          <p>Admin only</p>
-          <button className="rs-btn rs-btn--primary" onClick={() => navigate('/admin')}>Back</button>
-        </div>
+        <div className="rs-empty-state"><p>Admin only</p></div>
       </div>
     )
   }
@@ -422,9 +467,7 @@ export function AdminRosterSetup() {
       <div className="rs-topbar">
         <button className="rs-back" type="button" onClick={() => navigate('/admin')}>‹</button>
         <span className="rs-title">Roster Setup</span>
-        {draftMatch && (
-          <span className="rs-draft-badge">DRAFT</span>
-        )}
+        {draftMatch && <span className="rs-draft-badge">DRAFT</span>}
       </div>
 
       {/* Matchday selector */}
@@ -437,18 +480,14 @@ export function AdminRosterSetup() {
           onChange={e => setSelectedMdId(e.target.value || null)}
         >
           {matchdays.map(md => (
-            <option key={md.id} value={md.id}>
-              {fmtDatetime(md.kickoff_at)}
-            </option>
+            <option key={md.id} value={md.id}>{fmtDatetime(md.kickoff_at)}</option>
           ))}
         </select>
       </div>
 
-      {/* Loading / error */}
       {loading && <div className="rs-loading">Loading…</div>}
       {error && <div className="rs-error">{error}</div>}
 
-      {/* Edit mode banner */}
       {!loading && draftMatch && !draftMatch.hasResult && (
         <div className="rs-banner rs-banner--warn">
           Captain pick draft saved — tap × on a player to move them, or add/remove as needed.
@@ -466,15 +505,24 @@ export function AdminRosterSetup() {
           <div className="rs-pool">
             <div className="rs-section-head">
               <span className="rs-section-title">
-                {pool.length > 0
-                  ? `Unassigned (${pool.length})`
-                  : 'All players assigned'}
+                {pool.length > 0 ? `Unassigned (${pool.length})` : 'All players assigned'}
               </span>
-              {activeTarget && (
-                <span className="rs-target-hint">
-                  Tap a player → {activeTarget.team} #{activeTarget.slotIndex + 1}
-                </span>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {activeTarget && (
+                  <span className="rs-target-hint">
+                    → {activeTarget.team} #{activeTarget.slotIndex + 1}
+                  </span>
+                )}
+                {!draftMatch?.hasResult && (
+                  <button
+                    type="button"
+                    className="rs-add-player-btn"
+                    onClick={() => { setPlayerSheet(true); setPlayerSearch('') }}
+                  >
+                    + Add player
+                  </button>
+                )}
+              </div>
             </div>
             <div className="rs-pool-chips">
               {pool.map(p => (
@@ -493,9 +541,7 @@ export function AdminRosterSetup() {
                   {p.display_name}
                 </button>
               ))}
-              {pool.length === 0 && !activeTarget && (
-                <span className="rs-pool-empty">—</span>
-              )}
+              {pool.length === 0 && <span className="rs-pool-empty">—</span>}
             </div>
           </div>
 
@@ -555,7 +601,6 @@ export function AdminRosterSetup() {
                       </button>
                     )
                   })}
-                  {/* Add guest button: only show when all regular slots filled but team not full */}
                   {!draftMatch?.hasResult && !isFull && !hasEmptySlot && (
                     <button
                       type="button"
@@ -565,7 +610,6 @@ export function AdminRosterSetup() {
                       <span>+ Add guest</span>
                     </button>
                   )}
-                  {/* Add guest shortcut: also available when team IS full but admin wants extra (blocked by cap in RPC) */}
                   {!draftMatch?.hasResult && isFull && (
                     <button
                       type="button"
@@ -611,7 +655,10 @@ export function AdminRosterSetup() {
 
       {/* Add guest sheet */}
       {guestSheet && (
-        <div className="rs-sheet-overlay" onClick={(e) => { if (e.target === e.currentTarget) { setGuestSheet(null); setGuestName('') } }}>
+        <div
+          className="rs-sheet-overlay"
+          onClick={(e) => { if (e.target === e.currentTarget) { setGuestSheet(null); setGuestName('') } }}
+        >
           <div className="rs-sheet">
             <div className="rs-sheet-handle" />
             <div className="rs-sheet-title">Add Guest to {guestSheet.team === 'white' ? 'White' : 'Black'}</div>
@@ -641,6 +688,59 @@ export function AdminRosterSetup() {
                 {guestBusy ? 'Adding…' : 'Add Guest'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add player sheet */}
+      {playerSheet && (
+        <div
+          className="rs-sheet-overlay"
+          onClick={(e) => { if (e.target === e.currentTarget) { setPlayerSheet(false); setPlayerSearch('') } }}
+        >
+          <div className="rs-sheet rs-sheet--tall">
+            <div className="rs-sheet-handle" />
+            <div className="rs-sheet-title">Add Player to Confirmed</div>
+            <div className="rs-sheet-subtitle">Marks them as Yes — they'll appear in the pool above</div>
+            <input
+              className="rs-sheet-input"
+              type="text"
+              placeholder="Search players…"
+              value={playerSearch}
+              onChange={e => setPlayerSearch(e.target.value)}
+              autoFocus
+            />
+            <div className="rs-player-list">
+              {filteredPlayers.length === 0 && (
+                <div className="rs-player-empty">
+                  {playerSearch ? 'No match' : 'All registered players already confirmed'}
+                </div>
+              )}
+              {filteredPlayers.map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="rs-player-row"
+                  disabled={playerBusy === p.id}
+                  onClick={() => handleAddPlayer(p)}
+                >
+                  <span className="rs-player-name">{p.display_name}</span>
+                  {p.primary_position && (
+                    <span className={`rs-chip-pos${p.primary_position === 'GK' ? ' rs-chip-pos--gk' : ''}`}>
+                      {p.primary_position}
+                    </span>
+                  )}
+                  <span className="rs-player-add">
+                    {playerBusy === p.id ? '…' : '+'}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="rs-sheet-btn rs-sheet-btn--cancel"
+              onClick={() => { setPlayerSheet(false); setPlayerSearch('') }}
+            >Done</button>
           </div>
         </div>
       )}
