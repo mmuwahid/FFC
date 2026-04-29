@@ -2956,6 +2956,7 @@ textarea.auth-input {
 .ap-pos { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; padding: 2px 6px; border-radius: 4px; }
 .ap-pos-primary { background: rgba(127,160,232,0.18); color: #7fa0e8; }
 .ap-pos-secondary { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+.admin-edit-hint { margin-left: auto; font-size: 13px; opacity: 0.35; flex-shrink: 0; padding-right: 2px; }
 
 .chip-inactive { background: rgba(156,163,175,0.18); color: #9ca3af; }
 .chip-banned { background: rgba(229,57,53,0.18); color: var(--danger, #e53935); }
@@ -2964,6 +2965,7 @@ textarea.auth-input {
 /* Sheet — wide variant for result entry */
 .sheet--wide { max-width: 640px; max-height: 90vh; overflow-y: auto; }
 .sheet-sub { font-size: 12px; color: var(--text-muted); margin: -2px 0 14px; }
+.admin-warn-banner { font-size: 12px; color: #f5a05a; background: rgba(245,160,90,0.1); border: 1px solid rgba(245,160,90,0.3); border-radius: 8px; padding: 7px 10px; margin: 0 0 12px; }
 
 .admin-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .admin-field--row { flex-direction: row; align-items: center; justify-content: space-between; }
@@ -6163,6 +6165,24 @@ body.is-leaderboard-landscape .lb-table-grid {
   background: rgba(229,186,91,0.08);
 }
 .rs-chip--selectable:hover { background: rgba(229,186,91,0.15); }
+/* Pool chip: × button lives inside the chip boundary */
+.rs-chip--removable { padding: 0; gap: 0; cursor: default; }
+.rs-chip--removable.rs-chip--selectable { cursor: pointer; }
+.rs-chip-body {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 4px 5px 6px;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: inherit;
+  white-space: nowrap;
+}
+.rs-chip--removable .rs-chip-remove {
+  margin: 0 4px;
+}
 .rs-chip-pos {
   font-size: 10px;
   font-weight: 700;
@@ -6171,7 +6191,11 @@ body.is-leaderboard-landscape .lb-table-grid {
   border-radius: 10px;
   padding: 1px 5px;
 }
-.rs-chip-pos--gk { color: #7fc9ff; background: rgba(127,201,255,0.15); }
+.rs-chip-pos--gk  { color: #7fc9ff; background: rgba(127,201,255,0.15); }
+.rs-chip-pos--def { color: #a0b4e8; background: rgba(160,180,232,0.15); }
+.rs-chip-pos--cdm { color: #4fbf93; background: rgba(79,191,147,0.15); }
+.rs-chip-pos--w   { color: #f5a05a; background: rgba(245,160,90,0.15); }
+.rs-chip-pos--st  { color: #f47585; background: rgba(244,117,133,0.15); }
 .rs-chip-guest {
   font-size: 9px;
   font-weight: 700;
@@ -6489,7 +6513,7 @@ body.is-leaderboard-landscape .lb-table-grid {
 .rs-chip-wrap {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 0;
 }
 .rs-chip-remove {
   width: 20px;

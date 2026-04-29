@@ -391,6 +391,7 @@ function ActiveList({
                 </div>
               )}
             </div>
+            <span className="admin-edit-hint" aria-hidden>✏</span>
           </button>
           <button
             type="button"

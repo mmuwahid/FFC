@@ -396,13 +396,7 @@ export function AdminRosterSetup() {
         )
         if (err) throw err
       }
-      // Auto-promote first waitlister into the freed pool slot (UI-only).
-      const promoted = waitlist[0] ?? null
-      if (promoted) setWaitlist(prev => prev.slice(1))
-      setPool(prev => {
-        const filtered = prev.filter(x => x.id !== p.id)
-        return promoted ? [...filtered, promoted] : filtered
-      })
+      setPool(prev => prev.filter(x => x.id !== p.id))
       if (!p.isGuest) {
         setConfirmedIds(prev => {
           const next = new Set(prev)
@@ -483,8 +477,14 @@ export function AdminRosterSetup() {
         isGuest: false,
       }
       setConfirmedIds(prev => new Set([...prev, p.id]))
-      setPool(prev => [...prev, newPlayer])
-      showToast(`${p.display_name} added to confirmed`)
+      const total = pool.length + white.filter(s => s.kind === 'filled').length + black.filter(s => s.kind === 'filled').length
+      if (total >= cap) {
+        setWaitlist(prev => [...prev, newPlayer])
+        showToast(`${p.display_name} added to waitlist (roster full)`)
+      } else {
+        setPool(prev => [...prev, newPlayer])
+        showToast(`${p.display_name} added to confirmed`)
+      }
     } catch (e: unknown) {
       showToast(e instanceof Error ? e.message : 'Failed to add player')
     } finally {
@@ -627,14 +627,17 @@ export function AdminRosterSetup() {
             </div>
             <div className="rs-pool-chips">
               {pool.map(p => (
-                <span key={p.id} className="rs-chip-wrap">
+                <span
+                  key={p.id}
+                  className={`rs-chip rs-chip--removable${activeTarget ? ' rs-chip--selectable' : ''}`}
+                >
                   <button
                     type="button"
-                    className={`rs-chip${activeTarget ? ' rs-chip--selectable' : ''}`}
+                    className="rs-chip-body"
                     onClick={() => tapChip(p)}
                   >
                     {p.primary_position && (
-                      <span className={`rs-chip-pos${p.primary_position === 'GK' ? ' rs-chip-pos--gk' : ''}`}>
+                      <span className={`rs-chip-pos rs-chip-pos--${p.primary_position.toLowerCase()}`}>
                         {p.primary_position}
                       </span>
                     )}
@@ -672,7 +675,7 @@ export function AdminRosterSetup() {
                     onClick={() => promoteWaitlister(p)}
                   >
                     {p.primary_position && (
-                      <span className={`rs-chip-pos${p.primary_position === 'GK' ? ' rs-chip-pos--gk' : ''}`}>
+                      <span className={`rs-chip-pos rs-chip-pos--${p.primary_position.toLowerCase()}`}>
                         {p.primary_position}
                       </span>
                     )}

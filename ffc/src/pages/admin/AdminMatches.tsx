@@ -887,6 +887,28 @@ function CreateMatchdaySheet({
   })
   const [format, setFormat] = useState<MatchFormat>(seasonDefaultFormat || '7v7')
 
+  // Auto-derive poll windows when kickoff changes (issue #19)
+  useEffect(() => {
+    if (!kickoff) return
+    const [datePart] = kickoff.split('T')
+    if (!datePart || datePart.length < 10) return
+    const [y, m, d] = datePart.split('-').map(Number)
+    if (!y || !m || !d) return
+    const opensLocal = new Date(y, m - 1, d - 3)
+    opensLocal.setHours(9, 0, 0, 0)
+    const closesLocal = new Date(y, m - 1, d - 1)
+    closesLocal.setHours(21, 0, 0, 0)
+    setPollOpens(toLocalInput(opensLocal.toISOString()))
+    setPollCloses(toLocalInput(closesLocal.toISOString()))
+  }, [kickoff])
+
+  const isThursday = (() => {
+    if (!kickoff) return true
+    const [datePart] = kickoff.split('T')
+    if (!datePart) return true
+    return new Date(datePart + 'T12:00').getDay() === 4
+  })()
+
   const submit = async () => {
     if (!kickoff || !pollOpens || !pollCloses) { onError('All dates required.'); return }
     setBusy(true)
@@ -910,6 +932,10 @@ function CreateMatchdaySheet({
     <>
       <h3>Create matchday</h3>
       <p className="sheet-sub">Season default format: {seasonDefaultFormat}.</p>
+
+      {!isThursday && (
+        <p className="admin-warn-banner">Not a Thursday — double-check the date.</p>
+      )}
 
       <label className="admin-field">
         <span className="admin-field-label">Kickoff</span>
