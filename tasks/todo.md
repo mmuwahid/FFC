@@ -1,15 +1,15 @@
 # FFC Todo
 
-## NEXT SESSION — S053
+## NEXT SESSION — S054
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S052 fix-pack close (commit hash filled at push) on `main`.
-- Migrations on live DB: **46** (S052 added 0046 admin_delete_player_rpc).
+- Expected tip: S053 awards close `27576f7` on `main`.
+- Migrations on live DB: **47** (S053 added 0047_phase3_awards).
 
-**S053 agenda — Phase 2 close-out via single-Thursday live acceptance (deferred from S052; S052 was a GitHub-issue fix-pack instead):**
+**S054 agenda — Phase 2 close still owed; awards live-verify; more Phase 3 backlog:**
 
-1. **Phase 2 close: V3.0:122 8-box acceptance on a real Thursday matchday.** Same 8 boxes as the previous S052 agenda — copied below verbatim.
+1. **Phase 2 close: V3.0:122 8-box acceptance on a real Thursday matchday** (still pending from S052/S053).
    - [ ] No vote-chasing in WhatsApp — push reminders alone cover non-voters.
    - [ ] Roster locks itself at the deadline; confirmed/waitlist players get `roster_locked` push.
    - [ ] Captain pair auto-set on lock; admin gets `captain_auto_picked` push with override deeplink.
@@ -18,21 +18,62 @@
    - [ ] Goals / cards / MOTM time-stamped at moment of capture.
    - [ ] After full-time, ref taps SUBMIT → admin gets push within 30 seconds.
    - [ ] Admin opens review screen, taps APPROVE → leaderboard updates without manual entry.
-2. **GitHub issue #1 (deferred from S052)** — Leaderboard player abbreviation. User explicitly wants pills (position + MOTM star) to STAY. Re-open with the user once they have a clearer ask; possibly revisit only if portrait readability still feels poor after the S052 column-width fix.
-3. **Live verification of S052 UI fixes on production:**
-   - [ ] Poll: tapping No / Maybe shows the new red/amber state cards with "Change my mind" / "Confirm Yes" / "Switch to No" actions.
-   - [ ] Leaderboard portrait: header reads "MP" not "P"; player col fits in 160px; W/L/D Last 5 pills render green / red / cream-grey.
-   - [ ] Settings: ‹ Back chip top-left, Account row at bottom (one row: email · sign-out · delete), no Admin platform link in Settings.
-   - [ ] Avatar drawer: Profile · Settings · 🛠 Admin platform (admin only) · 📲 Install app · Sign out.
-   - [ ] Install app modal: opens with iOS / Android tabs; correct tab pre-selected per UA.
-   - [ ] Matches tab: switch to Poll → switch back → list renders without a manual refresh; realtime sub fires on new approvals.
-   - [ ] Admin platform: opens scrolled to top, three cards visible above the fold.
-   - [ ] AdminPlayers Edit sheet: Delete player button at bottom, type-DELETE confirm sheet → soft-delete → row drops out of Active list and historical match cards show "Deleted player".
-4. **Carry-over verification from S051** — push subscribe (Chrome desktop + iPhone PWA installed), Resend signup-outcome email, captain reroll live test on a real matchday.
+
+2. **Awards page live verification (S053 deliverable):**
+   - [ ] `/awards` route loads from Leaderboard's new gold trophy icon-btn (third in controls row after Filter + Sort).
+   - [ ] Active season → "PROVISIONAL · Active" badge + 3 hero cards reading from `v_season_award_winners_live`.
+   - [ ] Hero name tap → navigates to `/profile?profile_id=...&season_id=...`.
+   - [ ] Runner-up sub-line tap → navigates to runner-up's profile.
+   - [ ] Season pill dropdown → switching seasons changes data source (view for active, snapshot table for ended).
+   - [ ] Once a season ends naturally → trigger fires → `season_awards` table gets 3 rows → "FINAL · Ended" badge appears + Wall of Fame includes that season.
+   - [ ] Wall of Fame empty state ("First season — Wall of Fame begins after this season ends") renders correctly until S11 ends.
+   - [ ] Empty active season ("No matches played yet this season — awards will appear once results are in") will be visible until first match approved.
+   - [ ] Soft-deleted past winner renders as muted "Deleted player" in Wall of Fame cell (when applicable).
+
+3. **GitHub issue #1 (deferred from S052)** — Leaderboard player abbreviation. User explicitly wants pills (position + MOTM star) to STAY. Re-open only if portrait readability still feels poor.
+
+4. **Carry-over verification** — push subscribe (Chrome desktop + iPhone PWA installed), Resend signup-outcome email, captain reroll live test on a real matchday.
 
 **Backburner:**
+- **Awards backfill RPC** — admin-triggered `backfill_season_awards()` to populate `season_awards` for ended seasons predating mig 0047. Wall of Fame stays empty until then OR until S11 ends naturally.
+- **Awards push notification** — when `seasons.ended_at` flips, push admins + winners ("Season N awards are in!"). Easy follow-up using the S048 two-bearer pattern.
 - **Resend custom sender domain** — verify a domain in Resend, set `NOTIFY_FROM` env on `notify-signup-outcome` EF (default is `onboarding@resend.dev`).
-- **Phase 3 mockup-first work** — V3.0:139–148 backlog. Player analytics + H2H comparison. Per CLAUDE.md operating rule #1, build mockups in `mockups/` first.
+- **Phase 3 backlog continued (V3.0:139–148)**: WhatsApp share PNG, photo-OCR fallback, multi-season comparison stats, match highlights, video clip attachments. Per CLAUDE.md operating rule #1, build mockups in `mockups/` first.
+- **Player analytics + H2H** (V3.0:145–146) — first attempt rejected this session (mockups didn't land). Re-attempt with different style direction if user wants.
+
+## Completed in S053 (29/APR/2026, Work PC)
+
+### Phase 3 awards page — first ship
+
+**9 commits, 1 migration. Live DB: 46 → 47. Pushed clean fast-forward `d8c8938..27576f7`.**
+
+- [x] **Pivot from analytics + H2H.** Original plan was V3.0:145–146 player analytics + H2H comparison; user approved scope, spec, and brainstorming flow but rejected both mockups (Profile single + compare; Leaderboard select-mode states). Reverted both commits via `git reset --hard HEAD~2` (local-only, not pushed). Pivoted to V3.0:139 awards page on user's pick.
+- [x] **Awards-page brainstorming.** Style A/B preview file shipped first (`mockups/3-23-phase3-awards-style-compare.html`) — celebration vs stats. User picked "mix elements from both" with per-element specifics: A's serif gold "Season N Awards" header + A's big trophy + serif gold winner name + photo avatar hero cards + B's tabular Wall of Fame grid. Entry → trophy icon-btn on Leaderboard's controls row. Tie-break = leaderboard cascade. Hybrid data: live view for active, snapshot table for ended.
+- [x] **Mockup approved.** `mockups/3-24-phase3-awards.html` — initial version had a styled-mockup Leaderboard frame; user asked the Leaderboard frame to match the LIVE format (`lb-head` sticky header, `lb-controls-row`, `lb-icon-btn` 38×38 SVG buttons, `lb-table-grid` columns, `lb-row--gold/silver/bronze` medal tints). Re-read live `Leaderboard.tsx` + CSS, replaced frame B accordingly. Approved.
+- [x] **Spec.** `docs/superpowers/specs/2026-04-29-phase3-awards-design.md` — 10 sections, 400 lines. Awards points formula `wins*3 + draws` (NO late-cancel term) intentionally diverges from leaderboard `points`.
+- [x] **Plan.** `docs/superpowers/plans/2026-04-29-phase3-awards.md` — 7 tasks, 1298 lines. Schema verified up-front against existing migrations.
+- [x] **Task 1 (`9116216`)** — migration `0047_phase3_awards.sql`. New `season_awards` snapshot table + `v_season_award_winners_live` view (4 CTEs + 3-way UNION ALL with self-join for runner-up — cleaner than spec's correlated-subquery draft) + `snapshot_season_awards_trigger` function (SECURITY DEFINER + search_path=public + NULL→NOT NULL guard + ON CONFLICT DO NOTHING idempotency) + AFTER UPDATE OF ended_at trigger. Spot-checks: view returned 0 rows (live DB has 0 approved matches yet — vacuous); transactional rollback test confirmed trigger fires + idempotent. Spec ✅, code review ✅.
+- [x] **Task 2 (`446aa40`)** — Supabase types regen, 2213 → 2283 lines.
+- [x] **Task 3 (`f256f09`)** — Awards skeleton + route. Implementer found routes live in `ffc/src/router.tsx` (createBrowserRouter object literals), NOT App.tsx — adapted correctly. `noUnusedLocals: true` AND `noUnusedParameters: true` in tsconfig forced dropping many imports/types/setters in the skeleton; documented what Tasks 4/5 must re-add in a comment block.
+- [x] **Task 4 (`bb687d2`)** — hero cards + season picker + CSS. Re-added `supabase` + `AwardKind` + `WinnerRow` + `ProfileLite` + state setters. Wrote data-fetch `useEffect` with cancellation pattern, `HERO_META` lookup table + `renderHero` helper. ~150 lines of CSS scoped to `.aw-screen`. Folded in all 3 Task 3 cleanup recs (drop the cast, drop the doc comment, gate badge behind `!loading`).
+- [x] **Task 5 (`57d5395`)** — Wall of Fame. `WallOfFameRow` interface + `wallOfFame` state + single `season_awards` query joined to `profiles` via `profile:profiles!winner_profile_id(...)` syntax + client-side group-by-season + sort by `seasonsById.get(id)?.ended_at` desc (cleaner than plan's draft). Tabular grid renders ENDED seasons only.
+- [x] **Task 6 (`27576f7`)** — Leaderboard trophy entry. `TrophyIcon` SVG mirrors `FilterIcon`/`SortIcon` pattern. New `.lb-icon-btn--awards` gold-tinted variant with subtle 12px glow box-shadow.
+- [x] **Task 7** — final verify + push. `tsc -b` + `vite build` clean across all 6 implementation commits. PWA precache 12 entries / 1632.21 KiB final (+12 KiB for entire awards feature). Pushed clean fast-forward.
+- [x] **Subagent rate-limit pivot.** Hit Anthropic 12pm Asia/Dubai reset midway through Task 4. Continued in-session — `tsc -b` + `vite build` were the actual quality gates.
+
+### S053 patterns / lessons (additive)
+
+- **Subagent rate-limit doesn't stop the session.** When dispatch caps trip mid-execution, `tsc -b` + `vite build` after every step replicate the subagent quality gate. Don't pause mid-flow waiting for limits to reset.
+- **`router.tsx` ≠ `App.tsx`.** FFC routes are configured as `createBrowserRouter` object literals in `ffc/src/router.tsx`. Plans saying "modify App.tsx" should be auto-corrected when the implementer discovers the actual structure. Worth pinning.
+- **`tsconfig.app.json` strictness in skeleton commits.** FFC has `noUnusedLocals: true` AND `noUnusedParameters: true`. Skeleton commits that "pre-declare state for future tasks" won't compile. Pattern: drop unused symbols + comment-block document what later tasks re-add + delete comment when symbols come back.
+- **Discarded mockup without specifics.** Don't probe what failed; offer a clean pivot menu instead. The cost of a wrong second guess often exceeds the cost of switching tracks entirely.
+- **A/B style preview as low-cost de-risk.** When style-feel matters and the spec is silent, ship A/B thumbnails first. User picks elements from each; the second mockup lands.
+- **CTE-based view > correlated subqueries** for "rank-and-pick-N" patterns. Compute each rank table once, then `LEFT JOIN ranks ON rn = 2` for runner-up info. Cleaner AND faster than the spec's correlated-subselect draft.
+- **Awards points ≠ Leaderboard points by design.** Awards use `wins*3 + draws`; leaderboard `points` includes `late_cancel_points`. Generalises: when a derived metric should diverge for product reasons, document the divergence inline at the view declaration AND in the spec's risk table.
+- **Snapshot trigger on NULL → NOT NULL transition.** `IF OLD.ended_at IS NOT NULL OR NEW.ended_at IS NULL THEN RETURN NEW;` ensures it ONLY fires on the desired transition. ON CONFLICT DO NOTHING makes re-fire idempotent. Reusable for any "fire-once-on-state-change" workflow against a nullable timestamp.
+- **Live view + snapshot table split for "frozen on close" features.** Active state queries the view (recomputes every load); ended state queries the table (immutable history). Frontend chooses based on `targetSeason.ended_at == null`. Clean read-write separation without an RPC.
+- **Defensive `as` cast in skeletons is a code smell.** When you find yourself adding `(x as Type).field` to keep an unused interface "alive" against `noUnusedLocals`, you should either (a) drop the interface temporarily or (b) keep the symbol that genuinely needs it. Don't fight the linter with casts.
+- **Clean revert via `git reset --hard HEAD~N`** when commits are local-only-and-not-pushed. Verify with `git status -sb` showing local-ahead-of-origin first. Recoverable through reflog if needed.
 
 ## Completed in S052 (28/APR/2026, Work PC)
 

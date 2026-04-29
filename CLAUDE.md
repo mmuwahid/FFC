@@ -2,13 +2,13 @@
 
 FFC is a mobile-first PWA for managing a weekly 7v7 friends football league: Monday poll → Thursday game cycle, with match history, leaderboard, seasons, awards, and WhatsApp share integration.
 
-## Current state (S052 close, 28/APR/2026)
-- **Phase:** Phase 1 complete. Phase 2A + Phase 2B code-complete (S051). Phase 2 live acceptance still owed on a real Thursday matchday. **S052 = GitHub-issue fix-pack** — issues #2 (Poll No/Maybe feedback) · #3 (Leaderboard portrait col fit) · #4 (Settings restructure + drawer Install + Admin moved out) · #5 (Matches stale-on-tab-return) · #6 (Admin scroll-to-top) · #7 (admin_delete_player RPC + EditSheet delete button) closed. Issue #1 deferred per user (pills stay).
-- **Live:** https://ffc-gilt.vercel.app · `main` clean at `be8c8dd`.
-- **Migrations on live DB:** 46 (`0001` → `0046_admin_delete_player_rpc`). S052 added 0046.
+## Current state (S053 close, 29/APR/2026)
+- **Phase:** Phase 1 complete. Phase 2A + Phase 2B code-complete (S051). Phase 2 live acceptance still owed on a real Thursday matchday. **S053 = Phase 3 begins** — awards page (Ballon d'Or · Golden Boot · Most MOTM · Wall of Fame) shipped end-to-end at `/awards`, entry via gold trophy icon-button on Leaderboard's controls row. Player analytics + H2H attempted earlier in session but mockups rejected; reverted clean.
+- **Live:** https://ffc-gilt.vercel.app · `main` clean at `27576f7`.
+- **Migrations on live DB:** 47 (`0001` → `0047_phase3_awards`). S053 added 0047 (`season_awards` snapshot table + `v_season_award_winners_live` view + AFTER UPDATE OF ended_at trigger).
 - **pg_cron jobs live:** `auto-lock-matchdays` (`* * * * *`) · `vote-reminders` (`*/5 * * * *`).
 - **Edge Functions live:** `notify-dispatch` (S048) · `purge-deleted-auth-user` (S051) · `notify-signup-outcome` (S051; `RESEND_API_KEY` set as Supabase project secret).
-- **Authoritative plan:** `planning/FFC-masterplan-V3.0.md` (player analytics + H2H comparison restored to Phase 3 backlog this session).
+- **Authoritative plan:** `planning/FFC-masterplan-V3.0.md` (Phase 3 backlog: V3.0:139–148; awards V3.0:139 shipped this session).
 - **Session history:** `sessions/INDEX.md` + per-session logs at `sessions/S###/session-log.md`. Do not duplicate session narratives here.
 - **Durable lessons:** `tasks/lessons.md` (inherits PadelHub's lessons too).
 - **Open todo:** `tasks/todo.md` (`## NEXT SESSION` is the live agenda; older session blocks live in `tasks/_archive/`).
@@ -110,6 +110,8 @@ Differentiator (b) vs (c): `git diff HEAD origin/main --stat` — if the listed 
 - **Terminal roles (`rejected`, future `banned`) must auto-`signOut` in `AppContext.tsx`** — not just render a display flag.
 - **`as unknown as Json` for jsonb RPC args** — Supabase's generated `Json` type carries a structural index signature `[k: string]: Json | undefined` that hand-written interfaces lack.
 - **Conditional-spread for optional RPC args:** `...(x ? { p_field: x } : {})` matches generated types' `T | undefined` without `as`-cast escape hatches. RPC args that are nullable must have `DEFAULT NULL` in PL/pgSQL or Supabase marks them required.
+- **Router lives in `ffc/src/router.tsx`, NOT `App.tsx`.** `App.tsx` is just `<RouterProvider router={router} />`. Routes are configured as `createBrowserRouter` object literals — new screens add `{ path: 'foo', element: <Foo /> }` inside the `RoleLayout` children array, not as JSX `<Route>` elements. Any plan that says "modify App.tsx" should be auto-corrected to `router.tsx` (caught in S053 Task 3 by the implementer).
+- **`tsconfig.app.json` has `noUnusedLocals: true` AND `noUnusedParameters: true`.** Skeleton commits that "pre-declare state for future tasks" won't compile. Pattern when implementing a multi-task scaffold: drop the unused symbols in the skeleton + comment-block document what later tasks must re-add + delete the comment block when the symbols come back (S053).
 
 ## Per-screen brand tokens
-All 10 in-app screens (`.po-screen` Poll, `.lb-screen` Leaderboard, `.pf-screen` Profile, `.mt-screen` Matches, `.lr-screen` Rules, `.st-screen` Settings, `.admin-players`, `.admin-matches`, `.as-root` AdminSeasons, `.ah-root` AdminHome, `.ch-root` CaptainHelper, `.mer-screen` MatchEntryReview) declare a 12-token brand block at scope-root: `--bg:#0e1826` paper · `--surface` translucent panel · `--text:#f2ead6` cream ink · `--accent:#e5ba5b` gold · `--danger:#e63349` red · `--success:#4fbf93` · `--warn`/`--warning`. Auth screens (`.auth-screen`) and global `:root` defaults intentionally untouched. When existing CSS is already var()-based with fallbacks, scope-override at the screen root is a 20× better ROI than rule-by-rule editing.
+All in-app screens (`.po-screen` Poll, `.lb-screen` Leaderboard, `.pf-screen` Profile, `.mt-screen` Matches, `.lr-screen` Rules, `.st-screen` Settings, `.aw-screen` Awards [S053], `.admin-players`, `.admin-matches`, `.as-root` AdminSeasons, `.ah-root` AdminHome, `.ch-root` CaptainHelper, `.mer-screen` MatchEntryReview) declare a 12-token brand block at scope-root: `--bg:#0e1826` paper · `--surface` translucent panel · `--text:#f2ead6` cream ink · `--accent:#e5ba5b` gold · `--danger:#e63349` red · `--success:#4fbf93` · `--warn`/`--warning`. Auth screens (`.auth-screen`) and global `:root` defaults intentionally untouched. When existing CSS is already var()-based with fallbacks, scope-override at the screen root is a 20× better ROI than rule-by-rule editing.
