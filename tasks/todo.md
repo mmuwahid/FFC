@@ -1,13 +1,23 @@
 # FFC Todo
 
-## NEXT SESSION — S055
+## NEXT SESSION — S056
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S054 close-out at `d289aee` on `main`.
-- Migrations on live DB: **53** (deliberate gap at 0050 from PR #13's 0049/0050 → 0051/0052 renumber). S054 added 0048 (unlock_roster), 0049 (match_card_payload_rpc), 0051 (admin_add_guest), 0052 (admin_update_match_draft), 0053 (admin_add_commitment).
+- Expected tip: S055 close-out at `ffbdc46` on `main`.
+- Migrations on live DB: **54** (deliberate gap at 0050 from PR #13's renumber). S055 added 0054 (admin_cancel_commitment + admin_cancel_guest, issue #15).
 
-**S055 agenda — Phase 2 + Phase 3 live verification; more Phase 3 backlog:**
+**S056 agenda — Phase 2 + S054/S055 live verification; Phase 3 backlog mockups:**
+
+0c. **Issue #15 live verification (S055 deliverable):**
+   - [ ] Pool × button → tapping × on a chip in the "Unassigned" pool list calls the right RPC (admin_cancel_commitment for registered, admin_cancel_guest for guests); chip disappears; toast confirms.
+   - [ ] Auto-promote on cancel — if waitlist has entries, the first waitlister moves into the pool automatically.
+   - [ ] Waitlist visible — when yes-voters > roster_cap (14 for 7v7 / 10 for 5v5), a "Waitlist (N)" section renders below the pool with muted dashed-border chips.
+   - [ ] Waitlist tap-to-promote — tapping a waitlist chip moves them into the pool (UI-only, no RPC needed); toast confirms.
+   - [ ] Hybrid auto-fill — with no active target, tapping a pool chip fills slots alternating White → Black → White → Black; with active target, fills that specific slot (S054 behavior preserved).
+   - [ ] Result-locked refusal — once a match has a result recorded, both new RPCs raise '42501' so admin can't retroactively cancel commitments.
+
+
 
 0. **Phase 3 share PNG live verification (S054 deliverable):**
    - [ ] Admin approves a real match → success state shows Share button.
@@ -56,6 +66,31 @@
 - **Phase 3 backlog (post-S054 update)** — multi-season comparison stats · player analytics · H2H comparison · **payment tracker** (NEW) · **player badges / achievements** (NEW) · **injury / unavailable list** (NEW). Per CLAUDE.md operating rule #1, mockups go in `mockups/` first.
 - **Player analytics + H2H** (V3.0:145–146) — first attempt rejected in S053 (mockups didn't land). Re-attempt with different style direction if user wants.
 - **Dropped from backlog (S054 close):** ~~photo-OCR fallback~~ · ~~match highlights / video clips~~ · ~~win streaks / deep form guide~~ — out of scope.
+
+## Completed in S055 (29/APR/2026, Work PC)
+
+### Phase 3 backlog refresh + issue #15 roster setup refinements
+
+**2 commits, 1 migration. Live DB: 53 → 54. Pushed clean fast-forward `049b225..ffbdc46`.**
+
+- [x] **Cold-start audit caught payment tracker silent drop.** User asked "what's pending across the whole project?" — grepped V1.0 → V3.0 masterplans for `payment|fee|dues|treasury|venmo|...`. Last seen V1.0–V2.4 under "Phase 4 — Extras" alongside H2H, badges, injury. V2.5 consolidation dropped Phase 4 entirely; V3.0:139–146 backlog never restored payment (player analytics + H2H were restored S050; payment + badges + injury were not). Surfaced this as part of a complete pending-items audit before user could ship a pivot.
+- [x] **Phase 3 backlog refresh** (`5a8e113`) — User-confirmed scope: drop photo-OCR fallback / match highlights / win-streak deep form (last-5 strip in Phase 1 covers the form question; OCR not needed once console proven reliable); add payment tracker / player badges / injury list (all originally Phase 4 — Extras). `planning/FFC-masterplan-V3.0.md` Phase 3 section: marked already-shipped items (awards S053, share PNG S054, signup email S051) with [SHIPPED S###] tags; added 3 restored items with provenance lines; new "Dropped from backlog (29/APR/2026, S054 close)" subsection with strikethrough. `tasks/todo.md` Backburner block matched. Doc-only.
+- [x] **Issue #15 — Atomo's roster setup refinements** (`ffbdc46`). 3 asks resolved via single AskUserQuestion round-trip:
+  - **Pool × button** = delete from unassigned pool (not from a slot — slot × already exists for that). Two new SECURITY DEFINER RPCs in mig 0054: `admin_cancel_commitment(p_matchday_id, p_profile_id)` soft-cancels active poll_votes row; `admin_cancel_guest(p_guest_id)` soft-cancels match_guests row. Both: idempotent, refuse if matchday match has recorded result, audit BEFORE destructive UPDATE, two-layer admin guard (S047). Auto-promotes first waitlister into freed pool slot (UI-only).
+  - **Waitlist visible** — drop `.limit(cap)` on poll_votes loader; partition `allProfiles.slice(0, cap)` → pool-eligible / `.slice(cap)` → waitlist; render new `.rs-waitlist` section below pool when non-empty. Tap-to-promote = UI-only state move (player is already a yes-voter, just past the cap rank).
+  - **Hybrid auto-fill** — `tapChip` rewritten as Path A (explicit target preserved = S054 behavior) / Path B (no target → `targetTeam = whiteCount <= blackCount ? 'white' : 'black'`, fall through to other team if first choice full, toast "Both teams full" if both full).
+- [x] **Migration 0054 applied to live DB.** Both `pg_get_function_identity_arguments` signatures verified. Types regen 2283 → 2308 lines.
+- [x] **Verification.** `tsc -b` EXIT 0; `vite build` clean (PWA precache 12 entries / 1661.62 KiB; +25 KiB from feature additions, count unchanged). Functional verification deferred to live admin session per S056 plan (auth-gated, unreachable from preview).
+- [x] **GitHub** issue #15 auto-closed by `Closes #15` commit trailer; shipping note posted as comment.
+
+### S055 patterns / lessons (additive)
+
+- **Plan mode + AskUserQuestion BEFORE writing code on multi-ambiguity tasks.** Issue #15 had 3 distinct ambiguities; resolving them up-front via single round-trip meant plan was approved without revision and implementation hit on first pass. Don't write code before clarifying.
+- **Mid-flight scope-shift sequencing.** When user dropped backlog updates while I was finalising the issue plan: finished the plan first → ExitPlanMode → did the smaller doc-only commit before the larger feature commit. Two clean commits, no entanglement, no half-finished state.
+- **State updater functions must be pure.** First version of `handleCancelPoolChip` mutated a closure variable inside `setWaitlist(prev => ...)`. Caught self-review before commit; fix reads state directly at handler top, passes value into both updaters. Generalises: never use a `setX(prev => ...)` callback for side-effecting computation, even if it works in practice.
+- **Edit `old_string` reproduces existing content verbatim — re-read surrounding lines IMMEDIATELY before composing the call.** Memory-reconstruction across more than 1 line is a coin flip. First V3.0 masterplan edit attempt failed because I retyped a multi-clause H2H bullet and introduced a duplicated phrase. Use Read on the target lines before every multi-line Edit.
+- **Issue close via `Closes #N` commit trailer** auto-closes the issue on push. If you want a comment with implementation specifics, post it via `gh issue comment` after-the-fact (`gh issue close --comment` errors with "already closed").
+- **Audit-before-destructive in admin RPCs is now reflexive** (S034 → S049 → S054 → S055 — 4 sessions in a row). Pattern is durable.
 
 ## Completed in S054 (29/APR/2026, Work PC)
 
