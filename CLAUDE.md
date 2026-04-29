@@ -2,13 +2,13 @@
 
 FFC is a mobile-first PWA for managing a weekly 7v7 friends football league: Monday poll → Thursday game cycle, with match history, leaderboard, seasons, awards, and WhatsApp share integration.
 
-## Current state (S053 close, 29/APR/2026)
-- **Phase:** Phase 1 complete. Phase 2A + Phase 2B code-complete (S051). Phase 2 live acceptance still owed on a real Thursday matchday. **S053 = Phase 3 begins** — awards page (Ballon d'Or · Golden Boot · Most MOTM · Wall of Fame) shipped end-to-end at `/awards`, entry via gold trophy icon-button on Leaderboard's controls row. Player analytics + H2H attempted earlier in session but mockups rejected; reverted clean.
-- **Live:** https://ffc-gilt.vercel.app · `main` clean at `27576f7`.
-- **Migrations on live DB:** 47 (`0001` → `0047_phase3_awards`). S053 added 0047 (`season_awards` snapshot table + `v_season_award_winners_live` view + AFTER UPDATE OF ended_at trigger).
+## Current state (S054 close, 29/APR/2026)
+- **Phase:** Phase 1 complete. Phase 2A + Phase 2B code-complete (S051). Phase 2 live acceptance still owed on a real Thursday matchday. **S053** = Phase 3 begins — awards page (V3.0:139) shipped. **S054** = share PNG (V3.0:140) shipped — `render-match-card` EF + `get_match_card_payload` RPC + frontend `shareMatchCard` helper wired into MatchEntryReview + MatchDetailSheet. Atomo's PR #9 merged (unlock_roster, renumbered 0047 → 0048).
+- **Live:** https://ffc-gilt.vercel.app · `main` clean at `91b76b9`.
+- **Migrations on live DB:** 49 (`0001` → `0049_match_card_payload_rpc`). S053 added 0047 (`season_awards` table + view + trigger). S054 added 0048 (`unlock_roster` RPC from Atomo PR #9) + 0049 (`get_match_card_payload` RPC + `match-cards` storage bucket).
 - **pg_cron jobs live:** `auto-lock-matchdays` (`* * * * *`) · `vote-reminders` (`*/5 * * * *`).
-- **Edge Functions live:** `notify-dispatch` (S048) · `purge-deleted-auth-user` (S051) · `notify-signup-outcome` (S051; `RESEND_API_KEY` set as Supabase project secret).
-- **Authoritative plan:** `planning/FFC-masterplan-V3.0.md` (Phase 3 backlog: V3.0:139–148; awards V3.0:139 shipped this session).
+- **Edge Functions live:** `notify-dispatch` (S048) · `purge-deleted-auth-user` (S051) · `notify-signup-outcome` (S051; `RESEND_API_KEY` set as Supabase project secret) · `render-match-card` (S054; WOFF fonts via jsDelivr CDN fetch, crest base64 inline).
+- **Authoritative plan:** `planning/FFC-masterplan-V3.0.md` (Phase 3 backlog: V3.0:139–148; awards V3.0:139 shipped S053; share PNG V3.0:140 shipped S054).
 - **Session history:** `sessions/INDEX.md` + per-session logs at `sessions/S###/session-log.md`. Do not duplicate session narratives here.
 - **Durable lessons:** `tasks/lessons.md` (inherits PadelHub's lessons too).
 - **Open todo:** `tasks/todo.md` (`## NEXT SESSION` is the live agenda; older session blocks live in `tasks/_archive/`).

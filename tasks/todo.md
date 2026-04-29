@@ -1,13 +1,19 @@
 # FFC Todo
 
-## NEXT SESSION — S054
+## NEXT SESSION — S055
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S053 awards close `27576f7` on `main`.
-- Migrations on live DB: **47** (S053 added 0047_phase3_awards).
+- Expected tip: S054 share-PNG close-out on `main`.
+- Migrations on live DB: **49** (S054 added 0048 unlock_roster + 0049 match_card_payload_rpc).
 
-**S054 agenda — Phase 2 close still owed; awards live-verify; more Phase 3 backlog:**
+**S055 agenda — Phase 2 + Phase 3 live verification; more Phase 3 backlog:**
+
+0. **Phase 3 share PNG live verification (S054 deliverable):**
+   - [ ] Admin approves a real match → success state shows Share button.
+   - [ ] Tap Share → `render-match-card` EF generates PNG matching mockup 3-26.
+   - [ ] Web Share sheet opens on mobile (or PNG downloads on desktop).
+   - [ ] Re-share path on MatchDetailSheet admin footer works.
 
 1. **Phase 2 close: V3.0:122 8-box acceptance on a real Thursday matchday** (still pending from S052/S053).
    - [ ] No vote-chasing in WhatsApp — push reminders alone cover non-voters.
@@ -38,8 +44,22 @@
 - **Awards backfill RPC** — admin-triggered `backfill_season_awards()` to populate `season_awards` for ended seasons predating mig 0047. Wall of Fame stays empty until then OR until S11 ends naturally.
 - **Awards push notification** — when `seasons.ended_at` flips, push admins + winners ("Season N awards are in!"). Easy follow-up using the S048 two-bearer pattern.
 - **Resend custom sender domain** — verify a domain in Resend, set `NOTIFY_FROM` env on `notify-signup-outcome` EF (default is `onboarding@resend.dev`).
-- **Phase 3 backlog continued (V3.0:139–148)**: WhatsApp share PNG, photo-OCR fallback, multi-season comparison stats, match highlights, video clip attachments. Per CLAUDE.md operating rule #1, build mockups in `mockups/` first.
-- **Player analytics + H2H** (V3.0:145–146) — first attempt rejected this session (mockups didn't land). Re-attempt with different style direction if user wants.
+- **Phase 3 backlog continued (V3.0:141–148)**: photo-OCR fallback, multi-season comparison stats, match highlights, video clip attachments. Per CLAUDE.md operating rule #1, build mockups in `mockups/` first.
+- **Player analytics + H2H** (V3.0:145–146) — first attempt rejected in S053 (mockups didn't land). Re-attempt with different style direction if user wants.
+
+## Completed in S054 (29/APR/2026, Work PC)
+
+### Phase 3 share PNG — V3.0:140 shipped end-to-end
+
+**~12 commits. Live DB: 47 → 49. Pushed fast-forward to `main`.**
+
+- [x] **Atomo's PR #9 merged.** `unlock_roster` RPC (admin ability to re-open a locked formation). Migration renumbered 0047 → 0048 to avoid collision with S053's `0047_phase3_awards`. Types regenerated (Task 4).
+- [x] **Migration 0049** — `get_match_card_payload` RPC (returns score, teams, MOTM, match number, season for PNG rendering) + `match-cards` storage bucket (public, admin-only upload).
+- [x] **Edge Function `render-match-card`** — Satori + Resvg pipeline generating 1080×1080 PNG. Fonts (Inter 600 + 400) fetched from jsDelivr at module init (WOFF format — WOFF2 not supported by Satori). FFC crest inlined as base64. Match-id-keyed cache in `match-cards` bucket. Admin-only auth via JWT verify + `is_admin()` RPC guard.
+- [x] **Frontend `lib/shareMatchCard.ts`** — Web Share API with PNG download fallback, admin guard, EF invoke wrapper.
+- [x] **Wired** into MatchEntryReview success state (primary share CTA) + MatchDetailSheet admin footer (re-share path).
+- [x] **Two durable lessons captured**: Supabase EF CLI drops binary assets silently; Satori WOFF2 not supported.
+- [x] **Build clean**: `tsc -b` EXIT 0 (zero errors, zero warnings after removing stale `@ts-expect-error`); `vite build` 12 precache entries / 1636 KiB.
 
 ## Completed in S053 (29/APR/2026, Work PC)
 

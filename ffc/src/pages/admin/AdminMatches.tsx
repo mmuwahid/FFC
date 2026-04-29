@@ -433,7 +433,6 @@ export function AdminMatches() {
                 busy={sheetBusy}
                 onConfirm={async () => {
                   setSheetBusy(true)
-                  // @ts-expect-error -- unlock_roster added by migration 0047; regen types after db push
                   const { error } = await supabase.rpc('unlock_roster', { p_matchday_id: sheet.md.id })
                   setSheetBusy(false)
                   if (error) { setError(error.message); return }
