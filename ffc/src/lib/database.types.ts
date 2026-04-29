@@ -442,6 +442,75 @@ export type Database = {
           },
         ]
       }
+      match_payment_records: {
+        Row: {
+          amount_aed: number
+          created_at: string
+          guest_id: string | null
+          id: string
+          marked_paid_by: string | null
+          match_id: string
+          paid_at: string | null
+          profile_id: string | null
+        }
+        Insert: {
+          amount_aed?: number
+          created_at?: string
+          guest_id?: string | null
+          id?: string
+          marked_paid_by?: string | null
+          match_id: string
+          paid_at?: string | null
+          profile_id?: string | null
+        }
+        Update: {
+          amount_aed?: number
+          created_at?: string
+          guest_id?: string | null
+          id?: string
+          marked_paid_by?: string | null
+          match_id?: string
+          paid_at?: string | null
+          profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_payment_records_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "match_guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_payment_records_marked_paid_by_fkey"
+            columns: ["marked_paid_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_payment_records_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_payment_records_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "v_player_last5"
+            referencedColumns: ["match_id"]
+          },
+          {
+            foreignKeyName: "match_payment_records_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_players: {
         Row: {
           created_at: string
@@ -752,6 +821,55 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_windows: {
+        Row: {
+          auto_closed: boolean
+          closed_at: string | null
+          closed_by: string | null
+          id: string
+          match_id: string
+          opened_at: string
+        }
+        Insert: {
+          auto_closed?: boolean
+          closed_at?: string | null
+          closed_by?: string | null
+          id?: string
+          match_id: string
+          opened_at?: string
+        }
+        Update: {
+          auto_closed?: boolean
+          closed_at?: string | null
+          closed_by?: string | null
+          id?: string
+          match_id?: string
+          opened_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_windows_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_windows_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: true
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_windows_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: true
+            referencedRelation: "v_player_last5"
+            referencedColumns: ["match_id"]
           },
         ]
       }
@@ -1764,6 +1882,7 @@ export type Database = {
         Args: { p_choice: string; p_matchday_id: string }
         Returns: Json
       }
+      close_payment_window: { Args: { p_match_id: string }; Returns: undefined }
       confirm_friendly_matchday: {
         Args: { p_matchday_id: string }
         Returns: undefined
@@ -1856,7 +1975,36 @@ export type Database = {
         Returns: undefined
       }
       get_match_card_payload: { Args: { p_match_id: string }; Returns: Json }
+      get_player_payment_ledger: {
+        Args: {
+          p_guest_id?: string
+          p_profile_id?: string
+          p_season_id?: string
+        }
+        Returns: {
+          amount_aed: number
+          kickoff_at: string
+          match_id: string
+          match_number: number
+          paid_at: string
+          window_open: boolean
+        }[]
+      }
       get_ref_matchday: { Args: { p_token: string }; Returns: Json }
+      get_season_payment_summary: {
+        Args: { p_season_id: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          guest_id: string
+          matches_paid: number
+          matches_played: number
+          outstanding_aed: number
+          profile_id: string
+          total_owed_aed: number
+          total_paid_aed: number
+        }[]
+      }
       invite_guest: {
         Args: {
           p_accuracy: Database["public"]["Enums"]["guest_trait"]
@@ -1881,6 +2029,18 @@ export type Database = {
           p_target_entity: string
           p_target_id: string
         }
+        Returns: undefined
+      }
+      mark_guest_payment_paid: {
+        Args: { p_guest_id: string; p_match_id: string }
+        Returns: undefined
+      }
+      mark_payment_paid: {
+        Args: { p_match_id: string; p_profile_id: string }
+        Returns: undefined
+      }
+      open_match_payment_window: {
+        Args: { p_match_id: string }
         Returns: undefined
       }
       pick_captains_random: {
@@ -1909,6 +2069,10 @@ export type Database = {
       }
       reject_signup: {
         Args: { p_pending_id: string; p_reason: string }
+        Returns: undefined
+      }
+      reopen_payment_window: {
+        Args: { p_match_id: string }
         Returns: undefined
       }
       request_reroll: { Args: { p_matchday_id: string }; Returns: string }
