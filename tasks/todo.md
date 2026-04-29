@@ -1,17 +1,32 @@
 # FFC Todo
 
-## NEXT SESSION — S056
+## NEXT SESSION — S057
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S055 close-out at `ffbdc46` on `main`.
-- Migrations on live DB: **54** (deliberate gap at 0050 from PR #13's renumber). S055 added 0054 (admin_cancel_commitment + admin_cancel_guest, issue #15).
+- Expected tip: S056 close-out at `9b5fcbb` on `main`, in sync with origin/main (Stream B pushed all 7 S056 commits at 20:07). Two parallel streams contributed: Stream A (design spec `07c9dfe` + issue fix-pack `e2a8a33`) and Stream B (impl plan `a84e852` + mig 0055 `8def94d` + types regen `99fd209` + skeleton `f435b1f` + screens + CSS `9b5fcbb`).
+- Migrations on live DB: **55** (S056 added 0055 `payment_tracker.sql` — applied + pushed by Stream B).
+- Note: GitHub issues #16/#17/#19 from `e2a8a33` did NOT use `Closes #N` trailers; they remain open on GitHub. S057 should `gh issue close 16 17 19 -c "shipped in e2a8a33"` and add a partial-fix comment to #18+#20.
 
-**S056 agenda — Phase 2 + S054/S055 live verification; Phase 3 backlog mockups:**
+**S057 agenda — push S056, close issues, live verification, mockup #18+#20 complex sub-asks, payment tracker mockup:**
 
-0c. **Issue #15 live verification (S055 deliverable):**
+00. **Push S056 commits + close issues #16/#17/#19, comment on #18+#20** —
+   - [ ] `git push origin main` — pushes `07c9dfe` (payment tracker spec) + `e2a8a33` (issue fix-pack).
+   - [ ] `gh issue close 16 -c "Edit affordance shipped: faint ✏ pencil added to active player rows in e2a8a33."` (and same shape for #17, #19).
+   - [ ] `gh issue comment 18 -b "Partial fix shipped in e2a8a33: × button moved inside chip boundary, no auto-promote on cancel, cap overflow → waitlist on add. Remaining sub-asks (removed-players category, lock-before-team-select gate, player return-to-origin, dirty-nav guard) need an HTML mockup first per CLAUDE.md operating rule #1 — deferred to a follow-up session."` (same for #20 as duplicate of #18).
+   - [ ] Verify Vercel auto-deploy fires after push.
+
+0d. **S056 live verification:**
+   - [ ] **#16 (AdminPlayers)** — active player row shows faint ✏ on the right; tapping anywhere on the row still opens the edit sheet; tapping 🚫 still opens ban sheet (no double-action regression).
+   - [ ] **#17 (Roster pool position pills)** — pills are colour-coded: GK light blue, DEF periwinkle, CDM teal, W orange, ST rose. Visible on both pool and waitlist chips. Same colours render after waitlist→pool promote.
+   - [ ] **#18 partial — chip × inside boundary** — pool chip × button now renders INSIDE the chip outline (not floating outside as a separate red circle). Tapping × still removes; loading state while RPC in flight still works.
+   - [ ] **#18 partial — no auto-promote on cancel** — tapping × on a pool chip when waitlist is non-empty: chip disappears, but waitlist stays unchanged. Admin must tap the waitlist chip to promote.
+   - [ ] **#18 partial — cap overflow on add** — when total = pool + assigned >= cap, "+ Add player" routes new player to waitlist (toast says "added to waitlist (roster full)"); when total < cap, routes to pool as before.
+   - [ ] **#19 (CreateMatchdaySheet)** — change kickoff date → poll opens auto-jumps to kickoff−3d 09:00 local; poll closes auto-jumps to kickoff−1d 21:00 local (both visible in the inputs). Pick a Wed or Fri date → amber "Not a Thursday — double-check the date." banner appears below the sheet header. Pick Thursday → banner hidden.
+
+0c. **Issue #15 live verification (S055 deliverable, NOTE: auto-promote no longer present per S056 #18 fix):**
    - [ ] Pool × button → tapping × on a chip in the "Unassigned" pool list calls the right RPC (admin_cancel_commitment for registered, admin_cancel_guest for guests); chip disappears; toast confirms.
-   - [ ] Auto-promote on cancel — if waitlist has entries, the first waitlister moves into the pool automatically.
+   - [ ] ~~Auto-promote on cancel~~ **REMOVED in S056 #18 fix** — admin must manually tap a waitlist chip to promote.
    - [ ] Waitlist visible — when yes-voters > roster_cap (14 for 7v7 / 10 for 5v5), a "Waitlist (N)" section renders below the pool with muted dashed-border chips.
    - [ ] Waitlist tap-to-promote — tapping a waitlist chip moves them into the pool (UI-only, no RPC needed); toast confirms.
    - [ ] Hybrid auto-fill — with no active target, tapping a pool chip fills slots alternating White → Black → White → Black; with active target, fills that specific slot (S054 behavior preserved).
@@ -57,7 +72,15 @@
 
 3. **GitHub issue #1 (deferred from S052)** — Leaderboard player abbreviation. User explicitly wants pills (position + MOTM star) to STAY. Re-open only if portrait readability still feels poor.
 
-4. **Carry-over verification** — push subscribe (Chrome desktop + iPhone PWA installed), Resend signup-outcome email, captain reroll live test on a real matchday.
+4. **Mockup + implement #18 + #20 complex sub-asks** (deferred from S056 per CLAUDE.md operating rule #1):
+   - [ ] HTML mockup in `mockups/` showing: removed-players parking category (where cancelled players land for re-add), lock-before-team-select gate (must lock pool before any slot becomes tappable), player return-to-origin on slot remove (back to pool not auto-clear), dirty-nav guard (block back-button if unsaved changes).
+   - [ ] User review → finalise → spec → plan → implement.
+
+5. **Phase 3 payment tracker** (V3.0:147 — full slice on top of S056 spec at `docs/superpowers/specs/2026-04-29-payment-tracker-design.md`):
+   - [ ] HTML mockup in `mockups/` for the 3-screen flow (season overview → admin drilldown → player ledger). Use Option B compact card layout + Option C inline status icons (✓/⏳/✗). Reject any return of outline pills.
+   - [ ] User review → finalise → migration (3 tables: `match_fees`, `match_payments`, `payment_ledger_view`) + RPCs + RLS + screens.
+
+6. **Carry-over verification** — push subscribe (Chrome desktop + iPhone PWA installed), Resend signup-outcome email, captain reroll live test on a real matchday.
 
 **Backburner:**
 - **Awards backfill RPC** — admin-triggered `backfill_season_awards()` to populate `season_awards` for ended seasons predating mig 0047. Wall of Fame stays empty until then OR until S11 ends naturally.
@@ -66,6 +89,34 @@
 - **Phase 3 backlog (post-S054 update)** — multi-season comparison stats · player analytics · H2H comparison · **payment tracker** (NEW) · **player badges / achievements** (NEW) · **injury / unavailable list** (NEW). Per CLAUDE.md operating rule #1, mockups go in `mockups/` first.
 - **Player analytics + H2H** (V3.0:145–146) — first attempt rejected in S053 (mockups didn't land). Re-attempt with different style direction if user wants.
 - **Dropped from backlog (S054 close):** ~~photo-OCR fallback~~ · ~~match highlights / video clips~~ · ~~win streaks / deep form guide~~ — out of scope.
+
+## Completed in S056 (29/APR/2026, Home PC) — across 2 parallel agent streams
+
+### Payment tracker end-to-end (spec → plan → migration → screens) + GitHub issue fix-pack
+
+**7 commits across 2 streams, 1 migration applied + pushed. Live DB: 54 → 55. `main` pushed clean to `9b5fcbb`.**
+
+- [x] **Payment tracker design spec** (`07c9dfe`) — V3.0:147 Phase 3 feature. Brainstorm in `.superpowers/brainstorm/624-1777475717/` locked: AED 60/match fixed (per-match override allowed), post-game collection (only players who actually played owe), bank transfer OR cash, every authenticated user sees season overview + own ledger (other-player detail admin-only), 3-screen flow (overview → admin drilldown → player ledger), Option B compact card + **Option C inline status icons** (✓ green / ⏳ amber / ✗ red — user rejected outline pills as "ugly + don't match rest of app"). Spec at `docs/superpowers/specs/2026-04-29-payment-tracker-design.md` (338 lines, 10 sections — DDL draft for `match_fees` + `match_payments` + `payment_ledger_view`, RPC list, RLS outline, screen UX, audit-log integration, edge cases). Mockup + implementation deferred to S057.
+- [x] **Issue fix-pack #16/#17/#18-partial/#19** (`e2a8a33`):
+  - **#16 (AdminPlayers active row edit hint)** — added faint `✏` pencil span (`.admin-edit-hint`, opacity 0.35, margin-left auto) inside the active-row button so the tap-to-edit affordance is visible alongside 🚫.
+  - **#17 (Roster pool position pills colour-coded)** — added 4 new `.rs-chip-pos--{def,cdm,w,st}` variants with distinct light tints (periwinkle / teal / orange / rose) for readability on dark chip background. Pool + waitlist chips both use `\`rs-chip-pos--${pos.toLowerCase()}\``.
+  - **#18 partial (3 of 7)** — × button moved INSIDE chip boundary (restructured to span > rs-chip-body button + rs-chip-remove button); `handleCancelPoolChip` no longer auto-promotes first waitlister (admin manually taps to promote); `handleAddPlayer` routes to waitlist when `total >= cap`.
+  - **#19 (CreateMatchdaySheet)** — `useEffect([kickoff])` auto-derives poll opens (kickoff−3d 09:00 local) + poll closes (kickoff−1d 21:00 local); `isThursday` IIFE drives an amber `.admin-warn-banner` ("Not a Thursday — double-check the date.") when kickoff is not a Thursday.
+- [x] **Verification** — `tsc -b` EXIT 0. No `vite build` (admin auth-gated routes unreachable from preview).
+- [x] **Mockup-required deferred to S057:** issues #18 + #20 complex sub-asks — removed-players parking category, lock-before-team-select gate, player return-to-origin on slot remove, dirty-nav guard.
+
+### S056 patterns / lessons (additive)
+
+- **Whole-row-as-button needs an explicit affordance.** A `<button>` styled to look like a row hides its action — discoverability requires a small icon (✏ pencil) even when the entire surface is clickable. Affordance ≠ functionality.
+- **Five colour-coded categories cannot share one accent.** When `--accent` was the colour for ALL non-GK position pills, the label text was the only differentiator. Use distinct colours scaled for the surface (light tints on dark chip ≠ saturated `--pos-*` solid fills used by leaderboard rank pills).
+- **Chip-with-delete pattern: outer span = visual chip, two transparent buttons inside.** Nesting `<button>` inside `<button>` is invalid HTML. Canonical structure: `<span class="chip">{button.body action=A}{button.remove action=B}</span>` — span gets border/bg/radius, body is `padding:0;background:none;border:none`, remove sits inside chip's flex row at the right edge.
+- **Auto-derive dependent inputs via `useEffect([primary])`.** Initial-mount-only derivation in `useState(() => ...)` silently breaks when the user changes the primary. If Y is a deterministic function of X, wire `useEffect([X], () => setY(f(X)))` and keep Y editable for override.
+- **Local datetime-local parsing trick:** `new Date('YYYY-MM-DD')` parses as **UTC**; `new Date('YYYY-MM-DDTHH:MM')` parses as **local**. Append `T12:00` to a date-only string to get day-of-week in local TZ across DST and ±14h boundaries.
+- **Local date arithmetic: `new Date(y, m-1, d-n)` directly yields a local-time anchor.** Round-trip through `.toISOString()` + `toLocalInput()` to feed back into a `datetime-local` input. Don't `setDate(d - n)` on a UTC-parsed Date — that's the tz-shift bug the codebase already has.
+- **Auto-mode + explicit "stop delegate" mid-session** = drop subagent / advisor calls for the rest of the session and ship direct. The earlier triage decision still stands.
+- **Issue triage: ship-now vs mockup-required.** A multi-item issue with 7 sub-asks is rarely all the same shape — separate trivial CSS/logic fixes (ship now) from UX redesigns (mockup first per CLAUDE.md rule #1) and atomic-fix-pack-commit them with all the issue numbers in the message.
+
+---
 
 ## Completed in S055 (29/APR/2026, Work PC)
 
