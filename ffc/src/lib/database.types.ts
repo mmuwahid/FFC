@@ -1687,6 +1687,10 @@ export type Database = {
     }
     Functions: {
       accept_substitute: { Args: { p_matchday_id: string }; Returns: undefined }
+      admin_add_commitment: {
+        Args: { p_matchday_id: string; p_profile_id: string }
+        Returns: undefined
+      }
       admin_add_guest: {
         Args: { p_display_name: string; p_matchday_id: string }
         Returns: string
