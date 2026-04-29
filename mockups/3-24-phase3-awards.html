@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>§3.24 Phase 3 Awards — final mockup · S053</title>
+<style>
+  .dark {
+    --ink: #f2ead6;
+    --ink-soft: #c3b99f;
+    --paper: #0e1826;
+    --paper-dim: #182437;
+    --paper-dimmer: #223251;
+    --line: rgba(242, 234, 214, 0.08);
+    --line-strong: rgba(242, 234, 214, 0.2);
+    --gold: #e5ba5b;
+    --gold-bright: #f7d878;
+    --gold-deep: #c8a142;
+    --muted: #85929f;
+    --success: #2e9d63;
+    --danger: #e63349;
+    --nav-bg: rgba(14, 24, 38, 0.9);
+  }
+  :root {
+    --pos-gk:  #d4a84a;
+    --pos-def: #1e3a8a;
+    --pos-cdm: #065f46;
+    --pos-w:   #ea580c;
+    --pos-st:  #c8102e;
+    --last-w:  #16a34a;
+    --last-d:  #9ca3af;
+    --last-l:  #dc2626;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif; }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #1a2638 0%, #0e1826 60%, #050a13 100%);
+    color: #f2ead6;
+    padding: 3rem 1.5rem 6rem;
+  }
+
+  .page-header { max-width: 1400px; margin: 0 auto 2rem; }
+  .page-header .tag { display: inline-block; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #e5ba5b; font-weight: 700; }
+  .page-header h1 { font-family: "Fraunces", "Playfair Display", Georgia, serif; font-weight: 700; font-size: 28px; margin: 0.25rem 0 0.5rem; }
+  .page-header p { color: #c3b99f; max-width: 780px; line-height: 1.55; margin: 0; font-size: 15px; }
+  .page-header p strong { color: var(--gold); }
+
+  .phones { display: grid; gap: 2rem; max-width: 1400px; margin: 0 auto; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; }
+  .phone-label { font-size: 14px; font-weight: 700; color: #e5ba5b; margin-bottom: 0.4rem; letter-spacing: 0.04em; }
+  .phone-sublabel { font-size: 12px; color: #85929f; margin-bottom: 1rem; max-width: 340px; text-align: center; line-height: 1.45; }
+  .phone {
+    width: 360px;
+    height: 780px;
+    border-radius: 44px;
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6), 0 0 0 14px #1a1f2c, 0 0 0 16px #2a3144;
+    overflow: hidden;
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+  .notch {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    width: 110px; height: 28px; background: #1a1f2c; border-radius: 18px; z-index: 10;
+  }
+  .status-bar {
+    height: 56px; padding: 18px 28px 0;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 13px; font-weight: 600; color: var(--ink);
+  }
+
+  /* Top bar */
+  .topbar {
+    height: 52px; padding: 0 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+    flex-shrink: 0;
+  }
+  .topbar .crest { width: 28px; height: 28px; border-radius: 6px; background: var(--gold); display: flex; align-items: center; justify-content: center; color: var(--paper); font-weight: 800; font-size: 13px; }
+  .topbar-right { display: flex; gap: 12px; align-items: center; }
+  .topbar-bell { width: 32px; height: 32px; border-radius: 50%; background: var(--paper-dim); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .topbar-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #e5ba5b, #d4a84a); display: flex; align-items: center; justify-content: center; color: var(--paper); font-weight: 700; font-size: 13px; }
+
+  /* ============================================================ */
+  /* Awards screen                                                 */
+  /* ============================================================ */
+  .aw-screen {
+    flex: 1; overflow-y: auto;
+    background: linear-gradient(180deg, #182437 0%, #0e1826 240px, #0e1826 100%);
+    padding-bottom: 80px;
+    position: relative;
+  }
+
+  .aw-back {
+    padding: 12px 16px 0;
+    color: var(--gold); font-size: 14px; font-weight: 600;
+    cursor: pointer;
+  }
+
+  .aw-h1 {
+    font-family: "Fraunces", "Playfair Display", Georgia, serif;
+    font-size: 26px; font-weight: 700;
+    text-align: center;
+    color: var(--gold-bright);
+    padding: 8px 16px 2px;
+    text-shadow: 0 2px 12px rgba(229, 186, 91, 0.3);
+    letter-spacing: 0.01em;
+  }
+  .aw-sub {
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding-bottom: 12px;
+    font-weight: 600;
+  }
+  .aw-sub .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: rgba(229, 186, 91, 0.15);
+    color: var(--gold);
+    border-radius: 999px;
+    font-size: 10px;
+    margin-left: 6px;
+    border: 1px solid rgba(229, 186, 91, 0.3);
+  }
+
+  .aw-season-pill-row { text-align: center; padding: 0 16px 16px; }
+  .aw-season-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border: 1px solid var(--line-strong);
+    border-radius: 999px; font-size: 12px; color: var(--ink-soft);
+    background: var(--paper-dim);
+    cursor: pointer;
+  }
+  .aw-season-pill::after { content: "▾"; color: var(--muted); font-size: 11px; }
+
+  /* Hero award cards (Style A) */
+  .aw-hero {
+    margin: 0 16px 12px;
+    background: linear-gradient(135deg, rgba(229, 186, 91, 0.16) 0%, rgba(229, 186, 91, 0.04) 50%, transparent 100%);
+    border: 1.5px solid rgba(229, 186, 91, 0.35);
+    border-radius: 18px;
+    padding: 16px;
+    display: flex; align-items: center; gap: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .aw-hero::before {
+    content: ""; position: absolute; top: -40px; right: -40px;
+    width: 140px; height: 140px;
+    background: radial-gradient(circle, rgba(229, 186, 91, 0.2), transparent 70%);
+    pointer-events: none;
+  }
+  .aw-hero-trophy {
+    font-size: 44px; line-height: 1;
+    filter: drop-shadow(0 4px 12px rgba(229, 186, 91, 0.45));
+    flex-shrink: 0;
+  }
+  .aw-hero-body { flex: 1; min-width: 0; }
+  .aw-hero-award {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--gold);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .aw-hero-name {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--gold-bright);
+    line-height: 1.05;
+    margin: 4px 0;
+    cursor: pointer;
+  }
+  .aw-hero-meta {
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .aw-hero-meta strong { color: var(--ink); font-weight: 700; }
+  .aw-hero-meta .runner { color: var(--muted); font-size: 11px; display: block; margin-top: 2px; }
+  .aw-hero-avatar {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold-bright), var(--gold-deep));
+    display: flex; align-items: center; justify-content: center;
+    color: var(--paper); font-weight: 800; font-size: 26px;
+    border: 3px solid var(--gold);
+    box-shadow: 0 4px 16px rgba(229, 186, 91, 0.4);
+    flex-shrink: 0;
+  }
+
+  /* Wall of Fame (Style B — tabular) */
+  .aw-wall-section {
+    margin-top: 18px;
+    padding: 16px 16px 4px;
+    border-top: 1px solid var(--line-strong);
+  }
+  .aw-wall-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 16px;
+    color: var(--ink);
+    text-align: center;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .aw-wall-table-wrap {
+    margin: 0 16px;
+    overflow-x: auto;
+  }
+  .aw-wall-row {
+    display: grid;
+    grid-template-columns: 50px 1fr 1fr 1fr;
+    gap: 6px;
+    align-items: center;
+    padding: 9px 12px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+  .aw-wall-header {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0 12px 4px;
+  }
+  .aw-wall-season {
+    color: var(--gold);
+    font-weight: 800;
+    font-size: 13px;
+  }
+  .aw-wall-cell {
+    color: var(--ink);
+    font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    cursor: pointer;
+  }
+  .aw-wall-empty {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 24px 16px;
+    font-style: italic;
+  }
+
+  /* Bottom nav */
+  .bottomnav {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 64px; background: var(--nav-bg); backdrop-filter: blur(20px);
+    border-top: 1px solid var(--line);
+    display: flex;
+    z-index: 1;
+  }
+  .bottomnav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding-top: 8px; }
+  .bottomnav-icon { font-size: 18px; }
+  .bottomnav-label { font-size: 10px; color: var(--muted); font-weight: 600; }
+  .bottomnav-item.active .bottomnav-label { color: var(--gold); }
+
+  /* ============================================================ */
+  /* Leaderboard — matches live Leaderboard.tsx (S049 + S052)      */
+  /* ============================================================ */
+  .lb-screen {
+    flex: 1; overflow: hidden;
+    background: var(--paper); position: relative;
+    display: flex; flex-direction: column;
+    padding-bottom: 64px;
+  }
+  .lb-head {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 14px 16px 10px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+  .lb-head-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .lb-title {
+    font-size: 22px; margin: 0;
+    color: var(--ink);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    font-family: "Inter", system-ui, sans-serif;
+  }
+  .lb-controls-row { display: flex; align-items: center; gap: 8px; }
+  .lb-season-wrap { position: relative; flex: 1; min-width: 0; }
+  .lb-season-chip {
+    width: 100%; min-width: 0;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .lb-season-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--success);
+    flex-shrink: 0;
+  }
+  .lb-season-chip-text {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex: 1; min-width: 0; text-align: left;
+  }
+  .lb-caret { color: var(--muted); font-size: 10px; flex-shrink: 0; }
+  .lb-icon-wrap { position: relative; flex-shrink: 0; }
+  .lb-icon-btn {
+    width: 38px; height: 38px;
+    border-radius: 12px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    position: relative;
+  }
+  .lb-icon-btn--awards {
+    border-color: rgba(229, 186, 91, 0.4);
+    color: var(--gold);
+    background: rgba(229, 186, 91, 0.06);
+  }
+  .lb-icon-btn--awards-glow {
+    box-shadow: 0 0 12px rgba(229, 186, 91, 0.2);
+  }
+
+  /* Body + table grid — mirrors the live S049/S052 grid layout */
+  .lb-body { flex: 1; overflow-y: auto; }
+  .lb-table-wrap {
+    overflow-x: auto;
+    padding: 4px 4px 16px;
+  }
+  .lb-table-grid {
+    display: grid;
+    grid-template-columns:
+      36px 160px 40px 32px 32px 32px 36px 50px auto 50px;
+    align-items: center;
+    min-width: 604px;
+  }
+  .lb-table-grid--header {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(242, 234, 214, 0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding-block: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .lb-table-grid--row {
+    border-bottom: 1px solid var(--line);
+    padding-block: 10px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .lb-table-grid--row.lb-row--gold { background: rgba(229, 186, 91, 0.08); }
+  .lb-table-grid--row.lb-row--silver { background: rgba(190, 190, 200, 0.06); }
+  .lb-table-grid--row.lb-row--bronze { background: rgba(184, 115, 51, 0.06); }
+  .lb-cell {
+    padding-inline: 6px;
+    display: flex; align-items: center;
+    min-width: 0; overflow: hidden; white-space: nowrap;
+  }
+  .lb-cell--num { justify-content: center; font-variant-numeric: tabular-nums; }
+  .lb-cell--rank { justify-content: center; font-weight: 700; font-size: 14px; }
+  .lb-cell--player { gap: 10px; padding-inline: 8px 12px; }
+  .lb-cell--player .lb-avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #e5ba5b, #d4a84a); display: flex; align-items: center; justify-content: center; color: var(--paper); font-weight: 700; font-size: 12px; flex-shrink: 0; }
+  .lb-cell--player .lb-name {
+    font-weight: 600; font-size: 14px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .lb-cell--pts { font-weight: 700; font-size: 14px; justify-content: center; color: var(--gold); }
+  .lb-cell--last5 {
+    display: flex; gap: 4px;
+    justify-content: flex-start;
+    padding-inline: 6px;
+  }
+  .lb-cell--last5 .lb-last5-pill {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+  }
+  .lb-cell--last5 .lb-last5-pill--W { background: #4fbf93; color: #0e1826; }
+  .lb-cell--last5 .lb-last5-pill--L { background: #e63349; color: #f2ead6; }
+  .lb-cell--last5 .lb-last5-pill--D { background: rgba(242, 234, 214, 0.55); color: #0e1826; }
+  .lb-medal { font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <span class="tag">FFC PHASE 3 · S053 · AWARDS PAGE</span>
+  <h1>§3.24 Awards — final mockup</h1>
+  <p>
+    <strong>Season 11 Awards</strong> serif title + 3 hero award cards (Ballon d'Or / Golden Boot / Most MOTM) with big trophies, gold serif winner names, photo avatars, and runner-up info inline. Below: <strong>Wall of Fame</strong> as a clean tabular grid (Season / Ballon / Boot / MOTM). Entry: 🏆 trophy chip in Leaderboard header.
+  </p>
+</div>
+
+<div class="phones">
+  <!-- ========== A — AWARDS PAGE ========== -->
+  <div class="phone-wrap">
+    <div class="phone-label">A · Awards page (active season, provisional)</div>
+    <div class="phone-sublabel">URL: <code style="color:#e5ba5b">/awards?season_id=&lt;active&gt;</code> · serif title + 3 heroes + tabular WoF</div>
+    <div class="phone dark">
+      <div class="notch"></div>
+      <div class="status-bar"><span>9:41</span><span>•••</span></div>
+      <div class="topbar">
+        <div class="crest">FFC</div>
+        <div class="topbar-right">
+          <div class="topbar-bell">🔔</div>
+          <div class="topbar-avatar">M</div>
+        </div>
+      </div>
+      <div class="aw-screen">
+        <div class="aw-back">‹ Back</div>
+        <div class="aw-h1">Season 11 Awards</div>
+        <div class="aw-sub">Provisional <span class="badge">Active</span></div>
+        <div class="aw-season-pill-row">
+          <span class="aw-season-pill">Season 11 · Active</span>
+        </div>
+
+        <div class="aw-hero">
+          <div class="aw-hero-trophy">🏆</div>
+          <div class="aw-hero-body">
+            <div class="aw-hero-award">Ballon d'Or</div>
+            <div class="aw-hero-name">Mohammed</div>
+            <div class="aw-hero-meta">
+              <strong>31 pts</strong> · 9W 3D 2L · 64% win
+              <span class="runner">2nd: Saif (22 pts)</span>
+            </div>
+          </div>
+          <div class="aw-hero-avatar">M</div>
+        </div>
+
+        <div class="aw-hero">
+          <div class="aw-hero-trophy">⚽</div>
+          <div class="aw-hero-body">
+            <div class="aw-hero-award">Golden Boot</div>
+            <div class="aw-hero-name">Mohammed</div>
+            <div class="aw-hero-meta">
+              <strong>21 goals</strong> · 1.5 per match
+              <span class="runner">2nd: Ahmed (12 goals)</span>
+            </div>
+          </div>
+          <div class="aw-hero-avatar">M</div>
+        </div>
+
+        <div class="aw-hero">
+          <div class="aw-hero-trophy">⭐</div>
+          <div class="aw-hero-body">
+            <div class="aw-hero-award">Most MOTM</div>
+            <div class="aw-hero-name">Saif</div>
+            <div class="aw-hero-meta">
+              <strong>5 MOTMs</strong> · in 12 matches
+              <span class="runner">2nd: Mohammed (4 MOTMs)</span>
+            </div>
+          </div>
+          <div class="aw-hero-avatar" style="background: linear-gradient(135deg, #4fbf93, #2e9d63); border-color: #2e9d63;">S</div>
+        </div>
+
+        <div class="aw-wall-section">
+          <div class="aw-wall-title">— Wall of Fame —</div>
+        </div>
+        <div class="aw-wall-table-wrap">
+          <div class="aw-wall-row aw-wall-header">
+            <span>Season</span>
+            <span>🏆 Ballon</span>
+            <span>⚽ Boot</span>
+            <span>⭐ MOTM</span>
+          </div>
+          <div class="aw-wall-row">
+            <span class="aw-wall-season">S10</span>
+            <span class="aw-wall-cell">Khaled</span>
+            <span class="aw-wall-cell">Ahmed</span>
+            <span class="aw-wall-cell">Tarek</span>
+          </div>
+          <div class="aw-wall-row">
+            <span class="aw-wall-season">S9</span>
+            <span class="aw-wall-cell">Mohammed</span>
+            <span class="aw-wall-cell">Mohammed</span>
+            <span class="aw-wall-cell">Omar</span>
+          </div>
+          <div class="aw-wall-row">
+            <span class="aw-wall-season">S8</span>
+            <span class="aw-wall-cell">Saif</span>
+            <span class="aw-wall-cell">Khaled</span>
+            <span class="aw-wall-cell">Saif</span>
+          </div>
+          <div class="aw-wall-row">
+            <span class="aw-wall-season">S7</span>
+            <span class="aw-wall-cell">Mohammed</span>
+            <span class="aw-wall-cell">Tarek</span>
+            <span class="aw-wall-cell">Khaled</span>
+          </div>
+          <div class="aw-wall-row">
+            <span class="aw-wall-season">S6</span>
+            <span class="aw-wall-cell">Ahmed</span>
+            <span class="aw-wall-cell">Mohammed</span>
+            <span class="aw-wall-cell">Mohammed</span>
+          </div>
+        </div>
+      </div>
+      <div class="bottomnav">
+        <div class="bottomnav-item"><div class="bottomnav-icon">🗳️</div><div class="bottomnav-label">Poll</div></div>
+        <div class="bottomnav-item"><div class="bottomnav-icon">🏆</div><div class="bottomnav-label">Leaderboard</div></div>
+        <div class="bottomnav-item"><div class="bottomnav-icon">📅</div><div class="bottomnav-label">Matches</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== B — LEADERBOARD WITH TROPHY CHIP (entry point) ========== -->
+  <div class="phone-wrap">
+    <div class="phone-label">B · Entry point — 🏆 button on live Leaderboard</div>
+    <div class="phone-sublabel">Matches live S049/S052 layout · third icon-btn after Filter + Sort · gold tint + glow · tap → /awards</div>
+    <div class="phone dark">
+      <div class="notch"></div>
+      <div class="status-bar"><span>9:41</span><span>•••</span></div>
+      <div class="topbar">
+        <div class="crest">FFC</div>
+        <div class="topbar-right">
+          <div class="topbar-bell">🔔</div>
+          <div class="topbar-avatar">M</div>
+        </div>
+      </div>
+      <div class="lb-screen">
+        <header class="lb-head">
+          <div class="lb-head-top">
+            <h1 class="lb-title">Leaderboard</h1>
+          </div>
+          <div class="lb-controls-row">
+            <div class="lb-season-wrap">
+              <button class="lb-season-chip" type="button">
+                <span class="lb-season-dot"></span>
+                <span class="lb-season-chip-text">Season 11 · ongoing</span>
+                <span class="lb-caret">▾</span>
+              </button>
+            </div>
+            <div class="lb-icon-wrap">
+              <button class="lb-icon-btn" type="button" aria-label="Filter by position">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h14"/><path d="M6 10h8"/><path d="M9 15h2"/></svg>
+              </button>
+            </div>
+            <div class="lb-icon-wrap">
+              <button class="lb-icon-btn" type="button" aria-label="Sort by">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v12"/><path d="M4 7l3-3 3 3"/><path d="M13 16V4"/><path d="M16 13l-3 3-3-3"/></svg>
+              </button>
+            </div>
+            <div class="lb-icon-wrap">
+              <button class="lb-icon-btn lb-icon-btn--awards lb-icon-btn--awards-glow" type="button" aria-label="View awards">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div class="lb-body">
+          <div class="lb-table-wrap">
+            <div class="lb-table-grid lb-table-grid--header">
+              <span class="lb-cell lb-cell--rank">#</span>
+              <span class="lb-cell lb-cell--player">Player</span>
+              <span class="lb-cell lb-cell--num">MP</span>
+              <span class="lb-cell lb-cell--num">W</span>
+              <span class="lb-cell lb-cell--num">D</span>
+              <span class="lb-cell lb-cell--num">L</span>
+              <span class="lb-cell lb-cell--num">GF</span>
+              <span class="lb-cell lb-cell--num">Win%</span>
+              <span class="lb-cell">Last 5</span>
+              <span class="lb-cell lb-cell--num">Pts</span>
+            </div>
+
+            <div class="lb-table-grid lb-table-grid--row lb-row--gold">
+              <span class="lb-cell lb-cell--rank"><span class="lb-medal">🥇</span></span>
+              <span class="lb-cell lb-cell--player">
+                <span class="lb-avatar">M</span>
+                <span class="lb-name">Mohammed</span>
+              </span>
+              <span class="lb-cell lb-cell--num">14</span>
+              <span class="lb-cell lb-cell--num">9</span>
+              <span class="lb-cell lb-cell--num">3</span>
+              <span class="lb-cell lb-cell--num">2</span>
+              <span class="lb-cell lb-cell--num">21</span>
+              <span class="lb-cell lb-cell--num">64%</span>
+              <span class="lb-cell lb-cell--last5">
+                <span class="lb-last5-pill lb-last5-pill--W">W</span>
+                <span class="lb-last5-pill lb-last5-pill--W">W</span>
+                <span class="lb-last5-pill lb-last5-pill--D">D</span>
+                <span class="lb-last5-pill lb-last5-pill--W">W</span>
+                <span class="lb-last5-pill lb-last5-pill--W">W</span>
+              </span>
+              <span class="lb-cell lb-cell--num lb-cell--pts">31</span>
+            </div>
+
+            <div class="lb-table-grid lb-table-grid--row lb-row--silver">
+              <span class="lb-cell lb-cell--rank"><span class="lb-medal">🥈</span></span>
+              <span class="lb-cell lb-cell--player">
+                <span class="lb-avatar" style="background: linear-gradient(135deg, #4fbf93, #2e9d63);">S</span>
+                <span class="lb-name">Saif</span>
+              </span>
+              <span class="lb-cell lb-cell--num">12</span>
+              <span class="lb-cell lb-cell--num">7</span>
+              <span class="lb-cell lb-cell--num">2</span>
+              <span class="lb-cell lb-cell--num">3</span>
+              <span class="lb-cell lb-cell--num">8</span>
+              <span class="lb-cell lb-cell--num">58%</span>
+              <span class="lb-cell lb-cell--last5">
+                <span class="lb-last5-pill lb-last5-pill--D">D</span>
+                <span class="lb-last5-pill lb-last5-pill--W">W</span>
+                <span class="lb-last5-pill lb-last5-pill--W">W</span>
+                <span class="lb-last5-pill lb-last5-pill--D">D</span>
+                <span class="lb-last5-pill lb-last5-pill--W">W</span>
+              </span>
+              <span class="lb-cell lb-cell--num lb-cell--pts">22</span>
+            </div>
+
+            <div class="lb-table-grid lb-table-grid--row lb-row--bronze">
+              <span class="lb-cell lb-cell--rank"><span class="lb-medal">🥉</span></span>
+              <span class="lb-cell lb-cell--player">
+                <span class="lb-avatar" style="background: linear-gradient(135deg, #ea580c, #c2410c);">A</span>
+                <span class="lb-name">Ahmed</span>
+              </span>
+              <span class="lb-cell lb-cell--num">13</span>
+              <span class="lb-cell lb-cell--num">6</span>
+              <span class="lb-cell lb-cell--num">3</span>
+              <span class="lb-cell lb-cell--num">4</span>
+              <span class="lb-cell lb-cell--num">12</span>
+              <span class="lb-cell lb-cell--num">46%</span>
+              <span class="lb-cell lb-cell--last5">
+                <span class="lb-last5-pill lb-last5-pill--W">W</span>
+                <span class="lb-last5-pill lb-last5-pill--L">L</span>
+                <span class="lb-last5-pill lb-last5-pill--D">D</span>
+                <span class="lb-last5-pill lb-last5-pill--W">W</span>
+                <span class="lb-last5-pill lb-last5-pill--L">L</span>
+              </span>
+              <span class="lb-cell lb-cell--num lb-cell--pts">21</span>
+            </div>
+
+            <div class="lb-table-grid lb-table-grid--row">
+              <span class="lb-cell lb-cell--rank">4</span>
+              <span class="lb-cell lb-cell--player">
+                <span class="lb-avatar" style="background: linear-gradient(135deg, #1e3a8a, #1e40af);">K</span>
+                <span class="lb-name">Khaled</span>
+              </span>
+              <span class="lb-cell lb-cell--num">12</span>
+              <span class="lb-cell lb-cell--num">5</span>
+              <span class="lb-cell lb-cell--num">3</span>
+              <span class="lb-cell lb-cell--num">4</span>
+              <span class="lb-cell lb-cell--num">5</span>
+              <span class="lb-cell lb-cell--num">42%</span>
+              <span class="lb-cell lb-cell--last5">
+                <span class="lb-last5-pill lb-last5-pill--W">W</span>
+                <span class="lb-last5-pill lb-last5-pill--D">D</span>
+                <span class="lb-last5-pill lb-last5-pill--W">W</span>
+                <span class="lb-last5-pill lb-last5-pill--L">L</span>
+                <span class="lb-last5-pill lb-last5-pill--D">D</span>
+              </span>
+              <span class="lb-cell lb-cell--num lb-cell--pts">18</span>
+            </div>
+
+            <div class="lb-table-grid lb-table-grid--row">
+              <span class="lb-cell lb-cell--rank">5</span>
+              <span class="lb-cell lb-cell--player">
+                <span class="lb-avatar" style="background: linear-gradient(135deg, #c8102e, #a40c24);">O</span>
+                <span class="lb-name">Omar</span>
+              </span>
+              <span class="lb-cell lb-cell--num">11</span>
+              <span class="lb-cell lb-cell--num">4</span>
+              <span class="lb-cell lb-cell--num">3</span>
+              <span class="lb-cell lb-cell--num">4</span>
+              <span class="lb-cell lb-cell--num">9</span>
+              <span class="lb-cell lb-cell--num">36%</span>
+              <span class="lb-cell lb-cell--last5">
+                <span class="lb-last5-pill lb-last5-pill--L">L</span>
+                <span class="lb-last5-pill lb-last5-pill--W">W</span>
+                <span class="lb-last5-pill lb-last5-pill--D">D</span>
+                <span class="lb-last5-pill lb-last5-pill--W">W</span>
+                <span class="lb-last5-pill lb-last5-pill--D">D</span>
+              </span>
+              <span class="lb-cell lb-cell--num lb-cell--pts">15</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bottomnav">
+        <div class="bottomnav-item"><div class="bottomnav-icon">🗳️</div><div class="bottomnav-label">Poll</div></div>
+        <div class="bottomnav-item active"><div class="bottomnav-icon">🏆</div><div class="bottomnav-label">Leaderboard</div></div>
+        <div class="bottomnav-item"><div class="bottomnav-icon">📅</div><div class="bottomnav-label">Matches</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="max-width: 1400px; margin: 3rem auto 0; padding: 1.5rem 2rem; background: rgba(14, 24, 38, 0.55); border: 1px solid rgba(229, 186, 91, 0.2); border-radius: 14px; color: #c3b99f; font-size: 14px; line-height: 1.6;">
+  <h2 style="font-family: Fraunces, Georgia, serif; font-size: 18px; margin: 0 0 1rem; color: #e5ba5b;">Behavior summary</h2>
+  <ul style="margin: 0; padding-left: 1.2rem;">
+    <li><strong>Active season</strong> shows hero cards as <em>provisional</em> — re-computes live from <code style="color:#e5ba5b">match_players</code> + <code style="color:#e5ba5b">matches</code> on each load.</li>
+    <li><strong>Ended season</strong> shows hero cards from a frozen snapshot (<code style="color:#e5ba5b">season_awards</code> table). "Provisional" badge drops; "Active" badge becomes "Final".</li>
+    <li><strong>Season pill</strong> lets user view awards for any season — past or current. Each season has its own awards page.</li>
+    <li><strong>Wall of Fame</strong> reads only from <code style="color:#e5ba5b">season_awards</code> snapshot table → only shows ended seasons (active season already covered above).</li>
+    <li><strong>Tie-breaking</strong> follows existing Leaderboard sort cascade (most wins → fewest cards → alphabetical) for all 3 awards. Single deterministic winner.</li>
+    <li><strong>Snapshot trigger:</strong> when admin ends a season (existing flow), AFTER UPDATE trigger inserts 3 winner rows into <code style="color:#e5ba5b">season_awards</code>. Deterministic; reuses existing season-end flow; no new admin action.</li>
+    <li><strong>Hero name + Wall of Fame name cells</strong> are tappable — navigate to that player's profile filtered to that season.</li>
+    <li><strong>Empty Wall of Fame</strong> (first-ever season): shows "First season — Wall of Fame begins after Season 11 ends" placeholder.</li>
+    <li><strong>Empty active season</strong> (0 matches yet): hero cards show "No matches played yet" with greyed trophy + "—" name.</li>
+  </ul>
+</div>
+
+</body>
+</html>

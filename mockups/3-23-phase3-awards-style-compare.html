@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>§3.23 Phase 3 Awards — style A/B preview · S053</title>
+<style>
+  .dark {
+    --ink: #f2ead6;
+    --ink-soft: #c3b99f;
+    --paper: #0e1826;
+    --paper-dim: #182437;
+    --paper-dimmer: #223251;
+    --line: rgba(242, 234, 214, 0.08);
+    --line-strong: rgba(242, 234, 214, 0.2);
+    --gold: #e5ba5b;
+    --gold-bright: #f7d878;
+    --gold-deep: #c8a142;
+    --muted: #85929f;
+    --success: #2e9d63;
+    --danger: #e63349;
+    --nav-bg: rgba(14, 24, 38, 0.9);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif; }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #1a2638 0%, #0e1826 60%, #050a13 100%);
+    color: #f2ead6;
+    padding: 3rem 1.5rem 6rem;
+  }
+
+  .page-header { max-width: 1200px; margin: 0 auto 2rem; }
+  .page-header .tag { display: inline-block; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #e5ba5b; font-weight: 700; }
+  .page-header h1 { font-family: "Fraunces", "Playfair Display", Georgia, serif; font-weight: 700; font-size: 26px; margin: 0.25rem 0 0.5rem; }
+  .page-header p { color: #c3b99f; max-width: 780px; line-height: 1.55; margin: 0; font-size: 15px; }
+
+  .phones { display: grid; gap: 2.5rem; max-width: 1200px; margin: 0 auto; grid-template-columns: repeat(2, 1fr); }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; }
+  .phone-label { font-size: 14px; font-weight: 700; color: #e5ba5b; margin-bottom: 0.4rem; letter-spacing: 0.04em; }
+  .phone-sublabel { font-size: 12px; color: #85929f; margin-bottom: 1rem; max-width: 340px; text-align: center; line-height: 1.45; }
+  .phone {
+    width: 360px;
+    height: 720px;
+    border-radius: 44px;
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6), 0 0 0 14px #1a1f2c, 0 0 0 16px #2a3144;
+    overflow: hidden;
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+  .notch {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    width: 110px; height: 28px; background: #1a1f2c; border-radius: 18px; z-index: 10;
+  }
+  .status-bar {
+    height: 56px; padding: 18px 28px 0;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 13px; font-weight: 600; color: var(--ink);
+  }
+
+  .topbar {
+    height: 52px; padding: 0 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+    flex-shrink: 0;
+  }
+  .topbar .crest { width: 28px; height: 28px; border-radius: 6px; background: var(--gold); display: flex; align-items: center; justify-content: center; color: var(--paper); font-weight: 800; font-size: 13px; }
+  .topbar-right { display: flex; gap: 12px; align-items: center; }
+  .topbar-bell { width: 32px; height: 32px; border-radius: 50%; background: var(--paper-dim); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .topbar-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #e5ba5b, #d4a84a); display: flex; align-items: center; justify-content: center; color: var(--paper); font-weight: 700; font-size: 13px; }
+
+  .screen { flex: 1; overflow: hidden; padding-bottom: 64px; background: var(--paper); position: relative; }
+
+  .bottomnav {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 64px; background: var(--nav-bg); backdrop-filter: blur(20px);
+    border-top: 1px solid var(--line);
+    display: flex;
+  }
+  .bottomnav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding-top: 8px; }
+  .bottomnav-icon { font-size: 18px; }
+  .bottomnav-label { font-size: 10px; color: var(--muted); font-weight: 600; }
+
+  /* ============================================================ */
+  /* STYLE A — Celebration / trophy-cabinet                          */
+  /* ============================================================ */
+  .ce-screen { background: linear-gradient(180deg, #182437 0%, #0e1826 50%); }
+  .ce-h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 24px; font-weight: 700;
+    text-align: center;
+    color: var(--gold-bright);
+    padding: 16px 16px 2px;
+    text-shadow: 0 2px 8px rgba(229, 186, 91, 0.3);
+  }
+  .ce-sub { font-size: 11px; text-align: center; color: var(--muted); letter-spacing: 0.12em; padding-bottom: 8px; }
+
+  .ce-hero {
+    margin: 8px 16px 12px;
+    background: linear-gradient(135deg, rgba(229, 186, 91, 0.18) 0%, rgba(229, 186, 91, 0.04) 50%, transparent 100%);
+    border: 1.5px solid rgba(229, 186, 91, 0.35);
+    border-radius: 20px;
+    padding: 16px;
+    display: flex; align-items: center; gap: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ce-hero::before {
+    content: ""; position: absolute; top: -30px; right: -30px;
+    width: 120px; height: 120px;
+    background: radial-gradient(circle, rgba(229, 186, 91, 0.25), transparent 70%);
+    pointer-events: none;
+  }
+  .ce-trophy {
+    font-size: 44px; line-height: 1;
+    filter: drop-shadow(0 4px 12px rgba(229, 186, 91, 0.5));
+  }
+  .ce-hero-body { flex: 1; min-width: 0; }
+  .ce-hero-award {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--gold);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .ce-hero-name {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--gold-bright);
+    line-height: 1.05;
+    margin: 4px 0 4px;
+  }
+  .ce-hero-metric {
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .ce-hero-metric strong { color: var(--ink); font-weight: 700; }
+  .ce-hero-avatar {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold-bright), var(--gold-deep));
+    display: flex; align-items: center; justify-content: center;
+    color: var(--paper); font-weight: 800; font-size: 26px;
+    border: 3px solid var(--gold);
+    box-shadow: 0 4px 16px rgba(229, 186, 91, 0.4);
+    flex-shrink: 0;
+  }
+
+  .ce-wall-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 14px;
+    color: var(--ink);
+    margin: 18px 16px 8px;
+    border-top: 1px solid var(--line-strong);
+    padding-top: 14px;
+    text-align: center;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .ce-wall-row {
+    margin: 0 16px 6px;
+    padding: 10px 12px;
+    background: rgba(229, 186, 91, 0.05);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 8px 8px 0;
+    font-size: 12px;
+    display: flex; gap: 10px; align-items: center;
+  }
+  .ce-wall-season { color: var(--gold); font-weight: 700; min-width: 38px; }
+  .ce-wall-text { color: var(--ink-soft); flex: 1; }
+  .ce-wall-text strong { color: var(--ink); }
+
+  /* ============================================================ */
+  /* STYLE B — Stats / leaderboard-style                             */
+  /* ============================================================ */
+  .st-screen { background: var(--paper); }
+  .st-h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 22px; font-weight: 700;
+    color: var(--ink);
+    padding: 14px 16px 2px;
+  }
+  .st-sub { font-size: 12px; color: var(--muted); padding: 0 16px 12px; }
+  .st-pill { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border: 1px solid var(--line-strong); border-radius: 999px; font-size: 11px; color: var(--ink-soft); background: var(--paper-dim); margin-left: 16px; margin-bottom: 12px; }
+  .st-pill::after { content: "▾"; color: var(--muted); font-size: 9px; }
+
+  .st-card {
+    margin: 0 16px 8px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .st-card-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: rgba(229, 186, 91, 0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .st-card-body { flex: 1; min-width: 0; }
+  .st-card-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .st-card-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-top: 2px;
+  }
+  .st-card-name .runner { color: var(--muted); font-weight: 500; font-size: 12px; }
+  .st-card-metric {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .st-card-metric-label { font-size: 9px; color: var(--muted); text-align: right; margin-top: 2px; letter-spacing: 0.06em; }
+
+  .st-wall-section {
+    margin: 18px 16px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .st-wall-row {
+    display: grid;
+    grid-template-columns: 50px 1fr 1fr 1fr;
+    gap: 6px;
+    align-items: center;
+    padding: 8px 14px;
+    margin: 0 16px 4px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 11px;
+  }
+  .st-wall-header {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    padding-bottom: 2px;
+  }
+  .st-wall-season { color: var(--gold); font-weight: 700; }
+  .st-wall-cell { color: var(--ink); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <span class="tag">FFC PHASE 3 · S053 · STYLE A/B PREVIEW</span>
+  <h1>Awards page — pick a direction</h1>
+  <p>
+    Same content (Ballon d'Or · Golden Boot · Most MOTM · Wall of Fame), two visual treatments. Pick one and we'll go deeper.
+    These are <strong>thumbnails only</strong>, not finished mockups — content is illustrative.
+  </p>
+</div>
+
+<div class="phones">
+  <!-- ============================================================ -->
+  <!-- STYLE A — CELEBRATION                                         -->
+  <!-- ============================================================ -->
+  <div class="phone-wrap">
+    <div class="phone-label">A · Celebration / trophy-cabinet</div>
+    <div class="phone-sublabel">Awards feel like rewards. Big trophy + winner avatar + serif gold names. Photo-frame Wall of Fame.</div>
+    <div class="phone dark">
+      <div class="notch"></div>
+      <div class="status-bar"><span>9:41</span><span>•••</span></div>
+      <div class="topbar">
+        <div class="crest">FFC</div>
+        <div class="topbar-right">
+          <div class="topbar-bell">🔔</div>
+          <div class="topbar-avatar">M</div>
+        </div>
+      </div>
+      <div class="screen ce-screen">
+        <div class="ce-h1">Season 11 Awards</div>
+        <div class="ce-sub">— provisional · season ends 12/JUN/2026 —</div>
+
+        <div class="ce-hero">
+          <div class="ce-trophy">🏆</div>
+          <div class="ce-hero-body">
+            <div class="ce-hero-award">Ballon d'Or</div>
+            <div class="ce-hero-name">Mohammed</div>
+            <div class="ce-hero-metric"><strong>31 pts</strong> · 9W 3D 2L · 64% win</div>
+          </div>
+          <div class="ce-hero-avatar">M</div>
+        </div>
+
+        <div class="ce-hero">
+          <div class="ce-trophy">⚽</div>
+          <div class="ce-hero-body">
+            <div class="ce-hero-award">Golden Boot</div>
+            <div class="ce-hero-name">Mohammed</div>
+            <div class="ce-hero-metric"><strong>21 goals</strong> · 1.5 per match</div>
+          </div>
+          <div class="ce-hero-avatar">M</div>
+        </div>
+
+        <div class="ce-hero">
+          <div class="ce-trophy">⭐</div>
+          <div class="ce-hero-body">
+            <div class="ce-hero-award">Most MOTM</div>
+            <div class="ce-hero-name">Saif</div>
+            <div class="ce-hero-metric"><strong>5 MOTMs</strong> · in 12 matches</div>
+          </div>
+          <div class="ce-hero-avatar" style="background: linear-gradient(135deg, #4fbf93, #2e9d63); border-color: #2e9d63;">S</div>
+        </div>
+
+        <div class="ce-wall-title">— Wall of Fame —</div>
+        <div class="ce-wall-row">
+          <div class="ce-wall-season">S10</div>
+          <div class="ce-wall-text">🏆 <strong>Khaled</strong> · ⚽ <strong>Ahmed</strong> · ⭐ <strong>Tarek</strong></div>
+        </div>
+        <div class="ce-wall-row">
+          <div class="ce-wall-season">S9</div>
+          <div class="ce-wall-text">🏆 <strong>Mohammed</strong> · ⚽ <strong>Mohammed</strong> · ⭐ <strong>Omar</strong></div>
+        </div>
+        <div class="ce-wall-row">
+          <div class="ce-wall-season">S8</div>
+          <div class="ce-wall-text">🏆 <strong>Saif</strong> · ⚽ <strong>Khaled</strong> · ⭐ <strong>Saif</strong></div>
+        </div>
+      </div>
+      <div class="bottomnav">
+        <div class="bottomnav-item"><div class="bottomnav-icon">🗳️</div><div class="bottomnav-label">Poll</div></div>
+        <div class="bottomnav-item"><div class="bottomnav-icon">🏆</div><div class="bottomnav-label">Leaderboard</div></div>
+        <div class="bottomnav-item"><div class="bottomnav-icon">📅</div><div class="bottomnav-label">Matches</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- STYLE B — STATS                                              -->
+  <!-- ============================================================ -->
+  <div class="phone-wrap">
+    <div class="phone-label">B · Stats / leaderboard-style</div>
+    <div class="phone-sublabel">Clean cards matching existing app aesthetic. Compact data-forward. Tabular Wall of Fame.</div>
+    <div class="phone dark">
+      <div class="notch"></div>
+      <div class="status-bar"><span>9:41</span><span>•••</span></div>
+      <div class="topbar">
+        <div class="crest">FFC</div>
+        <div class="topbar-right">
+          <div class="topbar-bell">🔔</div>
+          <div class="topbar-avatar">M</div>
+        </div>
+      </div>
+      <div class="screen st-screen">
+        <div class="st-h1">🏆 Awards</div>
+        <div class="st-sub">Season 11 leaders · provisional</div>
+        <span class="st-pill">Season 11 · Active</span>
+
+        <div class="st-card">
+          <div class="st-card-icon">🏆</div>
+          <div class="st-card-body">
+            <div class="st-card-title">Ballon d'Or</div>
+            <div class="st-card-name">Mohammed <span class="runner">· 2nd: Saif (22 pts)</span></div>
+          </div>
+          <div>
+            <div class="st-card-metric">31</div>
+            <div class="st-card-metric-label">pts</div>
+          </div>
+        </div>
+
+        <div class="st-card">
+          <div class="st-card-icon">⚽</div>
+          <div class="st-card-body">
+            <div class="st-card-title">Golden Boot</div>
+            <div class="st-card-name">Mohammed <span class="runner">· 2nd: Ahmed (12 g)</span></div>
+          </div>
+          <div>
+            <div class="st-card-metric">21</div>
+            <div class="st-card-metric-label">goals</div>
+          </div>
+        </div>
+
+        <div class="st-card">
+          <div class="st-card-icon">⭐</div>
+          <div class="st-card-body">
+            <div class="st-card-title">Most MOTM</div>
+            <div class="st-card-name">Saif <span class="runner">· 2nd: Mohammed (4)</span></div>
+          </div>
+          <div>
+            <div class="st-card-metric">5</div>
+            <div class="st-card-metric-label">motm</div>
+          </div>
+        </div>
+
+        <div class="st-wall-section">Wall of Fame</div>
+        <div class="st-wall-row st-wall-header">
+          <span>Season</span>
+          <span>🏆 Ballon d'Or</span>
+          <span>⚽ Boot</span>
+          <span>⭐ MOTM</span>
+        </div>
+        <div class="st-wall-row">
+          <span class="st-wall-season">S10</span>
+          <span class="st-wall-cell">Khaled</span>
+          <span class="st-wall-cell">Ahmed</span>
+          <span class="st-wall-cell">Tarek</span>
+        </div>
+        <div class="st-wall-row">
+          <span class="st-wall-season">S9</span>
+          <span class="st-wall-cell">Mohammed</span>
+          <span class="st-wall-cell">Mohammed</span>
+          <span class="st-wall-cell">Omar</span>
+        </div>
+        <div class="st-wall-row">
+          <span class="st-wall-season">S8</span>
+          <span class="st-wall-cell">Saif</span>
+          <span class="st-wall-cell">Khaled</span>
+          <span class="st-wall-cell">Saif</span>
+        </div>
+      </div>
+      <div class="bottomnav">
+        <div class="bottomnav-item"><div class="bottomnav-icon">🗳️</div><div class="bottomnav-label">Poll</div></div>
+        <div class="bottomnav-item"><div class="bottomnav-icon">🏆</div><div class="bottomnav-label">Leaderboard</div></div>
+        <div class="bottomnav-item"><div class="bottomnav-icon">📅</div><div class="bottomnav-label">Matches</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
