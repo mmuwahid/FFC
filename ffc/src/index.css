@@ -3135,6 +3135,18 @@ textarea.auth-input {
   font-weight: 600; letter-spacing: 0.03em;
   margin-top: 3px;
 }
+.admin-dt-row { display: flex; align-items: center; gap: 8px; }
+.admin-dt-row .auth-input { flex: 1; min-width: 0; }
+.admin-dt-set-btn {
+  padding: 7px 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-muted); font-size: 12px; font-weight: 700;
+  white-space: nowrap; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.admin-dt-set-btn--pending {
+  border-color: var(--success); color: var(--success);
+  background: rgba(79, 191, 147, 0.1);
+}
 
 .admin-team-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 10px;

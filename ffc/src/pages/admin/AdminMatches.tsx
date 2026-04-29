@@ -877,17 +877,21 @@ function CreateMatchdaySheet({
     d.setHours(20, 15, 0, 0)
     return d
   })()
-  const [kickoff, setKickoff] = useState(toLocalInput(nextThu.toISOString()))
+  const initKickoff = toLocalInput(nextThu.toISOString())
+  const initOpens = (() => { const d = new Date(nextThu); d.setDate(d.getDate() - 3); d.setHours(9, 0, 0, 0); return toLocalInput(d.toISOString()) })()
+  const initCloses = (() => { const d = new Date(nextThu); d.setDate(d.getDate() - 1); d.setHours(21, 0, 0, 0); return toLocalInput(d.toISOString()) })()
+
+  // Confirmed = what gets submitted + drives auto-derive. Draft = live picker value.
+  const [kickoff, setKickoff] = useState(initKickoff)
+  const [kickoffDraft, setKickoffDraft] = useState(initKickoff)
   const [venue, setVenue] = useState('')
-  const [pollOpens, setPollOpens] = useState(() => {
-    const d = new Date(nextThu); d.setDate(d.getDate() - 3); d.setHours(9, 0, 0, 0); return toLocalInput(d.toISOString())
-  })
-  const [pollCloses, setPollCloses] = useState(() => {
-    const d = new Date(nextThu); d.setDate(d.getDate() - 1); d.setHours(21, 0, 0, 0); return toLocalInput(d.toISOString())
-  })
+  const [pollOpens, setPollOpens] = useState(initOpens)
+  const [pollOpensDraft, setPollOpensDraft] = useState(initOpens)
+  const [pollCloses, setPollCloses] = useState(initCloses)
+  const [pollClosesDraft, setPollClosesDraft] = useState(initCloses)
   const [format, setFormat] = useState<MatchFormat>(seasonDefaultFormat || '7v7')
 
-  // Auto-derive poll windows when kickoff changes (issue #19)
+  // Auto-derive poll windows when kickoff is confirmed (issue #19)
   useEffect(() => {
     if (!kickoff) return
     const [datePart] = kickoff.split('T')
@@ -898,8 +902,10 @@ function CreateMatchdaySheet({
     opensLocal.setHours(9, 0, 0, 0)
     const closesLocal = new Date(y, m - 1, d - 1)
     closesLocal.setHours(21, 0, 0, 0)
-    setPollOpens(toLocalInput(opensLocal.toISOString()))
-    setPollCloses(toLocalInput(closesLocal.toISOString()))
+    const opensVal = toLocalInput(opensLocal.toISOString())
+    const closesVal = toLocalInput(closesLocal.toISOString())
+    setPollOpens(opensVal); setPollOpensDraft(opensVal)
+    setPollCloses(closesVal); setPollClosesDraft(closesVal)
   }, [kickoff])
 
   const isThursday = (() => {
@@ -937,28 +943,37 @@ function CreateMatchdaySheet({
         <p className="admin-warn-banner">Not a Thursday — double-check the date.</p>
       )}
 
-      <label className="admin-field">
+      <div className="admin-field">
         <span className="admin-field-label">Kickoff</span>
-        <input type="datetime-local" className="auth-input" value={kickoff} onChange={(e) => setKickoff(e.target.value)} />
-        <span className="admin-dt-preview">{preview(kickoff)}</span>
-      </label>
+        <div className="admin-dt-row">
+          <input type="datetime-local" className="auth-input" value={kickoffDraft} onChange={(e) => setKickoffDraft(e.target.value)} />
+          <button type="button" className={`admin-dt-set-btn${kickoffDraft !== kickoff ? ' admin-dt-set-btn--pending' : ''}`} onClick={() => setKickoff(kickoffDraft)}>Set ✓</button>
+        </div>
+        <span className="admin-dt-preview">{preview(kickoffDraft)}</span>
+      </div>
 
       <label className="admin-field">
         <span className="admin-field-label">Venue</span>
         <input className="auth-input" placeholder="e.g. Al Wasl Sports Club" value={venue} onChange={(e) => setVenue(e.target.value)} />
       </label>
 
-      <label className="admin-field">
+      <div className="admin-field">
         <span className="admin-field-label">Poll opens</span>
-        <input type="datetime-local" className="auth-input" value={pollOpens} onChange={(e) => setPollOpens(e.target.value)} />
-        <span className="admin-dt-preview">{preview(pollOpens)}</span>
-      </label>
+        <div className="admin-dt-row">
+          <input type="datetime-local" className="auth-input" value={pollOpensDraft} onChange={(e) => setPollOpensDraft(e.target.value)} />
+          <button type="button" className={`admin-dt-set-btn${pollOpensDraft !== pollOpens ? ' admin-dt-set-btn--pending' : ''}`} onClick={() => setPollOpens(pollOpensDraft)}>Set ✓</button>
+        </div>
+        <span className="admin-dt-preview">{preview(pollOpensDraft)}</span>
+      </div>
 
-      <label className="admin-field">
+      <div className="admin-field">
         <span className="admin-field-label">Poll closes</span>
-        <input type="datetime-local" className="auth-input" value={pollCloses} onChange={(e) => setPollCloses(e.target.value)} />
-        <span className="admin-dt-preview">{preview(pollCloses)}</span>
-      </label>
+        <div className="admin-dt-row">
+          <input type="datetime-local" className="auth-input" value={pollClosesDraft} onChange={(e) => setPollClosesDraft(e.target.value)} />
+          <button type="button" className={`admin-dt-set-btn${pollClosesDraft !== pollCloses ? ' admin-dt-set-btn--pending' : ''}`} onClick={() => setPollCloses(pollClosesDraft)}>Set ✓</button>
+        </div>
+        <span className="admin-dt-preview">{preview(pollClosesDraft)}</span>
+      </div>
 
       <div className="admin-field">
         <span className="admin-field-label">Format</span>
@@ -981,10 +996,17 @@ function CreateMatchdaySheet({
 function EditMatchdaySheet({
   md, seasonDefaultFormat, busy, setBusy, onDone, onError, onCancel,
 }: BaseSheetProps & { md: MatchdayWithMatch; seasonDefaultFormat: MatchFormat }) {
-  const [kickoff, setKickoff] = useState(toLocalInput(md.kickoff_at))
+  const initKickoff = toLocalInput(md.kickoff_at)
+  const initOpens = toLocalInput(md.poll_opens_at)
+  const initCloses = toLocalInput(md.poll_closes_at)
+
+  const [kickoff, setKickoff] = useState(initKickoff)
+  const [kickoffDraft, setKickoffDraft] = useState(initKickoff)
   const [venue, setVenue] = useState(md.venue ?? '')
-  const [pollOpens, setPollOpens] = useState(toLocalInput(md.poll_opens_at))
-  const [pollCloses, setPollCloses] = useState(toLocalInput(md.poll_closes_at))
+  const [pollOpens, setPollOpens] = useState(initOpens)
+  const [pollOpensDraft, setPollOpensDraft] = useState(initOpens)
+  const [pollCloses, setPollCloses] = useState(initCloses)
+  const [pollClosesDraft, setPollClosesDraft] = useState(initCloses)
   const [format, setFormat] = useState<MatchFormat>((md.format ?? seasonDefaultFormat) || '7v7')
 
   const submit = async () => {
@@ -1011,17 +1033,32 @@ function EditMatchdaySheet({
       <h3>Edit matchday — {dowLabel(md.kickoff_at)} · {dateLabel(md.kickoff_at)}</h3>
       <p className="sheet-sub">Season default: {seasonDefaultFormat}.</p>
 
-      <label className="admin-field"><span className="admin-field-label">Kickoff</span>
-        <input type="datetime-local" className="auth-input" value={kickoff} onChange={(e) => setKickoff(e.target.value)} />
-        <span className="admin-dt-preview">{preview(kickoff)}</span></label>
+      <div className="admin-field">
+        <span className="admin-field-label">Kickoff</span>
+        <div className="admin-dt-row">
+          <input type="datetime-local" className="auth-input" value={kickoffDraft} onChange={(e) => setKickoffDraft(e.target.value)} />
+          <button type="button" className={`admin-dt-set-btn${kickoffDraft !== kickoff ? ' admin-dt-set-btn--pending' : ''}`} onClick={() => setKickoff(kickoffDraft)}>Set ✓</button>
+        </div>
+        <span className="admin-dt-preview">{preview(kickoffDraft)}</span>
+      </div>
       <label className="admin-field"><span className="admin-field-label">Venue</span>
         <input className="auth-input" value={venue} onChange={(e) => setVenue(e.target.value)} /></label>
-      <label className="admin-field"><span className="admin-field-label">Poll opens</span>
-        <input type="datetime-local" className="auth-input" value={pollOpens} onChange={(e) => setPollOpens(e.target.value)} />
-        <span className="admin-dt-preview">{preview(pollOpens)}</span></label>
-      <label className="admin-field"><span className="admin-field-label">Poll closes</span>
-        <input type="datetime-local" className="auth-input" value={pollCloses} onChange={(e) => setPollCloses(e.target.value)} />
-        <span className="admin-dt-preview">{preview(pollCloses)}</span></label>
+      <div className="admin-field">
+        <span className="admin-field-label">Poll opens</span>
+        <div className="admin-dt-row">
+          <input type="datetime-local" className="auth-input" value={pollOpensDraft} onChange={(e) => setPollOpensDraft(e.target.value)} />
+          <button type="button" className={`admin-dt-set-btn${pollOpensDraft !== pollOpens ? ' admin-dt-set-btn--pending' : ''}`} onClick={() => setPollOpens(pollOpensDraft)}>Set ✓</button>
+        </div>
+        <span className="admin-dt-preview">{preview(pollOpensDraft)}</span>
+      </div>
+      <div className="admin-field">
+        <span className="admin-field-label">Poll closes</span>
+        <div className="admin-dt-row">
+          <input type="datetime-local" className="auth-input" value={pollClosesDraft} onChange={(e) => setPollClosesDraft(e.target.value)} />
+          <button type="button" className={`admin-dt-set-btn${pollClosesDraft !== pollCloses ? ' admin-dt-set-btn--pending' : ''}`} onClick={() => setPollCloses(pollClosesDraft)}>Set ✓</button>
+        </div>
+        <span className="admin-dt-preview">{preview(pollClosesDraft)}</span>
+      </div>
 
       <div className="admin-field">
         <span className="admin-field-label">Format</span>
