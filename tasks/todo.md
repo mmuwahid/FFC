@@ -31,6 +31,7 @@
 4. **Carry-over verification from S051** — push subscribe (Chrome desktop + iPhone PWA installed), Resend signup-outcome email, captain reroll live test on a real matchday.
 
 **Backburner:**
+- **[Issue #11](https://github.com/mmuwahid/FFC/issues/11) — Admin Roster Setup UI.** No UI exists for `create_match_draft` (assigns players to white/black, creates match row). Blocker for ref console without Supabase dashboard SQL workaround. ~3–4h: new admin screen + `admin_add_commitment` + `admin_add_guest` RPCs + 2 migrations. Needs alignment with Mohammed on cap enforcement + UI placement before coding.
 - **Resend custom sender domain** — verify a domain in Resend, set `NOTIFY_FROM` env on `notify-signup-outcome` EF (default is `onboarding@resend.dev`).
 - **Phase 3 mockup-first work** — V3.0:139–148 backlog. Player analytics + H2H comparison. Per CLAUDE.md operating rule #1, build mockups in `mockups/` first.
 
