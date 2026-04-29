@@ -269,19 +269,32 @@ export function useMatchClock(args: {
   const [state, setState] = useState<ClockState>(() => emptyClockState(kickoffIso ?? new Date().toISOString()))
   const [tick, setTick] = useState(0)
   const hydratedRef = useRef(false)
+  // Tracks whether the clock has been seeded with a real kickoff timestamp.
+  // Stays false until either a stored state is restored or startMatch() fires.
+  const kickoffInitializedRef = useRef(false)
 
   // Hydrate from storage exactly once when key becomes available.
   useEffect(() => {
-    // sessionStorageKey resolves async (Web Crypto digest), so we can't hydrate
-    // in the lazy initializer — must use an effect. The cascading second render
-    // on key arrival is unavoidable and intentional here.
-    if (!clockKey || hydratedRef.current) return
+    if (!clockKey) return
+    if (hydratedRef.current) {
+      // Post-hydration: kickoffIso transitions null → value when the ref taps
+      // KICK OFF. If no real kickoff was seeded yet, reset with the actual time
+      // so the clock doesn't count from page-load time.
+      if (kickoffIso && !kickoffInitializedRef.current) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional kickoff seed
+        setState(emptyClockState(kickoffIso))
+        kickoffInitializedRef.current = true
+      }
+      return
+    }
     const stored = readClockState(clockKey)
     if (stored) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional hydration
       setState(stored)
+      kickoffInitializedRef.current = true
     } else if (kickoffIso) {
       setState(emptyClockState(kickoffIso))
+      kickoffInitializedRef.current = true
     }
     hydratedRef.current = true
   }, [clockKey, kickoffIso])
@@ -353,11 +366,13 @@ export function useMatchClock(args: {
         team,
         profile_id: participant.profile_id,
         guest_id: participant.guest_id,
-        meta: isOwnGoal ? { own_goal_for: team === 'white' ? 'black' : 'white' } : {},
+        meta: {},
         committed_at: new Date().toISOString(),
       }
-      // Score: own_goal credits the OPPOSITE team. Goal credits scorer's team.
-      const scoringTeam = isOwnGoal ? (team === 'white' ? 'black' : 'white') : team
+      // `team` is always the benefiting team (the score button the ref tapped).
+      // Own goal: participant is from the opposite roster but the goal still
+      // credits `team`. Regular goal: same.
+      const scoringTeam = team
       return {
         ...prev,
         events: [...prev.events, event],
@@ -567,9 +582,8 @@ export function useMatchClock(args: {
         if (evt.team === 'white') scoreWhite -= 1
         if (evt.team === 'black') scoreBlack -= 1
       } else if (evt.event_type === 'own_goal') {
-        // Score went to opposite team; reverse it.
-        if (evt.team === 'white') scoreBlack -= 1
-        if (evt.team === 'black') scoreWhite -= 1
+        if (evt.team === 'white') scoreWhite -= 1
+        if (evt.team === 'black') scoreBlack -= 1
       }
       return {
         ...prev,
@@ -593,9 +607,8 @@ export function useMatchClock(args: {
         if (last.team === 'white') scoreWhite -= 1
         if (last.team === 'black') scoreBlack -= 1
       } else if (last.event_type === 'own_goal') {
-        // Score went to opposite team; reverse it.
-        if (last.team === 'white') scoreBlack -= 1
-        if (last.team === 'black') scoreWhite -= 1
+        if (last.team === 'white') scoreWhite -= 1
+        if (last.team === 'black') scoreBlack -= 1
       }
       // Reverse pause/resume state if applicable.
       let pausedAt = prev.paused_at
