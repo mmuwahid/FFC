@@ -21,6 +21,7 @@ const CARDS: HubCard[] = [
   { to: '/admin/seasons', ico: '🏆', title: 'Season management', help: 'Create · edit · end · delete seasons' },
   { to: '/admin/players', ico: '👥', title: 'Player management', help: 'Approve signups · ban · edit · reinstate' },
   { to: '/admin/matches', ico: '📅', title: 'Matches management', help: 'Create matchdays · lock roster · enter results' },
+  { to: '/admin/roster-setup', ico: '⚽', title: 'Roster setup', help: 'Assign teams after captain draft · add/swap players' },
 ]
 
 export function AdminHome() {
