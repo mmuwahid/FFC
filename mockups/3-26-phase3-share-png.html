@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>FFC — Phase 3 Share PNG (Final · 3-26)</title>
+<style>
+  :root { --bg:#0e1826; --text:#f2ead6; --accent:#e5ba5b; --muted:#c9b88a; --footer:#6e6450; }
+  body { margin: 0; padding: 32px; background: #1a1a1a;
+         font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+         color: #eee; min-height: 100vh; box-sizing: border-box; }
+  .controls { text-align: center; margin-bottom: 24px; }
+  .controls button { padding: 8px 16px; border: 1px solid #555; background: #2a2a2a;
+                     color: #eee; border-radius: 6px; cursor: pointer; font-size: 13px; margin: 0 4px; }
+  .controls button.active { border-color: #e5ba5b; color: #e5ba5b; }
+  .stage { display: flex; justify-content: center; }
+  .frame { transform-origin: top center; transition: transform 200ms; }
+  .frame.scale-50  { transform: scale(0.5); margin-bottom: -540px; }
+  .frame.scale-100 { transform: scale(1); }
+
+  /* === The 1080x1080 card === */
+  .card {
+    width: 1080px; height: 1080px; background: var(--bg);
+    padding: 64px; box-sizing: border-box;
+    display: flex; flex-direction: column; align-items: center;
+    position: relative; overflow: hidden;
+  }
+  /* Header — serif, centred crest */
+  .card-crest { width: 120px; height: 120px; margin-bottom: 12px; }
+  .card-title {
+    font-family: "Playfair Display", "Fraunces", Georgia, serif;
+    font-size: 64px; font-weight: 700; color: var(--accent);
+    letter-spacing: 0.02em; margin: 0;
+  }
+  .card-meta {
+    font-family: "Playfair Display", "Fraunces", Georgia, serif;
+    font-size: 28px; color: var(--muted); margin-top: 6px;
+  }
+  /* Scoreboard — sans, split with gold divider */
+  .scoreboard {
+    margin-top: 56px; display: grid;
+    grid-template-columns: 1fr 2px 1fr;
+    align-items: center; gap: 32px; width: 100%; max-width: 880px;
+  }
+  .team-col { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .team-label {
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 28px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.24em; color: var(--text);
+  }
+  .team-num {
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 200px; font-weight: 900; line-height: 1; color: var(--text);
+  }
+  .divider {
+    width: 2px; height: 220px;
+    background: linear-gradient(to bottom, transparent, var(--accent), transparent);
+  }
+  /* Scorer grid — tight sans */
+  .scorers {
+    margin-top: 48px; display: grid;
+    grid-template-columns: 1fr 2px 1fr;
+    gap: 32px; width: 100%; max-width: 880px;
+    align-items: start;
+  }
+  .scorer-list {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 28px; color: var(--text); line-height: 1.4;
+  }
+  .scorer-list .empty { color: var(--footer); }
+  /* MOTM gold pill */
+  .motm-pill {
+    margin-top: auto; align-self: center;
+    padding: 12px 28px; border: 1px solid var(--accent); border-radius: 999px;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 24px; font-weight: 600; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.16em;
+  }
+</style>
+</head>
+<body>
+  <div class="controls">
+    <button id="btn50" class="active">50% (fits screen)</button>
+    <button id="btn100">100% (real 1080×1080)</button>
+  </div>
+  <div class="stage">
+    <div id="frame" class="frame scale-50">
+      <div class="card">
+        <!-- Header -->
+        <svg class="card-crest" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="56" fill="none" stroke="#e5ba5b" stroke-width="3"/>
+          <text x="60" y="74" text-anchor="middle" fill="#e5ba5b"
+                font-family="Georgia, serif" font-size="40" font-weight="700">FFC</text>
+        </svg>
+        <h1 class="card-title">Season 11</h1>
+        <div class="card-meta">Thu, 24 Apr 2026 · Block A pitch</div>
+
+        <!-- Scoreboard with vertical gold divider -->
+        <div class="scoreboard">
+          <div class="team-col">
+            <div class="team-label">White</div>
+            <div class="team-num">4</div>
+          </div>
+          <div class="divider"></div>
+          <div class="team-col">
+            <div class="team-label">Black</div>
+            <div class="team-num">2</div>
+          </div>
+        </div>
+
+        <!-- Scorer grid with same divider column for visual rhyme -->
+        <!-- OG attribution: Rashid is on Black and scored an OG that counted toward White's 4.
+             He appears under Black's column (his own team) with (OG) marker.
+             White's 4 = Mohammed × 2 + Ali × 1 + Rashid OG (not listed here).
+             Black's 2 = Sam × 2 (Rashid's OG goal went to White, so Black's own goals = Sam × 2 only). -->
+        <div class="scorers">
+          <div class="scorer-list">
+            <div>Mohammed × 2</div>
+            <div>Ali × 1</div>
+          </div>
+          <div></div>  <!-- spacer matching the 2px divider column -->
+          <div class="scorer-list">
+            <div>Sam × 2</div>
+            <div>Rashid (OG)</div>
+          </div>
+        </div>
+
+        <!-- MOTM pill, footer omitted entirely -->
+        <div class="motm-pill">✨ MOTM · Mohammed</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const frame = document.getElementById('frame');
+    const b50 = document.getElementById('btn50');
+    const b100 = document.getElementById('btn100');
+    b50.onclick  = () => { frame.className = 'frame scale-50';  b50.classList.add('active');  b100.classList.remove('active'); };
+    b100.onclick = () => { frame.className = 'frame scale-100'; b100.classList.add('active'); b50.classList.remove('active'); };
+  </script>
+</body>
+</html>
