@@ -1405,6 +1405,64 @@ export type Database = {
           },
         ]
       }
+      season_awards: {
+        Row: {
+          award_kind: string
+          frozen_at: string
+          id: string
+          meta: Json
+          metric_value: number
+          runner_up_metric: number | null
+          runner_up_profile_id: string | null
+          season_id: string
+          winner_profile_id: string
+        }
+        Insert: {
+          award_kind: string
+          frozen_at?: string
+          id?: string
+          meta?: Json
+          metric_value: number
+          runner_up_metric?: number | null
+          runner_up_profile_id?: string | null
+          season_id: string
+          winner_profile_id: string
+        }
+        Update: {
+          award_kind?: string
+          frozen_at?: string
+          id?: string
+          meta?: Json
+          metric_value?: number
+          runner_up_metric?: number | null
+          runner_up_profile_id?: string | null
+          season_id?: string
+          winner_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "season_awards_runner_up_profile_id_fkey"
+            columns: ["runner_up_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "season_awards_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "season_awards_winner_profile_id_fkey"
+            columns: ["winner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       season_seed_stats: {
         Row: {
           created_at: string
@@ -1595,6 +1653,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      v_season_award_winners_live: {
+        Row: {
+          award_kind: string | null
+          meta: Json | null
+          metric_value: number | null
+          runner_up_metric: number | null
+          runner_up_profile_id: string | null
+          season_id: string | null
+          winner_profile_id: string | null
+        }
+        Relationships: []
       }
       v_season_standings: {
         Row: {
