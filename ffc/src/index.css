@@ -5957,3 +5957,11 @@ body.is-leaderboard-landscape .lb-table-grid {
   font-size: 14px;
   max-width: 360px;
 }
+
+/* ── MatchDetailSheet share-button variant (Task 10, S054) ── */
+.md-action-btn--share {
+  background: var(--accent, #e5ba5b);
+  color: var(--bg, #0e1826);
+  font-weight: 700;
+}
+.md-action-btn--share:disabled { opacity: 0.6; cursor: progress; }

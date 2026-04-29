@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useApp } from '../lib/AppContext'
+import { shareMatchCard } from '../lib/shareMatchCard'
 
 /* §3.15 Match-detail sheet — read-only overlay (Phase 1 Depth-B slice, S024).
  * Opens via <MatchDetailSheet matchId profileId? onClose /> from any row tap.
@@ -23,6 +25,7 @@ interface MatchMain {
   score_black: number
   motm_user_id: string | null
   motm_guest_id: string | null
+  approved_at: string | null
   matchday: { id: string; kickoff_at: string; venue: string | null; season_id: string } | null
   season: { id: string; name: string } | null
   motm_member: { display_name: string } | null
@@ -81,11 +84,14 @@ function formatTime(iso: string): string {
 
 export function MatchDetailSheet({ matchId, profileId, onClose }: Props) {
   const navigate = useNavigate()
+  const { role } = useApp()
+  const isAdmin = role === 'admin' || role === 'super_admin'
   const [main, setMain] = useState<MatchMain | null>(null)
   const [roster, setRoster] = useState<RosterRow[]>([])
   const [matchdayNumber, setMatchdayNumber] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [shareBusy, setShareBusy] = useState(false)
 
   // Esc to close
   useEffect(() => {
@@ -113,7 +119,7 @@ export function MatchDetailSheet({ matchId, profileId, onClose }: Props) {
         supabase
           .from('matches')
           .select(`
-            id, result, score_white, score_black, motm_user_id, motm_guest_id,
+            id, result, score_white, score_black, motm_user_id, motm_guest_id, approved_at,
             matchday:matchdays(id, kickoff_at, venue, season_id),
             season:seasons(id, name),
             motm_member:profiles!matches_motm_user_id_fkey(display_name),
@@ -261,6 +267,20 @@ export function MatchDetailSheet({ matchId, profileId, onClose }: Props) {
               >
                 🧩 View formation
               </button>
+              {isAdmin && main.approved_at && (
+                <button
+                  type="button"
+                  className="md-action-btn md-action-btn--share"
+                  disabled={shareBusy}
+                  onClick={async () => {
+                    setShareBusy(true);
+                    await shareMatchCard(main.id);
+                    setShareBusy(false);
+                  }}
+                >
+                  {shareBusy ? 'Generating card…' : '📲 Share to WhatsApp'}
+                </button>
+              )}
             </div>
           </>
         )}
