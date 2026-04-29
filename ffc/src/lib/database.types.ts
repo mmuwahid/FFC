@@ -1832,6 +1832,7 @@ export type Database = {
         Args: { p_reminder_id: string }
         Returns: undefined
       }
+      get_match_card_payload: { Args: { p_match_id: string }; Returns: Json }
       get_ref_matchday: { Args: { p_token: string }; Returns: Json }
       invite_guest: {
         Args: {
@@ -1940,6 +1941,7 @@ export type Database = {
         }[]
       }
       unban_player: { Args: { p_profile_id: string }; Returns: undefined }
+      unlock_roster: { Args: { p_matchday_id: string }; Returns: undefined }
       update_guest_stats: {
         Args: {
           p_accuracy: Database["public"]["Enums"]["guest_trait"]
