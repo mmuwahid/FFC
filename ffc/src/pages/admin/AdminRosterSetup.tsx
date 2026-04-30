@@ -464,7 +464,8 @@ function RosterEditor({
 
     if (md.match_id) {
       // Existing match — replace roster in place
-      // @ts-expect-error -- admin_replace_match_roster added by migration 0048; regen types after db push
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error -- migration 0048 not yet reflected in generated types
       const { error } = await supabase.rpc('admin_replace_match_roster', {
         p_match_id: md.match_id,
         p_white_profile_ids: whiteIds,
