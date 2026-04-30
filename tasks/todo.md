@@ -1,14 +1,15 @@
 # FFC Todo
 
-## NEXT SESSION — S060
+## NEXT SESSION — S061
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: HEAD on `main` is `1dd1f27` (S059 re-log docs commit will follow). 3 new migrations applied in S059 (0061, 0062, 0063) + retroactively recorded 0060 `seasons_games_seeded`. **Live DB now at 63.**
-- **Open GitHub issues: 0.** S059 sweep closed #30 #31 #32 #33 #34 #35 #36 #37 #38 (issue #18 was not open during S059 — note in todo was stale).
-- **Apr 30 follow-up:** user must hit Edit → Save once in AdminRosterSetup so slot_index gets refreshed from current array order (S059 backfill assigned arbitrary slot_index because all 14 rows shared transaction-start created_at). Future matches inherit correct ordering automatically.
+- Expected tip: HEAD on `main` is `fb0b542` (S060 re-log docs commit will follow). 1 new migration applied in S060 (0064 — matches.ref_name + pending_match_entries.ref_name + pending_match_entry_players.is_no_show; submit_ref_entry + approve_match_entry rewritten via CREATE OR REPLACE to carry both through the pipeline). **Live DB now at 64.**
+- **Open GitHub: 1 PR (#39) awaiting atomosh response on the triage comment; 1 issue (#40 player-name standardization, deferred to S061).** Issue #41 closed via S060 commit `b962291` (REF pill + 🩹 bandage). Issue #38 CRITICAL closed via `fb0b542` (topbar HIG fix).
+- **Apr 30 follow-up still pending:** user must hit Edit → Save once in AdminRosterSetup so slot_index gets refreshed from current array order (S059 backfill assigned arbitrary slot_index because all 14 rows shared transaction-start created_at). Future matches inherit correct ordering automatically.
+- **Mockup rule sharpened in S060** — for screens that already exist live, `grep -rn "\.<root-class>" ffc/src/styles/ ffc/src/index.css` FIRST and copy the matching rule set verbatim into the mockup `<style>`. New CSS only for actual diffs. See lessons.md Critical Rule #6 + S060 patterns + auto-memory `feedback_mockup_no_redesign.md`.
 
-**S060 agenda — Phase 3 payment tracker verified shipped, moved to live-verification:**
+**S061 agenda — Issue #40 + #38 HIGH + carryover live-verification:**
 
 1. ~~**Phase 3 payment tracker** (V3.0:147)~~ — **VERIFIED SHIPPED in S060** (skeleton state). Inventory found backend complete in S056 mig 0055 (10 RPCs + 2 triggers + realtime publication) and frontend complete in S056+S058 (`Payments.tsx`, `PaymentLedgerSheet.tsx`, CSS restored verbatim). All 5 overview sections + 4 ledger sections from spec §8 implemented and live-verified at `/payments`: header / season pill / summary strip / banner-hidden / empty-state / RPC `get_season_payment_summary` returns 200. Empty because the only approved Season 11 match (Game 31) was approved before mig 0055 — `on_match_approved_trigger` only fires on `NULL→NOT NULL` transitions; spec §11 explicitly accepts this as a non-goal. Mockup-first rule did not apply (skeleton was pre-existing; spec was the design doc). Full pipeline (banner / cards / ledger / mark-paid / close-window / override) requires next match approval to verify — moved to live-verification block #6 below.
 
@@ -58,6 +59,27 @@
 - **Resend custom sender domain** — verify a domain in Resend, set `NOTIFY_FROM` env on `notify-signup-outcome` EF.
 - **Phase 3 backlog (post-S059):** ~~payment tracker~~ (S060 active) · multi-season comparison stats · player analytics · H2H comparison · player badges / achievements · injury / unavailable list. Mockups in `mockups/` first per Rule #1.
 - **Player analytics + H2H** (V3.0:145–146) — first attempt rejected in S053; re-attempt with different style direction if user wants.
+
+## Completed in S060 (30/APR/2026, Work PC)
+
+**2 implementation commits (`b962291` + `fb0b542`) + 1 docs commit. 1 migration applied (0064). Live DB: 63 → 64.**
+
+- [x] **Phase 3 payment tracker (V3.0:147)** — verified shipped (skeleton state) at `/payments`. Backend complete since S056 mig 0055 (10 RPCs + 2 triggers + realtime publication); frontend complete since S056+S058 (Payments.tsx 264L + PaymentLedgerSheet.tsx 269L + CSS restored verbatim). DOM-eval at dev preview confirmed: header / season pill / 3-box summary strip / banner-hidden / `No matches played this season yet.` empty state. RPC `get_season_payment_summary` POST → 200. Empty because Game 31 was approved before mig 0055; spec §11 explicitly accepts no historic backfill. Full pipeline live-verification deferred to Thursday matchday.
+- [x] **PR #39 triage** — atomosh `feature/fix-login` was 69 commits behind main, mergeStateStatus DIRTY. Net diff −19,315/+1,639 would have erased S053–S059 (16 migrations + Awards.tsx + Payments.tsx + PaymentLedgerSheet.tsx + shareMatchCard.ts + render-match-card EF + 7 plan/spec docs). Root cause: PR #9 squash-merged 29/APR 11:22Z; atomosh kept pushing to same branch from old base `d8c8938`; six PRs landed on main during next 36h, branch never pulled any. Posted comprehensive triage comment at PR #39 with impact tables, commit-by-commit timeline, and 9 workflow rules (never reuse branch after squash-merge / sync daily / delete merged branches / trust mergeStateStatus / etc). Decision: don't merge; awaiting atomosh response.
+- [x] **Slop-mockup correction cycle (#41)** — first mockup invented a fresh match-card design instead of using live `matches.css` ruleset. User rejected hard. Located canonical CSS at `ffc/src/styles/matches.css` (separate from `index.css` — cross-file rule sets are a recurring trap). Rebuilt with live CSS copied verbatim + only new classes added. Approved.
+- [x] **Lesson captured 3 places** — sharpened lessons.md Critical Rule #6 from "Match existing app styling" to "Mockup matches live state verbatim, additions only" with explicit `grep -rn` instruction; added S060 patterns section (verbatim-mockup, screenshots-as-ground-truth, inline-SVG-for-emoji); created auto-memory `feedback_mockup_no_redesign.md` + index pointer.
+- [x] **Issue #41 `b962291`** — Migration 0064 adds `matches.ref_name TEXT NULL` + `pending_match_entries.ref_name TEXT NULL` + `pending_match_entry_players.is_no_show BOOL NOT NULL DEFAULT false`; `submit_ref_entry` reads ref_name + is_no_show from payload; `approve_match_entry` carries both through to live tables. Frontend: `useMatchSession.ts` extended (refName + injuredIds Set + toggleInjured + persisted state forward-compat hydration); RefEntry pre-match required ref-name input gated ≥2 chars; RefEntry review new "🩹 Injured Players" section per team with toggle button; SubmitPlayer + SubmitPayload + buildSubmitPayload extended; Matches.tsx ref_name in query + gold REF pill in banner middle + 🤕 → 🩹 swap in ParticipantBadge. CSS: `.mt-card-ref-pill` + `.mt-stat-icon--injury` in matches.css; full ref-name + injuries section CSS in ref-entry.css. `tsc -b` EXIT 0; mockup `mockups/match-card-fifa.html` shipped as part of commit. **Live verification** owed Thursday matchday (admin/auth-gated paths).
+- [x] **Issue #38 CRITICAL `fb0b542`** — `.app-topbar-bell` + `.app-topbar-avatar` 36×36 → 44×44 per Apple HIG; bell font-size 18→20; avatar initials 13→15; avatar radius 12→14. Single CSS file commit. Verified live via `preview_inspect` (both at 44×44).
+
+### S060 patterns / lessons (additive)
+
+- **Verbatim live-CSS copy + diff-only additions for mockups of existing/approved screens.** First #41 mockup invented a fresh design (gold WINNER text, gold-bordered VS pill, uniform splitc halves) instead of locating `ffc/src/styles/matches.css`. User rejected immediately. Right rule: `grep -rn "\.<root-class>" ffc/src/styles/ ffc/src/index.css` first; cross-file rule sets are common (e.g. `.mt-screen` in index.css, `.mt-card`/`.splitc-*` in matches.css — checking only one CSS file misses half).
+- **Stylized-object emoji renders inconsistently across platforms.** `⚽` U+26BD is blue/white on Windows Segoe UI Emoji but black/white on iOS/Android. CSS-emoji is reliable for symbol shapes (🟨🟥), unreliable for stylized objects (⚽🏆). Inline SVG via `<symbol id>` + `<use href>` is the reliable cross-platform path.
+- **User-attached screenshots are ground truth, not the codebase reading.** When user pastes a screenshot of the live app + says "follow this exactly", that screenshot is the spec. Verify mockup matches it element-by-element (background asymmetry, exact pill colours, label positions, ribbon styling) before claiming completion.
+- **Squash-merge + branch reuse is a high-cost anti-pattern.** PR #9 squash-merged → atomosh's local `feature/fix-login` orphaned but reused for new work → 36h later branch is unmergeable. Workflow rules now codified in PR #39 comment + lessons.md.
+- **Migration + CREATE OR REPLACE pair shipped in single .sql file** (mig 0064 alters tables + rewrites both `submit_ref_entry` and `approve_match_entry`) keeps the schema/DML/DDL change atomic; rollback is one file; reviewer sees the full data-flow path in one place.
+- **`Set<string>` in React state for selection toggles + persist as `Array.from(set)` in localStorage** — cleaner than per-item booleans, JSON-serializable on hydrate, supports `O(1)` `.has()` checks in render path.
+- **PR triage as a public comment with workflow rules** rather than a quiet close — the lesson lives where future PRs in the same shape will be referenced from, and the contributor sees concrete rules instead of just a rejection.
 
 ## Completed in S059 (30/APR/2026, Work PC)
 
