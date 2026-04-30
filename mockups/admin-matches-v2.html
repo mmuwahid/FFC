@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Admin Matches v2 — issue #21 mockup (S058)</title>
+<style>
+  /* Brand tokens — dark default, mirrors live `.admin-matches` scope. */
+  :root {
+    --bg: #0e1826;
+    --surface: #182437;
+    --surface-2: #223251;
+    --border: rgba(242, 234, 214, 0.14);
+    --border-strong: rgba(242, 234, 214, 0.22);
+    --text: #f2ead6;
+    --text-muted: rgba(242, 234, 214, 0.62);
+    --accent: #e5ba5b;
+    --gold: #e5ba5b;
+    --success: #4fbf93;
+    --warn: #d7a04a;
+    --danger: #e63349;
+    --pos-gk:  #7fc9ff;
+    --pos-def: #b4a7ff;
+    --pos-cdm: #4fbf93;
+    --pos-w:   #f6a052;
+    --pos-st:  #e87daf;
+    --safe-top:    59px;
+    --safe-bottom: 34px;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; font-family: "Inter", system-ui, sans-serif; }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #1a2540 0%, #0e1826 60%, #060a14 100%);
+    color: var(--text);
+    padding: 2rem 1rem 4rem;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(380px, 1fr));
+    gap: 2rem;
+    max-width: 880px;
+    margin: 0 auto;
+  }
+  .tile { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .tile-label {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent);
+  }
+
+  /* iPhone 15 Pro frame — 393×852 with notched bezel */
+  .phone {
+    width: 393px;
+    height: 750px;
+    background: #000;
+    border: 8px solid #15151a;
+    border-radius: 44px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+  }
+  .phone-inner {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .statusbar {
+    height: var(--safe-top);
+    flex-shrink: 0;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    padding: 0 22px 8px;
+    font-size: 13px; font-weight: 600; color: var(--text);
+    background: var(--bg);
+    position: relative;
+  }
+  .statusbar::before {
+    /* Dynamic island */
+    content: "";
+    position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+    width: 110px; height: 35px; border-radius: 18px;
+    background: #000;
+  }
+  .statusbar-time { width: 80px; }
+  .statusbar-icons { width: 80px; text-align: right; opacity: 0.85; }
+
+  /* ─── AdminMatches list view ─────────────────────────────── */
+  .am-screen { padding: 4px 16px 96px; flex: 1; }
+  .am-back {
+    background: none; border: none; padding: 6px 4px;
+    color: rgba(233, 236, 243, 0.82);
+    font-size: 15px; cursor: pointer;
+    margin: 0 0 4px 0; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .am-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 0 12px;
+  }
+  .am-head h1 {
+    margin: 0; font-family: "Fraunces", Georgia, serif;
+    font-size: 22px; font-weight: 700; letter-spacing: -0.01em;
+  }
+  .am-create-btn {
+    background: var(--success); color: #0a1628;
+    border: none; border-radius: 999px;
+    padding: 8px 14px; font-size: 13px; font-weight: 700;
+    cursor: pointer; min-height: 36px;
+  }
+  .am-segments {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 6px; padding: 4px 0 14px;
+  }
+  .am-seg-btn {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 8px 4px; font-size: 12px; font-weight: 700;
+    border-radius: 10px; cursor: pointer;
+  }
+  .am-seg-btn--active {
+    background: var(--accent); color: #0a1628; border-color: var(--accent);
+  }
+
+  .am-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .am-card-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .am-card-date {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+    color: var(--text);
+  }
+  .am-card-day {
+    font-size: 9px; font-weight: 800; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--text-muted);
+    margin-bottom: 2px;
+  }
+  .am-card-phase {
+    background: var(--success-tint, rgba(79,191,147,0.16));
+    color: var(--success);
+    font-size: 10px; font-weight: 800; letter-spacing: 0.12em;
+    padding: 4px 8px; border-radius: 5px;
+    text-transform: uppercase;
+    border: 1px solid rgba(79,191,147,0.28);
+  }
+  .am-card-score {
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; padding: 10px 0; border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border); margin-bottom: 12px;
+  }
+  .am-team-pill {
+    font-size: 9px; font-weight: 800; letter-spacing: 0.12em;
+    padding: 3px 7px; border-radius: 5px;
+  }
+  .am-team-w { background: #e7ddc1; color: #0a1628; }
+  .am-team-b { background: #060d18; color: var(--text); border: 1px solid #2a3a4f; }
+  .am-score-num {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-weight: 800; font-size: 18px;
+  }
+  .am-score-dash { color: var(--text-muted); font-weight: 400; }
+
+  /* NEW: 2x2 button grid for admin actions on past approved cards */
+  .am-actions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .am-action {
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text); cursor: pointer;
+    padding: 10px 8px; border-radius: 10px;
+    font-size: 12px; font-weight: 700;
+    min-height: 40px;
+  }
+  .am-action:hover { background: var(--surface); border-color: var(--border-strong); }
+  .am-action--danger { color: var(--danger); border-color: rgba(230,51,73,0.25); }
+  .am-action--danger:hover { background: rgba(230,51,73,0.08); }
+  .am-action-ico { font-size: 14px; }
+
+  /* ─── Sheet primitives (shared by all 3 sheets) ───────────────── */
+  .sheet-scrim {
+    position: absolute; inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex; align-items: flex-end;
+    z-index: 10;
+  }
+  .sheet {
+    width: 100%;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    border-radius: 18px 18px 0 0;
+    max-height: 88%;
+    display: flex; flex-direction: column;
+    padding-bottom: var(--safe-bottom);
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+  }
+  .sheet-grabber {
+    width: 36px; height: 4px;
+    background: rgba(255,255,255,0.16);
+    border-radius: 2px;
+    margin: 10px auto;
+    flex-shrink: 0;
+  }
+  .sheet-head {
+    padding: 4px 18px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sheet-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 17px; font-weight: 700; margin: 0;
+  }
+  .sheet-close {
+    background: rgba(255,255,255,0.06); border: none;
+    width: 28px; height: 28px; border-radius: 50%;
+    color: var(--text-muted); cursor: pointer;
+    font-size: 14px; line-height: 1;
+  }
+  .sheet-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
+  .sheet-actions {
+    display: flex; gap: 8px; padding: 12px 18px;
+    border-top: 1px solid var(--border); flex-shrink: 0;
+  }
+  .sheet-btn {
+    flex: 1; padding: 12px; border-radius: 10px;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    border: none;
+    min-height: 44px;
+  }
+  .sheet-btn--primary {
+    background: var(--success); color: #0a1628;
+  }
+  .sheet-btn--cancel {
+    background: rgba(255,255,255,0.06); color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .sheet-btn--danger {
+    background: var(--danger); color: #fff;
+  }
+
+  /* ─── Scorer picker sheet ─────────────────────────────────── */
+  .sp-search {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 11px 14px; border-radius: 10px;
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  .sp-search::placeholder { color: var(--text-muted); }
+  .sp-team-tabs {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 6px; margin-bottom: 12px;
+  }
+  .sp-team-tab {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 8px; font-size: 12px; font-weight: 700;
+    border-radius: 8px; cursor: pointer;
+    letter-spacing: 0.08em;
+  }
+  .sp-team-tab--active.sp-team-tab--white {
+    background: #e7ddc1; color: #0a1628; border-color: #e7ddc1;
+  }
+  .sp-team-tab--active.sp-team-tab--black {
+    background: #060d18; color: var(--text); border-color: #2a3a4f;
+  }
+  .sp-list {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .sp-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 10px;
+    cursor: pointer;
+  }
+  .sp-row:hover { background: var(--surface-2); }
+  .sp-row-name { flex: 1; font-size: 14px; font-weight: 600; }
+  .sp-row-pos {
+    font-size: 9px; font-weight: 800; letter-spacing: 0.12em;
+    padding: 2px 6px; border-radius: 4px;
+    background: rgba(229,186,91,0.16); color: var(--accent);
+  }
+  .sp-row-pos--gk  { background: rgba(127,201,255,0.14); color: var(--pos-gk); }
+  .sp-row-pos--def { background: rgba(180,167,255,0.14); color: var(--pos-def); }
+  .sp-row-pos--cdm { background: rgba(79,191,147,0.14); color: var(--pos-cdm); }
+  .sp-row-pos--w   { background: rgba(246,160,82,0.14);  color: var(--pos-w); }
+  .sp-row-pos--st  { background: rgba(232,125,175,0.14); color: var(--pos-st); }
+  .sp-row-check {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 1.5px solid var(--text-muted);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800;
+    transition: background 0.12s;
+  }
+  .sp-row--selected .sp-row-check {
+    background: var(--success); border-color: var(--success);
+    color: #0a1628;
+  }
+  /* Tap-to-increment: click row to bump goals; long-press to clear. */
+  .sp-row-clear {
+    background: rgba(230, 51, 73, 0.1);
+    border: 1px solid rgba(230, 51, 73, 0.28);
+    color: var(--danger);
+    width: 26px; height: 26px; border-radius: 50%;
+    cursor: pointer; font-size: 12px; line-height: 1;
+    margin-left: 4px;
+  }
+  .sp-summary {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px;
+    margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px;
+  }
+  .sp-summary-label {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--text-muted);
+  }
+  .sp-summary-total {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 16px; font-weight: 800; color: var(--accent);
+  }
+  .sp-summary-mismatch {
+    color: var(--danger);
+    font-size: 11px; font-weight: 600;
+    margin-top: 4px;
+  }
+  .sp-hint {
+    font-size: 11px; color: var(--text-muted);
+    margin: 4px 0 8px;
+    line-height: 1.4;
+  }
+
+  /* ─── Delete match sheet ──────────────────────────────────── */
+  .dm-warning {
+    background: rgba(230,51,73,0.08);
+    border: 1px solid rgba(230,51,73,0.25);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+  .dm-warning-title {
+    color: var(--danger); font-weight: 700; font-size: 14px;
+    margin-bottom: 4px;
+  }
+  .dm-warning-body {
+    font-size: 12px; line-height: 1.5; color: var(--text-muted);
+  }
+  .dm-summary {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;
+  }
+  .dm-summary-row {
+    display: flex; justify-content: space-between;
+    font-size: 13px; padding: 4px 0;
+  }
+  .dm-summary-row + .dm-summary-row { border-top: 1px solid var(--border); }
+  .dm-summary-label { color: var(--text-muted); }
+  .dm-summary-value { font-weight: 600; }
+  .dm-confirm-label {
+    font-size: 13px; color: var(--text-muted);
+    margin: 6px 0 8px;
+  }
+  .dm-confirm-input {
+    width: 100%;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text);
+    padding: 11px 14px; border-radius: 10px;
+    font-size: 14px; letter-spacing: 0.12em;
+  }
+
+  /* ─── Edit roster sheet ────────────────────────────────────── */
+  .er-team-section + .er-team-section { margin-top: 18px; }
+  .er-team-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .er-team-label {
+    font-size: 11px; font-weight: 800; letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .er-team-count {
+    font-size: 11px; font-weight: 700; color: var(--text-muted);
+  }
+  .er-team-count--full { color: var(--success); }
+  .er-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 10px 12px; border-radius: 10px;
+    margin-bottom: 6px;
+  }
+  .er-row-name { flex: 1; font-size: 13px; font-weight: 600; }
+  .er-row-cap {
+    background: var(--accent); color: #0a1628;
+    font-size: 9px; font-weight: 800; padding: 2px 6px;
+    border-radius: 4px; letter-spacing: 0.04em;
+  }
+  .er-row-rm {
+    background: rgba(230,51,73,0.1); border: 1px solid rgba(230,51,73,0.3);
+    color: var(--danger); width: 28px; height: 28px;
+    border-radius: 50%; cursor: pointer; font-size: 14px;
+    line-height: 1;
+  }
+  .er-add-btn {
+    width: 100%;
+    background: rgba(229,186,91,0.08);
+    border: 1.5px dashed rgba(229,186,91,0.28);
+    color: var(--accent);
+    padding: 11px; border-radius: 10px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    margin-top: 6px;
+  }
+
+  /* ─── Caption box below each phone ────────────────────────── */
+  .caption {
+    max-width: 380px;
+    font-size: 13px; line-height: 1.55;
+    color: rgba(242, 234, 214, 0.72);
+    text-align: left;
+  }
+  .caption strong { color: var(--accent); font-weight: 700; }
+  .caption code { font-size: 11px; background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: 3px; }
+
+  h1.page-title {
+    text-align: center; max-width: 880px; margin: 0 auto 2rem;
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 28px; color: var(--text); font-weight: 700;
+  }
+  .page-sub {
+    text-align: center; max-width: 760px; margin: -1.5rem auto 2.5rem;
+    font-size: 14px; color: rgba(242, 234, 214, 0.65);
+  }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Admin Matches v2 — issue #21</h1>
+<p class="page-sub">
+  4-button action grid on past approved match cards · search-filtered Scorer Picker · type-DELETE confirm · post-match Edit Roster.
+  Mockup-first per CLAUDE.md rule #1.
+</p>
+
+<div class="grid">
+
+  <!-- ============================================================== -->
+  <!-- TILE 1: Past matchday card with new 2×2 action grid             -->
+  <!-- ============================================================== -->
+  <div class="tile">
+    <span class="tile-label">A · Past matchday card</span>
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="statusbar">
+          <span class="statusbar-time">9:41</span>
+          <span class="statusbar-icons">●●●● ▮</span>
+        </div>
+        <div class="am-screen">
+          <button class="am-back" type="button">‹ Back</button>
+          <div class="am-head">
+            <h1>Admin · Matches</h1>
+            <button class="am-create-btn" type="button">+ Create matchday</button>
+          </div>
+          <div class="am-segments">
+            <button class="am-seg-btn" type="button">This week</button>
+            <button class="am-seg-btn" type="button">Upcoming</button>
+            <button class="am-seg-btn am-seg-btn--active" type="button">Past</button>
+          </div>
+
+          <div class="am-card">
+            <div class="am-card-head">
+              <div>
+                <div class="am-card-day">THU · 30/APR/2026</div>
+                <div class="am-card-date">8:15 PM · MIRDIF SC</div>
+              </div>
+              <span class="am-card-phase">APPROVED</span>
+            </div>
+            <div class="am-card-score">
+              <span class="am-team-pill am-team-w">WHITE</span>
+              <span class="am-score-num">3</span>
+              <span class="am-score-dash">–</span>
+              <span class="am-score-num">2</span>
+              <span class="am-team-pill am-team-b">BLACK</span>
+            </div>
+
+            <!-- NEW: 2x2 admin action grid (S058 issue #21) -->
+            <div class="am-actions-grid">
+              <button class="am-action" type="button">
+                <span class="am-action-ico">👥</span> Edit roster
+              </button>
+              <button class="am-action" type="button">
+                <span class="am-action-ico">⚽</span> Edit result
+              </button>
+              <button class="am-action" type="button">
+                <span class="am-action-ico">🧩</span> Edit formation
+              </button>
+              <button class="am-action am-action--danger" type="button">
+                <span class="am-action-ico">🗑</span> Delete match
+              </button>
+            </div>
+          </div>
+
+          <div class="am-card" style="opacity: 0.55;">
+            <div class="am-card-head">
+              <div>
+                <div class="am-card-day">THU · 23/APR/2026</div>
+                <div class="am-card-date">8:15 PM · MIRDIF SC</div>
+              </div>
+              <span class="am-card-phase">APPROVED</span>
+            </div>
+            <div class="am-card-score">
+              <span class="am-team-pill am-team-w">WHITE</span>
+              <span class="am-score-num">1</span>
+              <span class="am-score-dash">–</span>
+              <span class="am-score-num">1</span>
+              <span class="am-team-pill am-team-b">BLACK</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      4 admin actions in a 2×2 grid below the score:
+      <strong>Edit roster</strong> (post-match changes — adds/removes players who weren't there),
+      <strong>Edit result</strong> (existing flow — score, MOTM, per-player stats),
+      <strong>Edit formation</strong> (deeplinks to <code>/match/:id/formation</code>),
+      <strong>Delete match</strong> (red, type-DELETE confirm sheet).
+      Other past cards stay collapsed (only the most recent one shows actions by default — tap to expand).
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- TILE 2: Scorer picker sheet — search bar + segmented teams      -->
+  <!-- ============================================================== -->
+  <div class="tile">
+    <span class="tile-label">B · Scorer picker (search)</span>
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="statusbar">
+          <span class="statusbar-time">9:41</span>
+          <span class="statusbar-icons">●●●● ▮</span>
+        </div>
+        <div class="am-screen" style="filter: blur(0.6px); opacity: 0.6;">
+          <button class="am-back" type="button">‹ Back</button>
+          <div class="am-head">
+            <h1>Admin · Matches</h1>
+          </div>
+        </div>
+        <div class="sheet-scrim">
+          <div class="sheet">
+            <div class="sheet-grabber"></div>
+            <div class="sheet-head">
+              <h3 class="sheet-title">Pick scorer</h3>
+              <button class="sheet-close" type="button">✕</button>
+            </div>
+            <div class="sheet-body">
+              <div class="sp-summary">
+                <div>
+                  <div class="sp-summary-label">⚪ WHITE TEAM TOTAL</div>
+                  <div style="margin-top: 2px;">Tap a player to add a goal · tap again to increment</div>
+                </div>
+                <div class="sp-summary-total">3</div>
+              </div>
+              <input class="sp-search" placeholder="Search player name…" value="" />
+              <div class="sp-team-tabs">
+                <button class="sp-team-tab sp-team-tab--white sp-team-tab--active" type="button">⚪ WHITE</button>
+                <button class="sp-team-tab sp-team-tab--black" type="button">BLACK ⚫</button>
+              </div>
+              <div class="sp-list">
+                <div class="sp-row sp-row--selected">
+                  <span class="sp-row-name">Mohammed Muwahid</span>
+                  <span class="sp-row-pos sp-row-pos--st">ST</span>
+                  <span class="sp-row-check">×2</span>
+                  <button class="sp-row-clear" type="button" aria-label="Clear">×</button>
+                </div>
+                <div class="sp-row sp-row--selected">
+                  <span class="sp-row-name">Ali Khan</span>
+                  <span class="sp-row-pos sp-row-pos--w">W</span>
+                  <span class="sp-row-check">×1</span>
+                  <button class="sp-row-clear" type="button" aria-label="Clear">×</button>
+                </div>
+                <div class="sp-row">
+                  <span class="sp-row-name">Sami Hassan</span>
+                  <span class="sp-row-pos sp-row-pos--cdm">CDM</span>
+                  <span class="sp-row-check"></span>
+                </div>
+                <div class="sp-row">
+                  <span class="sp-row-name">Mohamad Khaled</span>
+                  <span class="sp-row-pos sp-row-pos--def">DEF</span>
+                  <span class="sp-row-check"></span>
+                </div>
+              </div>
+            </div>
+            <div class="sheet-actions">
+              <button class="sheet-btn sheet-btn--cancel" type="button">Cancel</button>
+              <button class="sheet-btn sheet-btn--primary" type="button">Confirm · 3 goals</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      Replaces the current native <code>&lt;select&gt;</code> in the result entry flow.
+      <strong>Tap-to-increment:</strong> tap a player row once = 1 goal, tap again = 2, again = 3. The check turns into a <code>×N</code> badge once count > 1. Red <code>×</code> button clears the count.
+      <strong>Total counter</strong> at top tracks running goals; the Confirm button shows the team total. If team score is 3 but admin's tally is 2, header shows a "<span style="color: var(--danger);">+1 missing</span>" hint until they reconcile.
+      <strong>Search bar</strong> filters live; <strong>WHITE/BLACK</strong> tabs scope the list to the team that scored. Position pills colour-coded (S056 #17). Confirm commits all selected scorers in one go.
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- TILE 3: Delete match sheet — type-DELETE confirm                 -->
+  <!-- ============================================================== -->
+  <div class="tile">
+    <span class="tile-label">C · Delete match (type-DELETE)</span>
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="statusbar">
+          <span class="statusbar-time">9:41</span>
+          <span class="statusbar-icons">●●●● ▮</span>
+        </div>
+        <div class="am-screen" style="filter: blur(0.6px); opacity: 0.6;">
+          <button class="am-back" type="button">‹ Back</button>
+          <div class="am-head">
+            <h1>Admin · Matches</h1>
+          </div>
+        </div>
+        <div class="sheet-scrim">
+          <div class="sheet">
+            <div class="sheet-grabber"></div>
+            <div class="sheet-head">
+              <h3 class="sheet-title">Delete match</h3>
+              <button class="sheet-close" type="button">✕</button>
+            </div>
+            <div class="sheet-body">
+              <div class="dm-warning">
+                <div class="dm-warning-title">⚠ This cannot be undone</div>
+                <div class="dm-warning-body">
+                  All player stats, goals, cards, MOTM, formation and the scoreline for this matchday will be permanently removed from the leaderboard. The matchday entry itself will stay (it's a different concept).
+                </div>
+              </div>
+              <div class="dm-summary">
+                <div class="dm-summary-row">
+                  <span class="dm-summary-label">Matchday</span>
+                  <span class="dm-summary-value">THU · 30/APR/2026</span>
+                </div>
+                <div class="dm-summary-row">
+                  <span class="dm-summary-label">Result</span>
+                  <span class="dm-summary-value">WHITE 3 – 2 BLACK</span>
+                </div>
+                <div class="dm-summary-row">
+                  <span class="dm-summary-label">Players affected</span>
+                  <span class="dm-summary-value">14</span>
+                </div>
+              </div>
+              <p class="dm-confirm-label">Type <strong>DELETE</strong> to confirm:</p>
+              <input class="dm-confirm-input" value="DELETE" />
+            </div>
+            <div class="sheet-actions">
+              <button class="sheet-btn sheet-btn--cancel" type="button">Cancel</button>
+              <button class="sheet-btn sheet-btn--danger" type="button">🗑 Delete match</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      Mirrors the type-DELETE confirm pattern from <strong>Settings → Delete account</strong>.
+      Calls a new <code>admin_delete_match(p_match_id)</code> RPC — SECURITY DEFINER, <code>is_admin()</code> guard, audit BEFORE delete.
+      Cascades to <code>match_players</code>, <code>match_events</code>, <code>formations</code>, <code>pending_match_entries</code>.
+      The <code>matchdays</code> row stays — admin can attempt the result again from the same matchday.
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- TILE 4: Edit roster post-match sheet                             -->
+  <!-- ============================================================== -->
+  <div class="tile">
+    <span class="tile-label">D · Edit roster (post-match)</span>
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="statusbar">
+          <span class="statusbar-time">9:41</span>
+          <span class="statusbar-icons">●●●● ▮</span>
+        </div>
+        <div class="am-screen" style="filter: blur(0.6px); opacity: 0.6;">
+          <button class="am-back" type="button">‹ Back</button>
+          <div class="am-head">
+            <h1>Admin · Matches</h1>
+          </div>
+        </div>
+        <div class="sheet-scrim">
+          <div class="sheet" style="max-height: 92%;">
+            <div class="sheet-grabber"></div>
+            <div class="sheet-head">
+              <h3 class="sheet-title">Edit roster · 30/APR</h3>
+              <button class="sheet-close" type="button">✕</button>
+            </div>
+            <div class="sheet-body">
+              <section class="er-team-section">
+                <div class="er-team-head">
+                  <span class="er-team-label" style="color: #0a1628; background: #e7ddc1; padding: 3px 8px; border-radius: 4px;">⚪ WHITE</span>
+                  <span class="er-team-count er-team-count--full">7 / 7</span>
+                </div>
+                <div class="er-row">
+                  <span class="er-row-name">Mohammed Muwahid</span>
+                  <span class="er-row-cap">C</span>
+                  <button class="er-row-rm" type="button">×</button>
+                </div>
+                <div class="er-row">
+                  <span class="er-row-name">Ali Khan</span>
+                  <button class="er-row-rm" type="button">×</button>
+                </div>
+                <div class="er-row">
+                  <span class="er-row-name">Sami Hassan</span>
+                  <button class="er-row-rm" type="button">×</button>
+                </div>
+                <div class="er-row" style="opacity: 0.7;">
+                  <span class="er-row-name">… 4 more</span>
+                </div>
+              </section>
+
+              <section class="er-team-section">
+                <div class="er-team-head">
+                  <span class="er-team-label" style="color: var(--text); background: #060d18; padding: 3px 8px; border-radius: 4px; border: 1px solid #2a3a4f;">BLACK ⚫</span>
+                  <span class="er-team-count">6 / 7</span>
+                </div>
+                <div class="er-row">
+                  <span class="er-row-name">Mohammed Atomo</span>
+                  <span class="er-row-cap">C</span>
+                  <button class="er-row-rm" type="button">×</button>
+                </div>
+                <div class="er-row" style="opacity: 0.7;">
+                  <span class="er-row-name">… 5 more</span>
+                </div>
+                <button class="er-add-btn" type="button">+ Add player to BLACK</button>
+              </section>
+            </div>
+            <div class="sheet-actions">
+              <button class="sheet-btn sheet-btn--cancel" type="button">Cancel</button>
+              <button class="sheet-btn sheet-btn--primary" type="button">Save roster</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      Post-match roster edit (NOT pre-game — that's <code>/admin/roster-setup</code>).
+      Use case: "we forgot to mark Sami as having played." Admin opens this sheet, taps + Add player on the team they joined, picks from a search list (re-uses scorer-picker shape), saves.
+      Calls new <code>admin_edit_match_roster(p_match_id, p_players jsonb)</code> RPC — replaces match_players for the match with validation (roster_cap × 2: 14 for 7v7, 10 for 5v5).
+      Per-row × removes immediately; full team count chips up top show 7/7 vs 6/7 fill state.
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

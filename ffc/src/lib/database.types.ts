@@ -1857,6 +1857,7 @@ export type Database = {
         Returns: undefined
       }
       admin_cancel_guest: { Args: { p_guest_id: string }; Returns: undefined }
+      admin_delete_match: { Args: { p_match_id: string }; Returns: undefined }
       admin_delete_player: {
         Args: { p_profile_id: string }
         Returns: undefined
@@ -1871,6 +1872,10 @@ export type Database = {
       }
       admin_drop_pending_match_event: {
         Args: { p_event_id: string }
+        Returns: undefined
+      }
+      admin_edit_match_roster: {
+        Args: { p_match_id: string; p_players: Json }
         Returns: undefined
       }
       admin_submit_match_result: {

@@ -72,6 +72,9 @@ type Sheet =
   | { kind: 'dismiss_friendly'; md: MatchdayWithMatch }
   | { kind: 'draft_force_complete'; md: MatchdayWithMatch }
   | { kind: 'draft_abandon'; md: MatchdayWithMatch }
+  // S058 issue #21
+  | { kind: 'delete_match'; md: MatchdayWithMatch; match: MatchRow }
+  | { kind: 'edit_roster_post'; md: MatchdayWithMatch; match: MatchRow }
   | null
 
 // ─── Helpers ───────────────────────────────────────────────────
@@ -378,6 +381,8 @@ export function AdminMatches() {
               onMintRefLink={() => { void handleMintRefLink(md) }}
               mintBusy={mintBusy === md.id}
               onReviewPending={() => md.pendingEntryId && navigate(`/admin/match-entries/${md.pendingEntryId}`)}
+              onEditRoster={() => md.match && setSheet({ kind: 'edit_roster_post', md, match: md.match })}
+              onDeleteMatch={() => md.match && setSheet({ kind: 'delete_match', md, match: md.match })}
             />
           ))}
         </ul>
@@ -536,6 +541,28 @@ export function AdminMatches() {
                 onCancel={() => !sheetBusy && setSheet(null)}
               />
             )}
+            {sheet.kind === 'delete_match' && (
+              <DeleteMatchSheet
+                md={sheet.md}
+                match={sheet.match}
+                busy={sheetBusy}
+                setBusy={setSheetBusy}
+                onDone={async () => { setSheet(null); setToast('Match deleted'); await loadAll() }}
+                onError={setError}
+                onCancel={() => !sheetBusy && setSheet(null)}
+              />
+            )}
+            {sheet.kind === 'edit_roster_post' && (
+              <EditRosterPostSheet
+                md={sheet.md}
+                match={sheet.match}
+                busy={sheetBusy}
+                setBusy={setSheetBusy}
+                onDone={async () => { setSheet(null); setToast('Roster updated'); await loadAll() }}
+                onError={setError}
+                onCancel={() => !sheetBusy && setSheet(null)}
+              />
+            )}
           </div>
         </div>
       )}
@@ -558,7 +585,7 @@ export function AdminMatches() {
 // ─── Matchday card ─────────────────────────────────────────────
 
 function MatchdayCard({
-  md, onEdit, onLock, onUnlock, onEnterResult, onEditResult, onDraftForceComplete, onDraftAbandon, onFormation, onPickCaptains, onMintRefLink, mintBusy, onReviewPending,
+  md, onEdit, onLock, onUnlock, onEnterResult, onEditResult, onDraftForceComplete, onDraftAbandon, onFormation, onPickCaptains, onMintRefLink, mintBusy, onReviewPending, onEditRoster, onDeleteMatch,
 }: {
   md: MatchdayWithMatch
   onEdit: () => void
@@ -573,6 +600,8 @@ function MatchdayCard({
   onMintRefLink: () => void
   mintBusy: boolean
   onReviewPending: () => void
+  onEditRoster: () => void
+  onDeleteMatch: () => void
 }) {
   const phase = phaseLabel(md)
   const hasResult = !!md.match
@@ -670,6 +699,18 @@ function MatchdayCard({
           <button type="button" className="auth-btn auth-btn--sheet-cancel admin-md-btn" onClick={onPickCaptains}>
             👔 Pick captains
           </button>
+        )}
+        {/* S058 issue #21 — admin match management on approved matches.
+         * Edit roster (post-match) + Delete match (red, type-DELETE confirm). */}
+        {approved && md.match && (
+          <>
+            <button type="button" className="auth-btn auth-btn--sheet-cancel admin-md-btn" onClick={onEditRoster}>
+              👥 Edit roster
+            </button>
+            <button type="button" className="auth-btn auth-btn--reject-filled admin-md-btn" onClick={onDeleteMatch}>
+              🗑 Delete match
+            </button>
+          </>
         )}
       </div>
 
@@ -1108,6 +1149,8 @@ function ResultEntrySheet({
   const [availablePlayers, setAvailablePlayers] = useState<ProfileLite[]>([])
   const [showPicker, setShowPicker] = useState(false)
   const [pickerTeam, setPickerTeam] = useState<TeamColor>('white')
+  // S058 issue #21 — search filter on the roster-add picker.
+  const [pickerSearch, setPickerSearch] = useState('')
 
   useEffect(() => {
     supabase
@@ -1214,19 +1257,37 @@ function ResultEntrySheet({
           </div>
         </div>
 
-        {showPicker && (
-          <div className="admin-picker">
-            {availablePlayers.filter((p) => !usedIds.has(p.id)).map((p) => (
-              <button key={p.id} type="button" className="admin-picker-row" onClick={() => addRow(p, pickerTeam)}>
-                <span>{p.display_name}</span>
-                {p.primary_position && <span className="ap-pos ap-pos-primary">{p.primary_position}</span>}
-              </button>
-            ))}
-            {availablePlayers.filter((p) => !usedIds.has(p.id)).length === 0 && (
-              <div className="admin-picker-empty">All active players added.</div>
-            )}
-          </div>
-        )}
+        {showPicker && (() => {
+          const q = pickerSearch.trim().toLowerCase()
+          const candidates = availablePlayers.filter((p) => !usedIds.has(p.id))
+          const filtered = q
+            ? candidates.filter((p) => p.display_name.toLowerCase().includes(q))
+            : candidates
+          return (
+            <div className="admin-picker">
+              <input
+                className="auth-input admin-picker-search"
+                type="text"
+                placeholder="Search player name…"
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                autoFocus
+              />
+              {filtered.map((p) => (
+                <button key={p.id} type="button" className="admin-picker-row" onClick={() => { addRow(p, pickerTeam); setPickerSearch('') }}>
+                  <span>{p.display_name}</span>
+                  {p.primary_position && <span className="ap-pos ap-pos-primary">{p.primary_position}</span>}
+                </button>
+              ))}
+              {filtered.length === 0 && candidates.length > 0 && (
+                <div className="admin-picker-empty">No matches for “{pickerSearch}”.</div>
+              )}
+              {candidates.length === 0 && (
+                <div className="admin-picker-empty">All active players added.</div>
+              )}
+            </div>
+          )
+        })()}
 
         {rows.length === 0 && !showPicker && (
           <p className="admin-roster-empty">No players added yet. Use + WHITE or + BLACK to begin.</p>
@@ -1637,6 +1698,262 @@ function SimpleConfirmSheet({
         <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel} disabled={busy}>Cancel</button>
         <button type="button" className="auth-btn auth-btn--approve" onClick={() => { void onConfirm() }} disabled={busy}>
           {busy ? 'Saving…' : confirmLabel}
+        </button>
+      </div>
+    </>
+  )
+}
+
+// ─── S058 issue #21 · Delete match (type-DELETE confirm) ──────────
+function DeleteMatchSheet({
+  md, match, busy, setBusy, onDone, onError, onCancel,
+}: BaseSheetProps & { md: MatchdayWithMatch; match: MatchRow }) {
+  const [typed, setTyped] = useState('')
+  const armed = typed === 'DELETE'
+
+  const submit = async () => {
+    if (!armed) return
+    setBusy(true)
+    const { error } = await supabase.rpc('admin_delete_match', { p_match_id: match.id })
+    setBusy(false)
+    if (error) { onError(error.message); return }
+    await onDone()
+  }
+
+  return (
+    <>
+      <h3>Delete match</h3>
+      <p className="sheet-sub">Hard-deletes <strong>{dateLabel(md.kickoff_at)}</strong> · WHITE {match.score_white} – {match.score_black} BLACK. The matchday entry stays — admin can submit a new result against it.</p>
+
+      <div className="admin-warn-banner" role="alert">
+        ⚠ All player stats, goals, cards, MOTM and the scoreline for this match will be permanently removed from the leaderboard. Cannot be undone. Players whose rank changes will be notified.
+      </div>
+
+      <label className="admin-field">
+        <span className="admin-field-label">Type <strong>DELETE</strong> to confirm:</span>
+        <input
+          className="auth-input"
+          type="text"
+          autoCapitalize="characters"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          autoFocus
+        />
+      </label>
+
+      <div className="sheet-actions">
+        <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel} disabled={busy}>Cancel</button>
+        <button
+          type="button"
+          className="auth-btn auth-btn--reject-filled"
+          onClick={() => { void submit() }}
+          disabled={busy || !armed}
+          title={armed ? 'Permanently delete this match' : 'Type DELETE to enable'}
+        >
+          {busy ? 'Deleting…' : '🗑 Delete match'}
+        </button>
+      </div>
+    </>
+  )
+}
+
+// ─── S058 issue #21 · Edit roster on an approved match ────────────
+// Replaces the match_players roster via admin_edit_match_roster RPC.
+interface PostRosterRow {
+  profile_id: string
+  display_name: string
+  team: TeamColor
+  is_captain: boolean
+  goals: number
+  yellow_cards: number
+  red_cards: number
+  is_no_show: boolean
+}
+
+function EditRosterPostSheet({
+  md, match, busy, setBusy, onDone, onError, onCancel,
+}: BaseSheetProps & { md: MatchdayWithMatch; match: MatchRow }) {
+  const [rows, setRows] = useState<PostRosterRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [availablePlayers, setAvailablePlayers] = useState<ProfileLite[]>([])
+  const [showPicker, setShowPicker] = useState(false)
+  const [pickerTeam, setPickerTeam] = useState<TeamColor>('white')
+  const [pickerSearch, setPickerSearch] = useState('')
+
+  const cap = md.effective_format === '5v5' ? 5 : 7
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const [{ data: mp }, { data: ap }] = await Promise.all([
+        supabase
+          .from('match_players')
+          .select('profile_id, team, is_captain, goals, yellow_cards, red_cards, is_no_show, profile:profiles(display_name)')
+          .eq('match_id', match.id),
+        supabase
+          .from('profiles')
+          .select('id, display_name, primary_position, secondary_position, role, is_active')
+          .in('role', ['player', 'admin', 'super_admin'])
+          .eq('is_active', true)
+          .order('display_name'),
+      ])
+      if (cancelled) return
+      const loaded: PostRosterRow[] = ((mp ?? []) as unknown as Array<{
+        profile_id: string | null
+        team: TeamColor
+        is_captain: boolean
+        goals: number
+        yellow_cards: number
+        red_cards: number
+        is_no_show: boolean
+        profile: { display_name: string } | null
+      }>)
+        .filter((r) => r.profile_id)
+        .map((r) => ({
+          profile_id: r.profile_id as string,
+          display_name: r.profile?.display_name ?? '—',
+          team: r.team,
+          is_captain: r.is_captain,
+          goals: r.goals,
+          yellow_cards: r.yellow_cards,
+          red_cards: r.red_cards,
+          is_no_show: r.is_no_show,
+        }))
+      setRows(loaded)
+      setAvailablePlayers((ap ?? []) as ProfileLite[])
+      setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [match.id])
+
+  const usedIds = new Set(rows.map((r) => r.profile_id))
+  const whiteCount = rows.filter((r) => r.team === 'white').length
+  const blackCount = rows.filter((r) => r.team === 'black').length
+  const teamFull = (team: TeamColor) =>
+    (team === 'white' ? whiteCount : blackCount) >= cap
+
+  const addRow = (p: ProfileLite, team: TeamColor) => {
+    if (rows.some((r) => r.profile_id === p.id)) return
+    setRows([...rows, {
+      profile_id: p.id,
+      display_name: p.display_name,
+      team,
+      is_captain: false,
+      goals: 0,
+      yellow_cards: 0,
+      red_cards: 0,
+      is_no_show: false,
+    }])
+    setShowPicker(false)
+    setPickerSearch('')
+  }
+  const removeRow = (idx: number) => setRows(rows.filter((_, i) => i !== idx))
+
+  const submit = async () => {
+    if (rows.length === 0) { onError('Roster cannot be empty'); return }
+    if (whiteCount > cap || blackCount > cap) { onError(`Each team capped at ${cap}`); return }
+    setBusy(true)
+    const players = rows.map((r) => ({
+      profile_id: r.profile_id,
+      team: r.team,
+      is_captain: r.is_captain,
+      goals: r.goals,
+      yellow_cards: r.yellow_cards,
+      red_cards: r.red_cards,
+      is_no_show: r.is_no_show,
+    }))
+    const { error } = await supabase.rpc('admin_edit_match_roster', {
+      p_match_id: match.id,
+      p_players: players as unknown as Json,
+    })
+    setBusy(false)
+    if (error) { onError(error.message); return }
+    await onDone()
+  }
+
+  if (loading) return <div className="app-loading">Loading roster…</div>
+
+  return (
+    <>
+      <h3>Edit roster — {dateLabel(md.kickoff_at)}</h3>
+      <p className="sheet-sub">Format {md.effective_format}. Replaces the post-match roster (per-player stats are preserved on existing rows; new rows start at 0). Re-snapshots ranks so affected players are notified.</p>
+
+      <div className="admin-roster-block">
+        <div className="admin-roster-head">
+          <h4>Roster · ⚪ {whiteCount}/{cap} · ⚫ {blackCount}/{cap}</h4>
+          <div className="admin-roster-add">
+            <button
+              type="button"
+              className="admin-chip admin-chip--on"
+              onClick={() => { setPickerTeam('white'); setShowPicker((v) => !v) }}
+              disabled={teamFull('white')}
+              title={teamFull('white') ? 'WHITE is full' : 'Add to WHITE'}
+            >+ WHITE</button>
+            <button
+              type="button"
+              className="admin-chip admin-chip--on"
+              onClick={() => { setPickerTeam('black'); setShowPicker((v) => !v) }}
+              disabled={teamFull('black')}
+              title={teamFull('black') ? 'BLACK is full' : 'Add to BLACK'}
+            >+ BLACK</button>
+          </div>
+        </div>
+
+        {showPicker && (() => {
+          const q = pickerSearch.trim().toLowerCase()
+          const candidates = availablePlayers.filter((p) => !usedIds.has(p.id))
+          const filtered = q
+            ? candidates.filter((p) => p.display_name.toLowerCase().includes(q))
+            : candidates
+          return (
+            <div className="admin-picker">
+              <input
+                className="auth-input admin-picker-search"
+                type="text"
+                placeholder="Search player name…"
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                autoFocus
+              />
+              {filtered.map((p) => (
+                <button key={p.id} type="button" className="admin-picker-row" onClick={() => addRow(p, pickerTeam)}>
+                  <span>{p.display_name}</span>
+                  {p.primary_position && <span className="ap-pos ap-pos-primary">{p.primary_position}</span>}
+                </button>
+              ))}
+              {filtered.length === 0 && candidates.length > 0 && (
+                <div className="admin-picker-empty">No matches.</div>
+              )}
+              {candidates.length === 0 && (
+                <div className="admin-picker-empty">All active players added.</div>
+              )}
+            </div>
+          )
+        })()}
+
+        <ul className="admin-roster-list">
+          {rows.map((r, i) => (
+            <li key={r.profile_id} className={`admin-roster-row admin-roster-row--${r.team}`}>
+              <div className="admin-roster-name">
+                <span className={`admin-roster-team admin-roster-team--${r.team}`}>{r.team === 'white' ? 'W' : 'B'}</span>
+                <span>{r.display_name}</span>
+                {r.is_captain && <span className="chip chip-role">C</span>}
+              </div>
+              <button type="button" className="admin-roster-remove" onClick={() => removeRow(i)} title="Remove from roster">✕</button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="sheet-actions">
+        <button type="button" className="auth-btn auth-btn--sheet-cancel" onClick={onCancel} disabled={busy}>Cancel</button>
+        <button
+          type="button"
+          className="auth-btn auth-btn--approve"
+          onClick={() => { void submit() }}
+          disabled={busy || rows.length === 0}
+        >
+          {busy ? 'Saving…' : 'Save roster'}
         </button>
       </div>
     </>
