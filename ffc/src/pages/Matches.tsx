@@ -112,12 +112,18 @@ export function Matches() {
           matchday:matchdays!inner(id, kickoff_at, is_friendly),
           motm_member:profiles!matches_motm_user_id_fkey(display_name),
           motm_guest:match_guests!matches_motm_guest_id_fkey(display_name),
-          scorers:match_players(team, goals, profile:profiles(display_name), guest:match_guests(display_name))
+          scorers:match_players(team, goals, profile:profiles!match_players_profile_id_fkey(display_name), guest:match_guests(display_name))
         `)
         .eq('season_id', seasonId)
         .not('approved_at', 'is', null)
         .order('approved_at', { ascending: false })
         .limit(50),
+      // S058 (post-close fix): the `profile:profiles(...)` embed inside the
+      // scorers nested select was AMBIGUOUS — `match_players` has THREE FKs
+      // to `profiles` (profile_id, substituted_in_by, updated_by). PostgREST
+      // can't pick a path and silently errors the whole query, returning
+      // null data → "No matches yet". Explicitly named the FK constraint
+      // (`!match_players_profile_id_fkey`) to disambiguate.
       supabase
         .from('matchdays')
         .select('id, kickoff_at')
@@ -128,6 +134,14 @@ export function Matches() {
     const numMap: Record<string, number> = {}
     ;(mdRes.data ?? []).forEach((row, i) => { numMap[row.id] = i + 1 })
     setMatchdayNumber(numMap)
+
+    // S058 (post-close fix): if the matches query errored, log it so future
+    // silent-empty regressions surface in the console. Without this, an
+    // ambiguous PostgREST embed errors silently and the user sees a confusing
+    // "No matches yet" state even though approved matches exist.
+    if (matchRes.error) {
+      console.error('[Matches] load error:', matchRes.error)
+    }
 
     /* S058 #25b — drop the friendly filter. Users expect Matches tab to be the
      * full match history (the leaderboard already excludes friendlies via
