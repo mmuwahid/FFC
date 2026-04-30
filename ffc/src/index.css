@@ -2779,6 +2779,27 @@ textarea.auth-input {
   border: none; cursor: pointer; font-weight: 600;
 }
 
+/* S058 #25(a) — share-card PNG hero. Renders the same WhatsApp share card
+ * the admin produces on approve, embedded at the top of the match-detail
+ * sheet so player perspective matches the broadcast format. */
+.md-card-hero {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 0 16px 12px;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.md-card-hero--loading {
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.10) 50%,
+    rgba(255, 255, 255, 0.04) 100%);
+  background-size: 200% 100%;
+  animation: lb-skel-shimmer 1.2s linear infinite;
+}
+
 /* Header strip */
 .md-header {
   padding: 6px 20px 14px;

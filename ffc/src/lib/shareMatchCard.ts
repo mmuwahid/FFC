@@ -4,6 +4,10 @@
 // to the device's native share sheet via Web Share API. Falls back to
 // browser-download for surfaces without share-files support (desktop,
 // older Android Chrome).
+//
+// S058 #25(a) — also exports getMatchCardUrl() for embedding the PNG as a
+// hero in MatchDetailSheet. RPC is now open to any authenticated user
+// (migration 0056).
 
 import { supabase } from './supabase';
 
@@ -12,6 +16,35 @@ export type ShareResult =
   | { kind: 'cancelled' }
   | { kind: 'downloaded' }
   | { kind: 'error'; message: string };
+
+/**
+ * Session-scoped cache of signed URLs by match-id. URLs expire after 15min;
+ * we let the browser surface the eventual 403 — the render path will refetch.
+ */
+const urlCache = new Map<string, { url: string; fetchedAt: number }>();
+const URL_TTL_MS = 14 * 60 * 1000;  // 14 min, < EF's 15-min signed-URL expiry
+
+/**
+ * Returns a signed URL for the cached match-card PNG. Triggers a fresh render
+ * on cache-miss inside the EF. Used by MatchDetailSheet to render a PNG hero
+ * at the top of the sheet (S058 issue #25(a)).
+ */
+export async function getMatchCardUrl(matchId: string): Promise<string> {
+  const cached = urlCache.get(matchId);
+  if (cached && Date.now() - cached.fetchedAt < URL_TTL_MS) {
+    return cached.url;
+  }
+
+  const { data, error } = await supabase.functions.invoke<{ signed_url: string }>(
+    'render-match-card',
+    { body: { match_id: matchId, force: false } },
+  );
+  if (error) throw new Error(error.message);
+  if (!data?.signed_url) throw new Error('Empty response');
+
+  urlCache.set(matchId, { url: data.signed_url, fetchedAt: Date.now() });
+  return data.signed_url;
+}
 
 export async function shareMatchCard(
   matchId: string,

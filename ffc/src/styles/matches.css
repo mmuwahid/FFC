@@ -25,6 +25,18 @@
 .mt-card-banner-title { font-weight: 700; letter-spacing: 0.12em; font-size: 11px; color: #60a5fa; }
 .mt-card-banner-date { font-size: 10px; color: #8b97ad; letter-spacing: 0.08em; }
 
+/* S058 #25b — friendly chip in banner row. Marks matches that don't count
+ * toward the leaderboard so the user can tell why a friendly result doesn't
+ * shift the standings. */
+.mt-friendly-chip {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.12em;
+  padding: 2px 7px; border-radius: 5px;
+  background: rgba(229, 186, 91, 0.14);
+  color: #e5ba5b;
+  border: 1px solid rgba(229, 186, 91, 0.28);
+  margin-left: 8px;
+}
+
 /* Scoreboard row */
 .splitc { display: grid; grid-template-columns: 1fr 1fr; position: relative; min-height: 64px; }
 .splitc-half { padding: 8px 12px; display: flex; align-items: center; gap: 10px; transition: opacity 0.2s, filter 0.2s; }

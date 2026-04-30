@@ -129,8 +129,12 @@ export function Matches() {
     ;(mdRes.data ?? []).forEach((row, i) => { numMap[row.id] = i + 1 })
     setMatchdayNumber(numMap)
 
+    /* S058 #25b — drop the friendly filter. Users expect Matches tab to be the
+     * full match history (the leaderboard already excludes friendlies via
+     * v_season_standings, so they don't double-count there). Friendlies are
+     * visually marked with a chip on the card so the difference is clear. */
     const rows = ((matchRes.data ?? []) as unknown as MatchRow[])
-      .filter(m => m.matchday && !m.matchday.is_friendly)
+      .filter(m => m.matchday)
     setMatches(rows)
     setLoading(false)
   }, [])
@@ -268,6 +272,9 @@ export function Matches() {
                 >
                   <div className="mt-card-banner">
                     <span className="mt-card-banner-title">{bannerLabel(n, total)}</span>
+                    {m.matchday?.is_friendly && (
+                      <span className="mt-friendly-chip">FRIENDLY</span>
+                    )}
                     <span className="mt-card-banner-date">{formatDate(m.matchday?.kickoff_at ?? m.approved_at)}</span>
                   </div>
 

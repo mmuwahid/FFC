@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../lib/AppContext'
-import { shareMatchCard } from '../lib/shareMatchCard'
+import { shareMatchCard, getMatchCardUrl } from '../lib/shareMatchCard'
 
 /* §3.15 Match-detail sheet — read-only overlay (Phase 1 Depth-B slice, S024).
  * Opens via <MatchDetailSheet matchId profileId? onClose /> from any row tap.
@@ -92,6 +92,10 @@ export function MatchDetailSheet({ matchId, profileId, onClose }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [shareBusy, setShareBusy] = useState(false)
+  // S058 #25(a) — share-card PNG hero. Loaded post-mount once we know the
+  // match is approved (pre-approval renders skip the hero entirely).
+  const [cardUrl, setCardUrl] = useState<string | null>(null)
+  const [cardLoading, setCardLoading] = useState(false)
 
   // Esc to close
   useEffect(() => {
@@ -166,6 +170,20 @@ export function MatchDetailSheet({ matchId, profileId, onClose }: Props) {
     return () => { cancelled = true }
   }, [matchId])
 
+  // S058 #25(a) — fetch PNG hero URL once main is loaded + approved.
+  // Cached client-side via getMatchCardUrl; failures degrade gracefully (we
+  // just don't render the hero, the rest of the sheet is unaffected).
+  useEffect(() => {
+    if (!main?.approved_at) { setCardUrl(null); return }
+    let cancelled = false
+    setCardLoading(true)
+    getMatchCardUrl(main.id)
+      .then(url => { if (!cancelled) setCardUrl(url) })
+      .catch(() => { /* silent — hero is optional */ })
+      .finally(() => { if (!cancelled) setCardLoading(false) })
+    return () => { cancelled = true }
+  }, [main?.id, main?.approved_at])
+
   // W/D/L chip — only when profileId provided and player appears in roster
   const viewerWdl = useMemo<'W' | 'D' | 'L' | null>(() => {
     if (!profileId || !main) return null
@@ -215,6 +233,16 @@ export function MatchDetailSheet({ matchId, profileId, onClose }: Props) {
           <div className="md-error">This match is no longer available. <button type="button" onClick={onClose} className="md-error-close">Close</button></div>
         ) : (
           <>
+            {/* S058 #25(a) — share-card PNG hero. Mirrors the WhatsApp share
+             * format (issue #25 ask: "should follow the exact same format").
+             * Hidden until URL resolves; if EF errors, hero stays hidden and
+             * the existing interactive sections below render unaffected. */}
+            {cardUrl ? (
+              <img className="md-card-hero" src={cardUrl} alt="" />
+            ) : cardLoading ? (
+              <div className="md-card-hero md-card-hero--loading" aria-hidden />
+            ) : null}
+
             {/* Header scoreline */}
             <div className="md-header">
               <div className="md-score-line">
