@@ -92,6 +92,10 @@ export function MatchDetailSheet({ matchId, profileId, onClose }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [shareBusy, setShareBusy] = useState(false)
+  // Issue #34 — surface the share-result state so the user gets feedback
+  // after tapping Share. Without this, error / downloaded / cancelled all
+  // looked like "nothing happened" once the spinner reverted.
+  const [shareToast, setShareToast] = useState<{ tone: 'success' | 'info' | 'error'; text: string } | null>(null)
   // S058 #25(a) — share-card PNG hero. Loaded post-mount once we know the
   // match is approved (pre-approval renders skip the hero entirely).
   const [cardUrl, setCardUrl] = useState<string | null>(null)
@@ -302,14 +306,39 @@ export function MatchDetailSheet({ matchId, profileId, onClose }: Props) {
                   disabled={shareBusy}
                   onClick={async () => {
                     setShareBusy(true);
-                    await shareMatchCard(main.id);
+                    setShareToast(null);
+                    const result = await shareMatchCard(main.id);
                     setShareBusy(false);
+                    // Issue #34 — surface every outcome so the user knows
+                    // what happened. Desktop browsers fall through to the
+                    // download path (canShare(files) is false on Chrome
+                    // desktop), and previously that download was silent.
+                    if (result.kind === 'shared') {
+                      setShareToast({ tone: 'success', text: '✓ Shared' })
+                    } else if (result.kind === 'downloaded') {
+                      setShareToast({ tone: 'info', text: '⬇ Image downloaded — open WhatsApp and attach the file from your Downloads folder.' })
+                    } else if (result.kind === 'error') {
+                      setShareToast({ tone: 'error', text: `Couldn\u2019t share: ${result.message}` })
+                    }
+                    // 'cancelled' = user dismissed the share sheet, no toast
+                    // needed — that's an intentional action.
                   }}
                 >
                   {shareBusy ? 'Generating card…' : '📲 Share to WhatsApp'}
                 </button>
               )}
             </div>
+            {shareToast && (
+              <div className={`md-share-toast md-share-toast--${shareToast.tone}`} role="status">
+                {shareToast.text}
+                <button
+                  type="button"
+                  className="md-share-toast-close"
+                  onClick={() => setShareToast(null)}
+                  aria-label="Dismiss"
+                >×</button>
+              </div>
+            )}
           </>
         )}
       </div>

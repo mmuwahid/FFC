@@ -24,9 +24,15 @@ interface SeasonRow {
   games_seeded: number | null
 }
 
-interface ScorerRow {
+// Issue #33 — broadened from "scorers only" to "any participant with a
+// disciplinary stat" (goals, yellow card, red card, or no-show / injury)
+// so the match history surfaces cards and injuries inline with goals.
+interface ParticipantRow {
   team: 'white' | 'black'
   goals: number
+  yellow_cards: number
+  red_cards: number
+  is_no_show: boolean
   profile: { id: string; display_name: string } | null
   guest: { id: string; display_name: string } | null
 }
@@ -48,12 +54,15 @@ interface MatchRow {
   } | null
   motm_member: { display_name: string } | null
   motm_guest: { display_name: string } | null
-  scorers: ScorerRow[]
+  participants: ParticipantRow[]
 }
 
-interface GroupedScorer {
+interface GroupedParticipant {
   name: string
   goals: number
+  yellow_cards: number
+  red_cards: number
+  is_no_show: boolean
   isMotm: boolean
 }
 
@@ -64,28 +73,44 @@ function formatDate(iso: string): string {
   return `${day}/${months[d.getMonth()]}/${d.getFullYear()}`
 }
 
-// S058 follow-up: groupScorers now tracks per-row IDs so we can mark the
-// scorer as MOTM (gold + ⭐) when the match's MOTM also scored. ID-based
-// match is more robust than name-based since two players could share a name.
-function groupScorers(
-  scorers: ScorerRow[],
+// Issue #33 — groupParticipants returns one row per player who had ANY
+// disciplinary stat (goals, yellow, red, no-show / injury) so the card
+// surfaces them all in the same per-team list. MOTM still flagged via id
+// match (more robust than name-based since two players could share a name).
+function groupParticipants(
+  participants: ParticipantRow[],
   team: 'white' | 'black',
   motmUserId: string | null,
   motmGuestId: string | null,
-): GroupedScorer[] {
-  type Acc = { goals: number; profileId: string | null; guestId: string | null }
+): GroupedParticipant[] {
+  type Acc = {
+    goals: number
+    yellow_cards: number
+    red_cards: number
+    is_no_show: boolean
+    profileId: string | null
+    guestId: string | null
+  }
   const byName = new Map<string, Acc>()
-  for (const s of scorers) {
-    if (s.team !== team || s.goals <= 0) continue
-    const name = s.profile?.display_name ?? s.guest?.display_name ?? '—'
+  for (const p of participants) {
+    if (p.team !== team) continue
+    // Skip players with zero stats — they played fine and don't need a row.
+    if (p.goals === 0 && p.yellow_cards === 0 && p.red_cards === 0 && !p.is_no_show) continue
+    const name = p.profile?.display_name ?? p.guest?.display_name ?? '—'
     const existing = byName.get(name)
     if (existing) {
-      existing.goals += s.goals
+      existing.goals += p.goals
+      existing.yellow_cards += p.yellow_cards
+      existing.red_cards += p.red_cards
+      existing.is_no_show = existing.is_no_show || p.is_no_show
     } else {
       byName.set(name, {
-        goals: s.goals,
-        profileId: s.profile?.id ?? null,
-        guestId: s.guest?.id ?? null,
+        goals: p.goals,
+        yellow_cards: p.yellow_cards,
+        red_cards: p.red_cards,
+        is_no_show: p.is_no_show,
+        profileId: p.profile?.id ?? null,
+        guestId: p.guest?.id ?? null,
       })
     }
   }
@@ -93,14 +118,53 @@ function groupScorers(
     .map(([name, acc]) => ({
       name,
       goals: acc.goals,
+      yellow_cards: acc.yellow_cards,
+      red_cards: acc.red_cards,
+      is_no_show: acc.is_no_show,
       isMotm: (motmUserId !== null && acc.profileId === motmUserId)
             || (motmGuestId !== null && acc.guestId === motmGuestId),
     }))
-    .sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name))
+    // Goals first (desc), then card holders, then no-shows. Names
+    // alphabetised within each tier for stability.
+    .sort((a, b) => {
+      if (b.goals !== a.goals) return b.goals - a.goals
+      const tier = (g: GroupedParticipant) => g.goals > 0 ? 0 : (g.red_cards + g.yellow_cards) > 0 ? 1 : 2
+      const ta = tier(a), tb = tier(b)
+      if (ta !== tb) return ta - tb
+      return a.name.localeCompare(b.name)
+    })
 }
 
 function bannerLabel(matchdayNumber: number, total: number | null): string {
   return total ? `GAME ${matchdayNumber} / ${total}` : `GAME ${matchdayNumber}`
+}
+
+// Issue #33 — single row that combines goals + cards + injury markers for
+// one player. Examples: `⚽ ⭐ Latif ×2 HAT`, `🟨 Saz`, `⚽ Karim ×1 🟥`,
+// `🤕 Moe Hamdan` (no-show / injury).
+function ParticipantBadge({ row }: { row: GroupedParticipant }) {
+  const scored = row.goals > 0
+  return (
+    <span className={`mt-scorer-row${row.isMotm ? ' mt-scorer-row--motm' : ''}`}>
+      {scored && <span className="mt-scorer-ball">⚽</span>}
+      {scored && row.isMotm && <span className="mt-scorer-star">⭐</span>}
+      {!scored && row.is_no_show && <span className="mt-stat-icon" aria-label="Injury / no-show" title="Injury / no-show">🤕</span>}
+      {row.name}
+      {scored && <> ×{row.goals}</>}
+      {scored && row.goals >= 3 && <span className="mt-hat-badge">HAT</span>}
+      {row.yellow_cards > 0 && (
+        <span className="mt-stat-icon mt-stat-icon--yellow" aria-label={`${row.yellow_cards} yellow card${row.yellow_cards > 1 ? 's' : ''}`} title="Yellow card">
+          🟨{row.yellow_cards > 1 ? `×${row.yellow_cards}` : ''}
+        </span>
+      )}
+      {row.red_cards > 0 && (
+        <span className="mt-stat-icon mt-stat-icon--red" aria-label="Red card" title="Red card">🟥</span>
+      )}
+      {scored && row.is_no_show && (
+        <span className="mt-stat-icon" aria-label="Injury / no-show" title="Injury / no-show">🤕</span>
+      )}
+    </span>
+  )
 }
 
 export function Matches() {
@@ -143,7 +207,7 @@ export function Matches() {
           matchday:matchdays!inner(id, kickoff_at, is_friendly),
           motm_member:profiles!matches_motm_user_id_fkey(display_name),
           motm_guest:match_guests!matches_motm_guest_id_fkey(display_name),
-          scorers:match_players(team, goals, profile:profiles!match_players_profile_id_fkey(id, display_name), guest:match_guests(id, display_name))
+          participants:match_players(team, goals, yellow_cards, red_cards, is_no_show, profile:profiles!match_players_profile_id_fkey(id, display_name), guest:match_guests(id, display_name))
         `)
         .eq('season_id', seasonId)
         .not('approved_at', 'is', null)
@@ -305,8 +369,8 @@ export function Matches() {
           </div>
           <div className="mt-list">
             {matches.map(m => {
-              const whiteScorers = groupScorers(m.scorers, 'white', m.motm_user_id, m.motm_guest_id)
-              const blackScorers = groupScorers(m.scorers, 'black', m.motm_user_id, m.motm_guest_id)
+              const whiteRows = groupParticipants(m.participants, 'white', m.motm_user_id, m.motm_guest_id)
+              const blackRows = groupParticipants(m.participants, 'black', m.motm_user_id, m.motm_guest_id)
               const motmName = m.motm_member?.display_name ?? m.motm_guest?.display_name ?? null
               const isDraw = m.result === 'draw'
               const whiteWon = m.result === 'win_white'
@@ -358,30 +422,18 @@ export function Matches() {
                   </div>
 
                   <div className="splitc-footer">
-                    <div className={`splitc-footer-half${whiteScorers.length === 0 ? ' empty' : ''}`}>
-                      {whiteScorers.length === 0 ? (
+                    <div className={`splitc-footer-half${whiteRows.length === 0 ? ' empty' : ''}`}>
+                      {whiteRows.length === 0 ? (
                         <span className="mt-scorer-row">no goals</span>
-                      ) : whiteScorers.map(s => (
-                        <span key={`w-${s.name}`} className={`mt-scorer-row${s.isMotm ? ' mt-scorer-row--motm' : ''}`}>
-                          <span className="mt-scorer-ball">⚽</span>
-                          {/* S058 follow-up — always show ×N (even ×1) + MOTM
-                            * scorer in gold with ⭐ next to their name. */}
-                          {s.isMotm && <span className="mt-scorer-star">⭐</span>}
-                          {s.name} ×{s.goals}
-                          {s.goals >= 3 && <span className="mt-hat-badge">HAT</span>}
-                        </span>
+                      ) : whiteRows.map(r => (
+                        <ParticipantBadge key={`w-${r.name}`} row={r} />
                       ))}
                     </div>
-                    <div className={`splitc-footer-half right${blackScorers.length === 0 ? ' empty' : ''}`}>
-                      {blackScorers.length === 0 ? (
+                    <div className={`splitc-footer-half right${blackRows.length === 0 ? ' empty' : ''}`}>
+                      {blackRows.length === 0 ? (
                         <span className="mt-scorer-row">no goals</span>
-                      ) : blackScorers.map(s => (
-                        <span key={`b-${s.name}`} className={`mt-scorer-row${s.isMotm ? ' mt-scorer-row--motm' : ''}`}>
-                          <span className="mt-scorer-ball">⚽</span>
-                          {s.isMotm && <span className="mt-scorer-star">⭐</span>}
-                          {s.name} ×{s.goals}
-                          {s.goals >= 3 && <span className="mt-hat-badge">HAT</span>}
-                        </span>
+                      ) : blackRows.map(r => (
+                        <ParticipantBadge key={`b-${r.name}`} row={r} />
                       ))}
                     </div>
                   </div>

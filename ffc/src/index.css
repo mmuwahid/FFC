@@ -2932,6 +2932,45 @@ textarea.auth-input {
 }
 .md-action-btn:hover { background: rgba(96,165,250,0.2); }
 
+/* Issue #34 — share-result toast inside MatchDetailSheet. */
+.md-share-toast {
+  margin: 0 20px 18px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.md-share-toast--success {
+  background: rgba(79,191,147,0.14);
+  color: var(--success, #4fbf93);
+  border: 1px solid rgba(79,191,147,0.35);
+}
+.md-share-toast--info {
+  background: rgba(96,165,250,0.10);
+  color: var(--accent, #e5ba5b);
+  border: 1px solid rgba(229,186,91,0.35);
+}
+.md-share-toast--error {
+  background: rgba(230,51,73,0.12);
+  color: var(--danger, #e63349);
+  border: 1px solid rgba(230,51,73,0.40);
+}
+.md-share-toast-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0.7;
+}
+.md-share-toast-close:hover { opacity: 1; }
+
 /* ════════════════════════════════════════════════════════════════════════════
  * §3.17 Admin Players + §3.18 Admin Matches — S025 slice
  * ════════════════════════════════════════════════════════════════════════════ */
@@ -5293,17 +5332,23 @@ textarea.auth-input {
 }
 .lb-table-grid {
   display: grid;
+  /* Issue #30 — column order MUST match the JSX cell order in
+   * Leaderboard.tsx (rank → player → Pts → MP → W → D → L → GF → Win% →
+   * Last 5). Previous template had Pts last and Last 5 9th, which meant
+   * the Last 5 cell rendered into the 44px slot meant for Pts and the
+   * pills clipped. Last 5 is now `minmax(140px, 1fr)` so it expands when
+   * extra horizontal space is available and never clips. */
   grid-template-columns:
-    36px                    /* rank      (sticky) */
-    160px                   /* player    (sticky) — fixed width keeps numbers visible on portrait */
-    40px                    /* MP matches played */
-    32px                    /* W  wins */
-    32px                    /* D  draws */
-    32px                    /* L  losses */
-    36px                    /* GF goals scored */
-    52px                    /* Win% */
-    140px                   /* Last 5 pills */
-    44px;                   /* Pts */
+    36px                    /* 1. rank      (sticky) */
+    160px                   /* 2. player    (sticky) — fixed width keeps numbers visible on portrait */
+    44px                    /* 3. Pts */
+    40px                    /* 4. MP matches played */
+    32px                    /* 5. W  wins */
+    32px                    /* 6. D  draws */
+    32px                    /* 7. L  losses */
+    36px                    /* 8. GF goals scored */
+    52px                    /* 9. Win% */
+    minmax(140px, 1fr);     /* 10. Last 5 pills */
   align-items: center;
   gap: 0;
   min-width: 604px;          /* forces horizontal scroll on portrait */
@@ -5377,6 +5422,10 @@ textarea.auth-input {
   gap: 4px;
   justify-content: flex-start;
   padding-inline: 6px;
+  /* Issue #30 — override inherited `overflow: hidden` from .lb-cell so pills
+   * never clip when fewer than 5 games are shown. flex-shrink on pills is
+   * already 0; the cell column was the only thing clipping. */
+  overflow: visible;
 }
 .lb-last5-pill {
   width: 22px;
@@ -5394,7 +5443,8 @@ textarea.auth-input {
  * pill renders even when the row is in a top-3 medal-tinted state. */
 .lb-cell--last5 .lb-last5-pill--W { background: #4fbf93; color: #0e1826; }
 .lb-cell--last5 .lb-last5-pill--L { background: #e63349; color: #f2ead6; }
-.lb-cell--last5 .lb-last5-pill--D { background: rgba(242, 234, 214, 0.55); color: #0e1826; }
+/* Issue #30 — D was cream-translucent before, user asked for true grey. */
+.lb-cell--last5 .lb-last5-pill--D { background: #8a8e96; color: #0e1826; }
 .lb-last5-empty { color: var(--text-muted, rgba(242, 234, 214, 0.4)); font-size: 14px; }
 
 /* Sticky columns — first two cells stay anchored on horizontal scroll. */

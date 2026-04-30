@@ -304,16 +304,6 @@ export function Settings() {
     window.dispatchEvent(new Event('ffc:profile-changed'))
   }
 
-  async function handleSignOut() {
-    try {
-      await signOut()
-    } catch {
-      setToast("Couldn't sign out. Check your connection.")
-      return
-    }
-    navigate('/login')
-  }
-
   function openDeleteSheet() {
     setDeleteOpen(true)
     setDeleteText('')
@@ -497,17 +487,16 @@ export function Settings() {
         </button>
       </section>
 
-      {/* ============ Account (moved to bottom per S051 issue #4) ============
-       * Email + Sign out + Delete account live on a single row with the email
-       * truncated to share space with the two action buttons. The Admin platform
-       * entry that used to live below has been moved into the avatar drawer. */}
+      {/* ============ Account (S051 issue #4 layout, S059 issue #31 trim) ===
+       * Issue #31 — sign-out lives on the avatar drawer; the duplicate
+       * Sign-out button here was removed. Account row now shows email +
+       * Delete-account only. */}
       <section className="st-section">
         <div className="st-section-label">Account</div>
         <div className="st-account-row">
           <span className="st-account-row-email" title={profile.email ?? session?.user?.email ?? ''}>
             {profile.email ?? session?.user?.email ?? '—'}
           </span>
-          <button type="button" className="st-btn-signout" onClick={handleSignOut}>Sign out</button>
           <button type="button" className="st-btn-delete st-btn-delete--active" onClick={openDeleteSheet}>
             Delete account
           </button>

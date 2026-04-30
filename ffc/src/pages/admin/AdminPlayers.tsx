@@ -67,7 +67,10 @@ export function AdminPlayers() {
   const { role } = useApp()
   const isSuperAdmin = role === 'super_admin'
 
-  const [tab, setTab] = useState<Tab>('pending')
+  // Issue #32 — default tab is "active" (was "pending"). Active is the
+  // common path; admins drilling in from AdminHome want the regular
+  // roster, not the approval queue.
+  const [tab, setTab] = useState<Tab>('active')
   const [pending, setPending] = useState<PendingRow[]>([])
   const [active, setActive] = useState<ProfileWithBan[]>([])
   const [banned, setBanned] = useState<ProfileWithBan[]>([])
