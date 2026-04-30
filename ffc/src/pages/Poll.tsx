@@ -52,6 +52,9 @@ interface Commitment {
   description?: string | null
   team?: TeamColor | null   // populated from match_players when teams set
   is_captain?: boolean
+  slot_order?: number       // match_players insertion order; used to render the
+                            // post-lock team list in the same order admin saved
+                            // it in Roster Setup. Lower = earlier in slot.
 }
 
 const POSITION_OPTIONS: PlayerPosition[] = ['GK', 'DEF', 'CDM', 'W', 'ST']
@@ -279,35 +282,49 @@ export function Poll() {
       // matchday is locked but the draft match doesn't exist yet (edge
       // case), skip the team lookup entirely.
       const matchIdForRoster = matchRow?.id ?? null
-      let allMps: { profile_id: string | null; guest_id: string | null; team: TeamColor | null; is_captain: boolean | null }[] = []
+      // Read match_players.slot_index (added in migration 0063) — that's
+      // the per-team 1-based slot order admin saved in Roster Setup.
+      // Falls back to created_at for any pre-0063 rows that the backfill
+      // missed (defensive — backfill covered all rows present at the time).
+      let allMps: { profile_id: string | null; guest_id: string | null; team: TeamColor | null; is_captain: boolean | null; slot_index: number | null }[] = []
       if (matchIdForRoster) {
         const { data: mps } = await supabase
           .from('match_players')
-          .select('profile_id, guest_id, team, is_captain')
+          .select('profile_id, guest_id, team, is_captain, slot_index')
           .eq('match_id', matchIdForRoster)
           .in('profile_id', memberIds.length ? memberIds : ['00000000-0000-0000-0000-000000000000'])
-        // Also load guest-side:
         const guestIds = guestMdRows.map((g) => g.id)
         allMps = mps ?? []
         if (guestIds.length) {
           const { data: mpsG } = await supabase
             .from('match_players')
-            .select('profile_id, guest_id, team, is_captain')
+            .select('profile_id, guest_id, team, is_captain, slot_index')
             .eq('match_id', matchIdForRoster)
             .in('guest_id', guestIds)
           allMps = [...allMps, ...(mpsG ?? [])]
         }
       }
-      const mpMap = new Map<string, { team: TeamColor | null; is_captain: boolean | null }>()
+      const mpMap = new Map<string, { team: TeamColor | null; is_captain: boolean | null; slot_order: number }>()
       for (const r of allMps) {
         const key = r.profile_id ?? r.guest_id
-        if (key) mpMap.set(key, { team: r.team, is_captain: r.is_captain })
+        if (!key) continue
+        // slot_index is 1-based on the DB; we keep it as-is for sort.
+        // Rows without a slot_index land at the end (large sentinel).
+        mpMap.set(key, {
+          team: r.team,
+          is_captain: r.is_captain,
+          slot_order: r.slot_index ?? 9999,
+        })
       }
       for (const c of merged) {
         const key = c.profile_id ?? c.guest_id
         if (key) {
           const mp = mpMap.get(key)
-          if (mp) { c.team = mp.team; c.is_captain = mp.is_captain ?? false }
+          if (mp) {
+            c.team = mp.team
+            c.is_captain = mp.is_captain ?? false
+            c.slot_order = mp.slot_order
+          }
         }
       }
     }
@@ -493,8 +510,19 @@ export function Poll() {
   const teamsRevealed = !draftInProgress && confirmed.some((c) => c.team)
 
   /* Partition for State 8 (two-team reveal) */
-  const whiteList = confirmed.filter((c) => c.team === 'white')
-  const blackList = confirmed.filter((c) => c.team === 'black')
+  // Sort post-lock teams by slot_order so the order matches what admin saved
+  // in Roster Setup. Falls back to commitment time (rank) if slot_order is
+  // missing (e.g. a yes-voter not in match_players for some reason).
+  const bySlot = (a: Commitment, b: Commitment) => {
+    const sa = a.slot_order
+    const sb = b.slot_order
+    if (sa !== undefined && sb !== undefined) return sa - sb
+    if (sa !== undefined) return -1
+    if (sb !== undefined) return 1
+    return a.rank - b.rank
+  }
+  const whiteList = confirmed.filter((c) => c.team === 'white').slice().sort(bySlot)
+  const blackList = confirmed.filter((c) => c.team === 'black').slice().sort(bySlot)
   const unassigned = confirmed.filter((c) => !c.team)
 
   const statusCard = (() => {
@@ -621,11 +649,14 @@ export function Poll() {
           else if (c.kind === 'guest' && c.guest_id) setExpandedGuest((v) => v === c.guest_id ? null : c.guest_id ?? null)
         }}
       >
-        <span className="po-rank">{c.rank}</span>
+        {/* Hide commitment-order rank when roster is locked — once teams are
+         * set the vote-order number adds noise and looks like a shirt
+         * number. Show it during open vote / waitlist views only. */}
+        {!locked && <span className="po-rank">{c.rank}</span>}
         <Avatar name={c.display_name} url={c.avatar_url} guest={c.kind === 'guest'} self={!!isSelf} />
         <span className="po-name-block">
           <span className="po-name">
-            {c.is_captain && <span className="po-captain">(C)</span>}
+            {c.is_captain && <span className="po-captain" aria-label="Captain" title="Captain">C</span>}
             {c.display_name}
             {isSelf && <span className="po-me-tag"> (ME)</span>}
             {c.kind === 'guest' && <GuestRatingChip rating={c.rating} />}

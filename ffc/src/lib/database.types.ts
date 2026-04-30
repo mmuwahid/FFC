@@ -522,6 +522,7 @@ export type Database = {
           match_id: string
           profile_id: string | null
           red_cards: number
+          slot_index: number | null
           substituted_in_by: string | null
           team: Database["public"]["Enums"]["team_color"]
           updated_at: string
@@ -538,6 +539,7 @@ export type Database = {
           match_id: string
           profile_id?: string | null
           red_cards?: number
+          slot_index?: number | null
           substituted_in_by?: string | null
           team: Database["public"]["Enums"]["team_color"]
           updated_at?: string
@@ -554,6 +556,7 @@ export type Database = {
           match_id?: string
           profile_id?: string | null
           red_cards?: number
+          slot_index?: number | null
           substituted_in_by?: string | null
           team?: Database["public"]["Enums"]["team_color"]
           updated_at?: string

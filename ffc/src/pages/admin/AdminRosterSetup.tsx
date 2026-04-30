@@ -230,8 +230,10 @@ export function AdminRosterSetup() {
 
         const { data: mpRows, error: mpErr } = await supabase
           .from('match_players')
-          .select('profile_id, guest_id, team')
+          .select('profile_id, guest_id, team, slot_index')
           .eq('match_id', matchRow.id)
+          .order('team', { ascending: true })
+          .order('slot_index', { ascending: true, nullsFirst: false })
         if (mpErr) throw mpErr
 
         const assignedProfileIds = new Set<string>()
@@ -589,6 +591,18 @@ export function AdminRosterSetup() {
         )}
         {isReadOnly && (
           <span className="rs-badge rs-badge--locked">LOCKED</span>
+        )}
+        {/* Delete matchday — always available when a matchday is selected
+         * and not read-only (i.e. result not yet recorded). Reachable from
+         * any phase (Pool / Teams / Saved). */}
+        {selectedMdId && !isReadOnly && (
+          <button
+            type="button"
+            className="rs-topbar-delete"
+            onClick={() => setDeleteSheet(true)}
+            title="Delete this matchday"
+            aria-label="Delete this matchday"
+          >🗑</button>
         )}
       </div>
 
