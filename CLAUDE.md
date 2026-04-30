@@ -81,13 +81,20 @@ Every session must begin with this check to detect cross-PC lag (OneDrive may ha
 1. **Detect which PC** — `echo $USERNAME`. Work PC = `UNHOEC03`, Home PC = `User`.
 2. **Fix the `.git` pointer** — read `FFC/.git`; it must say `gitdir: C:/Users/<this-pc-username>/FFC-git`. Forward slashes only.
 3. **Fetch + inspect** — `git fetch` then `git status -sb` and `git log --oneline -5`.
-4. **Diagnose:**
-   - **(a) Clean + up-to-date with origin/main** → proceed.
+4. **Branch check (NEW — prevents stale-branch disaster):**
+   - Run `git rev-parse --abbrev-ref HEAD` to see the current branch.
+   - If NOT on `main`: run `git log --oneline origin/main..HEAD` (our unique commits) AND `git log --oneline HEAD..origin/main | wc -l` (how far behind main we are).
+   - **If the branch is more than 5 commits behind main → STOP and tell the user before doing any work.** Show them: branch name, how many commits behind, and the merge-base commit. Ask whether to switch to main or consciously continue on the stale branch.
+   - If the branch is ≤5 commits behind → safe to continue; note it in the session briefing.
+5. **Diagnose working tree:**
+   - **(a) On main, clean + up-to-date** → proceed.
    - **(b) Behind origin/main AND working tree shows "modifications" matching the ahead commits** (cross-PC lag): `git stash push --include-untracked -m "<pc>-sync-s###"` → `git pull --ff-only` → `git stash drop`.
    - **(c) Genuinely uncommitted local work** (modifications NOT on origin/main) → ask the user before touching it.
-5. **Announce the PC + HEAD** in the session briefing.
+6. **Announce the PC + branch + HEAD** in the session briefing.
 
 Differentiator (b) vs (c): `git diff HEAD origin/main --stat` — if the listed files match `git status` output, it's (b).
+
+**Why this matters (S053 post-mortem):** In S053 we spent a full session building AdminRosterSetup on `feature/fix-login`, which was 72 commits behind main. Main already had the feature built by S054–S059. PR #39 had to be closed without merging — all S053 code was abandoned. The branch check above catches this in 10 seconds at session start.
 
 ## Live operational gotchas (durable)
 - **`ffc/vercel.json` SPA catch-all rewrite is LOAD-BEARING.** Deleting it 404s every non-root URL. Static-file precedence over rewrites is automatic, so it does NOT break `/sw.js`, `/manifest.webmanifest`, `/ffc-logo.png`.
