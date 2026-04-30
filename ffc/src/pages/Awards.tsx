@@ -114,13 +114,19 @@ function renderHero(
           )}
         </div>
       </div>
-      <div className={`aw-hero-avatar${isDeleted ? ' aw-hero-avatar--deleted' : ''}`}>
+      <button
+        type="button"
+        className={`aw-hero-avatar${isDeleted ? ' aw-hero-avatar--deleted' : ''}`}
+        disabled={isDeleted || !winner}
+        onClick={() => winner && navigate(`/profile?profile_id=${winner.id}&season_id=${seasonId}`)}
+        aria-label={`View ${winnerName}'s profile`}
+      >
         {winner?.avatar_url ? (
           <img src={winner.avatar_url} alt={winnerName} />
         ) : (
           initials
         )}
-      </div>
+      </button>
     </div>
   )
 }

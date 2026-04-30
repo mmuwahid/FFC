@@ -5799,8 +5799,6 @@ body.is-leaderboard-landscape .lb-table-grid {
   cursor: pointer;
   text-align: left;
   display: block;
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 .aw-hero-name:disabled { cursor: default; color: var(--text-muted); }
 .aw-hero-meta {
@@ -5833,6 +5831,7 @@ body.is-leaderboard-landscape .lb-table-grid {
   box-shadow: 0 4px 16px rgba(229, 186, 91, 0.4);
   flex-shrink: 0;
   overflow: hidden;
+  padding: 0; cursor: pointer;
 }
 .aw-hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .aw-hero-avatar--deleted {
