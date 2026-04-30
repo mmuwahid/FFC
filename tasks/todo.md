@@ -8,15 +8,12 @@
 - **Open GitHub issues: 0.** S059 sweep closed #30 #31 #32 #33 #34 #35 #36 #37 #38 (issue #18 was not open during S059 — note in todo was stale).
 - **Apr 30 follow-up:** user must hit Edit → Save once in AdminRosterSetup so slot_index gets refreshed from current array order (S059 backfill assigned arbitrary slot_index because all 14 rows shared transaction-start created_at). Future matches inherit correct ordering automatically.
 
-**S060 agenda — Phase 3 payment tracker (carried from S059 cold-start, not started):**
+**S060 agenda — Phase 3 payment tracker verified shipped, moved to live-verification:**
 
-1. **Phase 3 payment tracker** (V3.0:147 — long-deferred):
-   - [ ] Build HTML mockup at `mockups/payment-tracker.html` for the 3-screen flow (overview → admin drilldown → player ledger). Use Option B compact card layout + Option C inline status icons (✓ green / ⏳ amber / ✗ red — user explicitly rejected outline pills as "ugly").
-   - [ ] User review → finalize.
-   - [ ] Migration adding the 3 tables (`match_fees`, `match_payments`, `payment_ledger_view`) per spec. (Note: S056 mig 0055 already added some payment infra — verify what's there before duplicating.)
-   - [ ] Frontend pages — `/payments` overview + admin drilldown sheet + player ledger sheet (S056 already shipped a skeleton in `Payments.tsx` and `PaymentLedgerSheet.tsx`; S058 restored the deleted CSS).
+1. ~~**Phase 3 payment tracker** (V3.0:147)~~ — **VERIFIED SHIPPED in S060** (skeleton state). Inventory found backend complete in S056 mig 0055 (10 RPCs + 2 triggers + realtime publication) and frontend complete in S056+S058 (`Payments.tsx`, `PaymentLedgerSheet.tsx`, CSS restored verbatim). All 5 overview sections + 4 ledger sections from spec §8 implemented and live-verified at `/payments`: header / season pill / summary strip / banner-hidden / empty-state / RPC `get_season_payment_summary` returns 200. Empty because the only approved Season 11 match (Game 31) was approved before mig 0055 — `on_match_approved_trigger` only fires on `NULL→NOT NULL` transitions; spec §11 explicitly accepts this as a non-goal. Mockup-first rule did not apply (skeleton was pre-existing; spec was the design doc). Full pipeline (banner / cards / ledger / mark-paid / close-window / override) requires next match approval to verify — moved to live-verification block #6 below.
 
-2. **S058–S059 live verification** — admin/auth-gated paths unreachable from preview, only confirmable on a real Thursday matchday:
+2. **S058–S059–S060 live verification** — admin/auth-gated paths unreachable from preview, only confirmable on a real Thursday matchday:
+   - [ ] **S060 payment tracker pipeline (mig 0055)** — admin approves next match → `payment_windows` row appears + 14 `match_payment_records` created · `/payments` shows summary strip + cards sorted by `outstanding_aed DESC` + open banner · tap player → ledger sheet opens · admin "Mark paid ✓" works · marking all paid auto-closes window · manual `🔒 Close M# window` works · `↩ Override — reopen window` works · realtime updates propagate to other open clients.
    - [ ] **S059 ref-link mint** — Apr 30 cleared up; admin generates ref link, ref opens `/ref/<token>`, KICK OFF console runs live timer + goal/card capture, SUBMIT → admin gets push, admin reviews → approves → leaderboard updates.
    - [ ] **S059 slot_index ordering** — re-save Apr 30 once; Poll team list order matches Roster Setup exactly; new matches saved post-S059 inherit correct order automatically.
    - [ ] **S059 captain pill** — when admin sets a captain via CaptainHelper, Poll renders gold filled "C" badge before the name (was inline gold "(C)" text before).

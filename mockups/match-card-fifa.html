@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>FFC · Issue #41 — ref pill + injury tag (live design)</title>
+<style>
+  /* ============================================================= */
+  /* App tokens (matches Matches.tsx scope)                          */
+  /* ============================================================= */
+  :root {
+    --bg: #0e1826;
+    --surface: rgba(20, 34, 52, 0.68);
+    --surface-2: rgba(10, 22, 40, 0.6);
+    --border: rgba(242, 234, 214, 0.14);
+    --text: #f2ead6;
+    --text-muted: rgba(242, 234, 214, 0.62);
+    --accent: #e5ba5b;
+    --success: #4fbf93;
+    --warn: #d7a04a;
+    --danger: #e63349;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    min-height: 100vh;
+  }
+  .mock-frame {
+    max-width: 393px;
+    margin: 0 auto;
+    padding: 24px 16px 80px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; color: var(--accent); font-family: "Fraunces", Georgia, serif; }
+  .mock-sub { font-size: 12px; color: var(--text-muted); margin: 0 0 14px; line-height: 1.5; }
+  .mock-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: 28px 0 8px;
+  }
+  hr.divider { border: 0; height: 1px; background: var(--border); margin: 28px 0 0; }
+
+  /* ============================================================= */
+  /* LIVE matches.css — copied verbatim from ffc/src/styles/matches.css */
+  /* ============================================================= */
+  .mt-card {
+    background: #0f1a30;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    overflow: hidden;
+    color: #e7ecf5;
+    margin-bottom: 14px;
+    position: relative;
+    width: 100%;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .mt-card-banner {
+    background: rgba(96,165,250,0.08);
+    border-bottom: 1px solid rgba(96,165,250,0.18);
+    padding: 6px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .mt-card-banner-title { font-weight: 700; letter-spacing: 0.12em; font-size: 11px; color: #60a5fa; }
+  .mt-card-banner-date { font-size: 10px; color: #8b97ad; letter-spacing: 0.08em; }
+
+  .mt-friendly-chip {
+    font-size: 9px; font-weight: 800; letter-spacing: 0.12em;
+    padding: 2px 7px; border-radius: 5px;
+    background: rgba(229, 186, 91, 0.14);
+    color: #e5ba5b;
+    border: 1px solid rgba(229, 186, 91, 0.28);
+    margin-left: 8px;
+  }
+
+  /* Scoreboard */
+  .splitc { display: grid; grid-template-columns: 1fr 1fr; position: relative; min-height: 64px; }
+  .splitc-half { padding: 8px 12px; display: flex; align-items: center; gap: 10px; transition: opacity 0.2s, filter 0.2s; }
+  .splitc-white { background: linear-gradient(135deg, #f4ede2 0%, #e5ddcd 100%); color: #0b1220; }
+  .splitc-black {
+    background: linear-gradient(135deg, #0b1220 0%, #1a2440 100%);
+    color: #f4ede2;
+    border-left: 1px solid rgba(255,255,255,0.12);
+    flex-direction: row-reverse;
+  }
+  .splitc-logo { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 3px; box-sizing: border-box; }
+  .splitc-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .splitc-logo-white { background: #f4ede2; box-shadow: 0 0 0 2px rgba(244,237,226,0.45); }
+  .splitc-logo-black { background: #0b1220; box-shadow: 0 0 0 2px rgba(244,237,226,0.5); border: 1px solid #3b4358; }
+  .splitc-logo-black img { filter: invert(1) brightness(1.1); }
+  .splitc-team-label { font-size: 11px; letter-spacing: 0.14em; font-weight: 700; opacity: 0.75; flex: 1; }
+  .splitc-team-label.right { text-align: right; }
+  .splitc-score { font-size: 30px; font-weight: 800; letter-spacing: 0.03em; line-height: 1; }
+  .splitc-score-white { color: #0b1220; }
+  .splitc-score-black { color: #f4ede2; }
+  .splitc-vs {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: #0f1a30; color: #60a5fa; width: 26px; height: 26px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 9px; letter-spacing: 0.08em;
+    border: 2px solid rgba(96,165,250,0.35);
+  }
+
+  .splitc-loser { opacity: 0.5; filter: saturate(0.55); }
+  .mt-winner-ribbon {
+    position: absolute;
+    top: 24px;
+    height: 3px;
+    background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);
+    z-index: 2;
+    box-shadow: 0 0 8px rgba(34,197,94,0.55);
+  }
+  .mt-winner-ribbon.left  { left: 0; width: 50%; }
+  .mt-winner-ribbon.right { right: 0; width: 50%; }
+  .mt-winner-label {
+    position: absolute;
+    top: 28px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    color: #22c55e;
+    background: #0f1a30;
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(34,197,94,0.45);
+    z-index: 3;
+  }
+  .mt-winner-label.left  { left: 10px; }
+  .mt-winner-label.right { right: 10px; }
+
+  .splitc-footer { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.2); }
+  .splitc-footer-half { padding: 8px 12px; display: flex; flex-direction: column; gap: 3px; min-height: 28px; justify-content: center; }
+  .splitc-footer-half.right { align-items: flex-end; border-left: 1px solid rgba(255,255,255,0.06); }
+  .mt-scorer-row { font-size: 11px; line-height: 1.35; color: #c7d0df; display: inline-flex; align-items: center; gap: 5px; }
+  .mt-scorer-ball { opacity: 0.6; font-size: 10px; }
+  .splitc-footer-half.empty .mt-scorer-row { opacity: 0.4; font-style: italic; }
+  .mt-scorer-row--motm { color: #e5ba5b; font-weight: 700; }
+  .mt-scorer-star { color: #e5ba5b; font-size: 10px; }
+  .mt-stat-icon { font-size: 10px; line-height: 1; opacity: 0.95; margin-left: 3px; display: inline-flex; align-items: center; gap: 1px; }
+
+  /* ============================================================= */
+  /* NEW additions for Issue #41                                    */
+  /* ============================================================= */
+
+  /* Gold ref pill — sits between title and date inside the banner.
+     Inherits banner blue tone but adds gold accent so it reads as
+     distinct from match metadata. */
+  .mt-card-ref-pill {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    padding: 2px 8px;
+    border-radius: 5px;
+    background: rgba(229, 186, 91, 0.14);
+    color: #e5ba5b;
+    border: 1px solid rgba(229, 186, 91, 0.32);
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .mt-card-ref-pill-label { opacity: 0.7; font-weight: 700; }
+
+  /* Bandage stat icon — same data source as the existing 🤕 spans
+     driven by match_players.is_no_show / went_off_injured. */
+  .mt-stat-icon--injury { font-size: 11px; color: #f4c89a; }
+
+  /* ============================================================= */
+  /* RefEntry pre-match — sketch (matches existing ref-entry layout) */
+  /* ============================================================= */
+  .ref-entry {
+    background: #0f1a30;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 18px 14px;
+    margin-bottom: 12px;
+    color: #e7ecf5;
+  }
+  .ref-entry-md-label {
+    font-size: 10px;
+    color: #8b97ad;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .ref-entry-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 4px 0 2px;
+    font-family: "Fraunces", Georgia, serif;
+    color: #f4ede2;
+  }
+  .ref-entry-meta { font-size: 11px; color: #8b97ad; margin: 0 0 14px; }
+
+  /* NEW — ref name input above KICK OFF */
+  .ref-name-wrap {
+    background: rgba(229,186,91,0.06);
+    border: 1px dashed rgba(229,186,91,0.45);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin: 14px 0;
+  }
+  .ref-name-label {
+    font-size: 10px;
+    color: #e5ba5b;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 800;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .ref-name-input {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid rgba(229,186,91,0.4);
+    color: #f4ede2;
+    font-size: 16px;
+    padding: 6px 0 4px;
+    outline: none;
+    font-family: inherit;
+  }
+  .ref-name-input::placeholder { color: #8b97ad; }
+  .ref-name-hint { font-size: 10px; color: #8b97ad; margin-top: 6px; }
+  .req-tag {
+    background: rgba(230,51,73,0.18);
+    color: #ff8b9b;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 8.5px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .ref-entry-cta {
+    width: 100%;
+    background: var(--accent);
+    color: #1a1408;
+    border: 0;
+    padding: 14px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+  }
+  .ref-entry-cta:disabled { opacity: 0.4; }
+  .ref-entry-cta-hint {
+    font-size: 10.5px;
+    color: #8b97ad;
+    text-align: center;
+    margin: 8px 0 0;
+  }
+
+  /* ============================================================= */
+  /* Ref live console — "tag injured" sketch                         */
+  /* ============================================================= */
+  .ref-live {
+    background: #0f1a30;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .ref-live-roster-row {
+    display: grid;
+    grid-template-columns: 24px 1fr auto auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 13px;
+    color: #f4ede2;
+  }
+  .ref-live-roster-row:last-child { border-bottom: 0; }
+  .ref-live-num {
+    font-size: 10px;
+    color: #8b97ad;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  .ref-live-tag-btn {
+    background: rgba(244,200,154,0.10);
+    color: #f4c89a;
+    border: 1px solid rgba(244,200,154,0.35);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .ref-live-tag-btn--active {
+    background: rgba(244,200,154,0.22);
+    color: #1a1408;
+    background: #f4c89a;
+    border-color: #f4c89a;
+  }
+
+  /* Schema note */
+  .schema-note {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 8px;
+  }
+  .schema-note code {
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 10px;
+    color: var(--accent);
+  }
+
+  .annot {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 5px;
+    background: rgba(229,186,91,0.16);
+    color: var(--accent);
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div class="mock-frame">
+
+  <h1>Issue #41 — Match card</h1>
+  <p class="mock-sub">Reuses the live design verbatim. Two minimal additions: gold REF pill in banner middle + 🩹 bandage icon for tagged-injured players (same data source as existing 🤕 marker).</p>
+
+  <hr class="divider" />
+
+  <!-- ── 1. Match card — exactly like live + new bits ─────────────── -->
+  <div class="mock-title">1 · Match card (live design + REF pill)</div>
+  <p class="mock-sub">Real GAME 31 data. Banner now has 3 children: title, REF pill, date. CSS <code>justify-content: space-between</code> already centers the middle child. Adding <code>Saz</code> as illustrative — actual value comes from new <code>matches.ref_name</code> column.</p>
+
+  <button class="mt-card" type="button">
+    <div class="mt-card-banner">
+      <span class="mt-card-banner-title">GAME 31 / 40</span>
+      <span class="mt-card-ref-pill"><span class="mt-card-ref-pill-label">REF</span> Saz <span class="annot" style="margin-left: 0;">NEW</span></span>
+      <span class="mt-card-banner-date">23/APR/2026</span>
+    </div>
+
+    <!-- WINNER ribbon + label on BLACK side (right) -->
+    <div class="mt-winner-ribbon right"></div>
+    <div class="mt-winner-label right">WINNER</div>
+
+    <div class="splitc">
+      <div class="splitc-half splitc-white splitc-loser">
+        <div class="splitc-logo splitc-logo-white"><img src="/ffc-logo.svg" alt="FFC" onerror="this.style.opacity=0"/></div>
+        <span class="splitc-team-label">WHITE</span>
+        <span class="splitc-score splitc-score-white">8</span>
+      </div>
+      <div class="splitc-half splitc-black">
+        <div class="splitc-logo splitc-logo-black"><img src="/ffc-logo.svg" alt="FFC" onerror="this.style.opacity=0"/></div>
+        <span class="splitc-team-label right">BLACK</span>
+        <span class="splitc-score splitc-score-black">10</span>
+      </div>
+      <div class="splitc-vs">VS</div>
+    </div>
+
+    <div class="splitc-footer">
+      <div class="splitc-footer-half">
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Moe Hamdan ×3</span>
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Moody ×3</span>
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Abood ×1</span>
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Arek ×1</span>
+      </div>
+      <div class="splitc-footer-half right">
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Mostafa ×5</span>
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Ivan ×2</span>
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Chaos ×1</span>
+        <span class="mt-scorer-row mt-scorer-row--motm"><span class="mt-scorer-ball">⚽</span><span class="mt-scorer-star">⭐</span>Rawad ×1</span>
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Ziad ×1</span>
+        <span class="mt-scorer-row">Anas <span class="mt-stat-icon" style="color: #f5c542;">🟨</span></span>
+      </div>
+    </div>
+  </button>
+
+  <p class="mock-sub" style="font-size: 10.5px; margin-top: -4px;"><span class="annot" style="margin-left: 0;">DIFF</span> &nbsp;Only addition vs live: the <strong style="color: var(--accent);">REF · Saz</strong> pill in banner middle. Score / WINNER ribbon / footer scorers / yellow card / MOTM gold all unchanged.</p>
+
+  <hr class="divider" />
+
+  <!-- ── 2. Same card with an injured player — illustrative ───────── -->
+  <div class="mock-title">2 · Same card with an injured player tagged</div>
+  <p class="mock-sub">Game 31 had no injuries. Below is the SAME card with a hypothetical row added showing how the bandage icon renders when a ref tags a player as injured during the match. The icon uses the existing <code>.mt-stat-icon</code> styling so it lives on the same line as the player name, exactly like 🟨 / 🟥 today.</p>
+
+  <button class="mt-card" type="button">
+    <div class="mt-card-banner">
+      <span class="mt-card-banner-title">GAME 31 / 40</span>
+      <span class="mt-card-ref-pill"><span class="mt-card-ref-pill-label">REF</span> Saz</span>
+      <span class="mt-card-banner-date">23/APR/2026</span>
+    </div>
+    <div class="mt-winner-ribbon right"></div>
+    <div class="mt-winner-label right">WINNER</div>
+    <div class="splitc">
+      <div class="splitc-half splitc-white splitc-loser">
+        <div class="splitc-logo splitc-logo-white"><img src="/ffc-logo.svg" alt="FFC" onerror="this.style.opacity=0"/></div>
+        <span class="splitc-team-label">WHITE</span>
+        <span class="splitc-score splitc-score-white">8</span>
+      </div>
+      <div class="splitc-half splitc-black">
+        <div class="splitc-logo splitc-logo-black"><img src="/ffc-logo.svg" alt="FFC" onerror="this.style.opacity=0"/></div>
+        <span class="splitc-team-label right">BLACK</span>
+        <span class="splitc-score splitc-score-black">10</span>
+      </div>
+      <div class="splitc-vs">VS</div>
+    </div>
+    <div class="splitc-footer">
+      <div class="splitc-footer-half">
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Moe Hamdan ×3</span>
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Moody ×3</span>
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Abood ×1</span>
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Arek ×1</span>
+        <span class="mt-scorer-row" style="opacity:0.7;">Joe (illustrative) <span class="mt-stat-icon mt-stat-icon--injury">🩹</span></span>
+      </div>
+      <div class="splitc-footer-half right">
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Mostafa ×5</span>
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Ivan ×2</span>
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Chaos ×1</span>
+        <span class="mt-scorer-row mt-scorer-row--motm"><span class="mt-scorer-ball">⚽</span><span class="mt-scorer-star">⭐</span>Rawad ×1</span>
+        <span class="mt-scorer-row"><span class="mt-scorer-ball">⚽</span>Ziad ×1</span>
+        <span class="mt-scorer-row">Anas <span class="mt-stat-icon" style="color: #f5c542;">🟨</span></span>
+      </div>
+    </div>
+  </button>
+
+  <p class="mock-sub" style="font-size: 10.5px; margin-top: -4px;">Same rules as 🟨/🟥 today: appears on the player's row, after the name. Combinable with goals (<code>⚽ Player ×N 🩹</code>) and with cards.</p>
+
+  <hr class="divider" />
+
+  <!-- ── 3. RefEntry pre-match: where the ref name comes from ─────── -->
+  <div class="mock-title">3 · Pre-match — ref types their name</div>
+  <p class="mock-sub">Single text input on the existing pre-match screen, above the KICK OFF button. Required — KICK OFF disabled until name has ≥2 characters. Persists when ref taps SUBMIT at full-time (extends existing <code>submit_ref_entry</code> payload).</p>
+
+  <div class="ref-entry">
+    <span class="ref-entry-md-label">Matchday</span>
+    <h2 class="ref-entry-title" style="margin: 0;">Thu 7 May · 7:30 PM</h2>
+    <p class="ref-entry-meta">7v7 · Manchester City Football School</p>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 0;">
+      <div style="background: linear-gradient(135deg, #f4ede2 0%, #e5ddcd 100%); border-radius: 8px; padding: 10px; text-align: center; color: #0b1220;">
+        <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.14em;">WHITE · 7</div>
+      </div>
+      <div style="background: linear-gradient(135deg, #0b1220 0%, #1a2440 100%); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 10px; text-align: center;">
+        <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.14em; color: #f4ede2;">BLACK · 7</div>
+      </div>
+    </div>
+
+    <div class="ref-name-wrap">
+      <span class="ref-name-label">🎩 Ref name <span class="req-tag">required</span></span>
+      <input class="ref-name-input" placeholder="Type your name…" />
+      <p class="ref-name-hint">Recorded on the match card after submit.</p>
+    </div>
+
+    <button class="ref-entry-cta" disabled>⚽ KICK OFF</button>
+    <p class="ref-entry-cta-hint">Screen stays awake. Tap when the match starts.</p>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ── 4. Ref live console: tag a player as injured ─────────────── -->
+  <div class="mock-title">4 · Live console — ref tags an injured player</div>
+  <p class="mock-sub">During the match, ref opens the WHITE or BLACK roster panel and taps the bandage button next to a player. Toggleable; tapping again clears it. Writes to <code>match_players.is_no_show</code> (existing column — semantically already covers "didn't play / went off"). On submit, the bandage icon shows on the match card row for that player.</p>
+
+  <div class="ref-live">
+    <div style="font-size: 10px; color: #8b97ad; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; margin-bottom: 6px;">⚪ WHITE roster</div>
+    <div class="ref-live-roster-row">
+      <span class="ref-live-num">01</span>
+      <span>Moe Hamdan</span>
+      <span style="font-size: 10px; color: #8b97ad;">⚽×3</span>
+      <button class="ref-live-tag-btn">🩹 Tag</button>
+    </div>
+    <div class="ref-live-roster-row">
+      <span class="ref-live-num">02</span>
+      <span>Moody</span>
+      <span style="font-size: 10px; color: #8b97ad;">⚽×3</span>
+      <button class="ref-live-tag-btn">🩹 Tag</button>
+    </div>
+    <div class="ref-live-roster-row">
+      <span class="ref-live-num">03</span>
+      <span>Abood</span>
+      <span style="font-size: 10px; color: #8b97ad;">⚽×1</span>
+      <button class="ref-live-tag-btn">🩹 Tag</button>
+    </div>
+    <div class="ref-live-roster-row" style="opacity: 0.7;">
+      <span class="ref-live-num">07</span>
+      <span>Joe (illustrative)</span>
+      <span style="font-size: 10px; color: #8b97ad;">—</span>
+      <button class="ref-live-tag-btn ref-live-tag-btn--active">🩹 Tagged</button>
+    </div>
+  </div>
+
+  <p class="mock-sub" style="font-size: 10.5px;">Tapped state: filled bandage tan background. Ref can untag at any time before SUBMIT.</p>
+
+  <hr class="divider" />
+
+  <!-- ── Schema + change list ─────────────────────────────────────── -->
+  <div class="mock-title">Implementation cost</div>
+
+  <div class="schema-note">
+    <strong>Schema (1 migration):</strong><br>
+    <code>ALTER TABLE matches ADD COLUMN ref_name TEXT NULL;</code><br>
+    <strong>RPC change:</strong> extend <code>submit_ref_entry(p_token, p_payload)</code> body to read <code>p_payload-&gt;&gt;'ref_name'</code> and write it onto the new <code>matches</code> row. Injured players already serialize through <code>p_payload-&gt;'players'-&gt;'is_no_show'</code> — no payload schema change needed.<br>
+    <br>
+    <strong>Frontend (5 touch points):</strong><br>
+    1. <code>RefEntry.tsx</code> pre-match — add ref name input, persist to session storage, wire as required.<br>
+    2. <code>RefEntry.tsx</code> live roster — add 🩹 Tag button per player, toggle <code>is_no_show</code> in session.<br>
+    3. <code>RefEntry.tsx</code> submit — include <code>ref_name</code> in payload.<br>
+    4. <code>Matches.tsx</code> select — add <code>ref_name</code> to matches query columns.<br>
+    5. <code>Matches.tsx</code> banner JSX — add <code>{m.ref_name &amp;&amp; &lt;span class="mt-card-ref-pill"&gt;…&lt;/span&gt;}</code>. The bandage already renders via existing <code>ParticipantBadge</code> when <code>is_no_show=true</code>; only icon swap (🤕 → 🩹) is needed.<br>
+    <br>
+    <strong>Backfill:</strong> none. Old matches show no pill — banner gracefully gaps.
+  </div>
+
+</div>
+</body>
+</html>

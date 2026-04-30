@@ -44,6 +44,9 @@ interface MatchRow {
   score_black: number
   approved_at: string
   matchday_id: string
+  // S060 #41 — referee's name (typed by ref on pre-match screen). Null for
+  // matches approved before the migration; banner pill is hidden in that case.
+  ref_name: string | null
   // S058 follow-up — needed to highlight MOTM in the scorer list with gold + ⭐.
   motm_user_id: string | null
   motm_guest_id: string | null
@@ -141,15 +144,15 @@ function bannerLabel(matchdayNumber: number, total: number | null): string {
 
 // Issue #33 — single row that combines goals + cards + injury markers for
 // one player. Examples: `⚽ ⭐ Latif ×2`, `🟨 Saz`, `⚽ Karim ×1 🟥`,
-// `🤕 Moe Hamdan` (no-show / injury). HAT pill removed per follow-up
-// feedback ("just adds clutter" — the ×N suffix already conveys it).
+// `🩹 Moe Hamdan` (injured / no-show). S060 #41 — swapped 🤕 → 🩹 to match
+// FIFA-style. HAT pill removed per follow-up feedback ("just adds clutter").
 function ParticipantBadge({ row }: { row: GroupedParticipant }) {
   const scored = row.goals > 0
   return (
     <span className={`mt-scorer-row${row.isMotm ? ' mt-scorer-row--motm' : ''}`}>
       {scored && <span className="mt-scorer-ball">⚽</span>}
       {scored && row.isMotm && <span className="mt-scorer-star">⭐</span>}
-      {!scored && row.is_no_show && <span className="mt-stat-icon" aria-label="Injury / no-show" title="Injury / no-show">🤕</span>}
+      {!scored && row.is_no_show && <span className="mt-stat-icon mt-stat-icon--injury" aria-label="Injury" title="Injury">🩹</span>}
       {row.name}
       {scored && <> ×{row.goals}</>}
       {row.yellow_cards > 0 && (
@@ -161,7 +164,7 @@ function ParticipantBadge({ row }: { row: GroupedParticipant }) {
         <span className="mt-stat-icon mt-stat-icon--red" aria-label="Red card" title="Red card">🟥</span>
       )}
       {scored && row.is_no_show && (
-        <span className="mt-stat-icon" aria-label="Injury / no-show" title="Injury / no-show">🤕</span>
+        <span className="mt-stat-icon mt-stat-icon--injury" aria-label="Injury" title="Injury">🩹</span>
       )}
     </span>
   )
@@ -202,7 +205,7 @@ export function Matches() {
       supabase
         .from('matches')
         .select(`
-          id, result, score_white, score_black, approved_at, matchday_id,
+          id, result, score_white, score_black, approved_at, matchday_id, ref_name,
           motm_user_id, motm_guest_id,
           matchday:matchdays!inner(id, kickoff_at, is_friendly),
           motm_member:profiles!matches_motm_user_id_fkey(display_name),
@@ -391,6 +394,12 @@ export function Matches() {
                     <span className="mt-card-banner-title">{bannerLabel(n, total)}</span>
                     {m.matchday?.is_friendly && (
                       <span className="mt-friendly-chip">FRIENDLY</span>
+                    )}
+                    {m.ref_name && (
+                      <span className="mt-card-ref-pill">
+                        <span className="mt-card-ref-pill-label">REF</span>
+                        {m.ref_name}
+                      </span>
                     )}
                     <span className="mt-card-banner-date">{formatDate(m.matchday?.kickoff_at ?? m.approved_at)}</span>
                   </div>

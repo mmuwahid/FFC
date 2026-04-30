@@ -84,6 +84,9 @@ export function RefEntry() {
         clock={clock}
         token={token ?? ''}
         sessionStorageKey={session.sessionStorageKey}
+        refName={session.refName}
+        injuredIds={session.injuredIds}
+        toggleInjured={session.toggleInjured}
         onSubmitted={() => session.confirmSubmit()}
         onBackToLive={() => {
           clock.reopen()
@@ -134,11 +137,33 @@ export function RefEntry() {
         <RosterCard team="black" players={session.payload.black} />
       </div>
 
+      {/* S060 #41 — required ref name input. Persists via useMatchSession to
+          localStorage and flows through submit_ref_entry → matches.ref_name. */}
+      <div className="ref-name-wrap">
+        <label className="ref-name-label" htmlFor="ref-name-input">
+          🎩 Ref name <span className="ref-name-req">required</span>
+        </label>
+        <input
+          id="ref-name-input"
+          className="ref-name-input"
+          type="text"
+          inputMode="text"
+          autoComplete="off"
+          autoCapitalize="words"
+          maxLength={40}
+          placeholder="Type your name…"
+          value={session.refName}
+          onChange={(e) => session.setRefName(e.target.value)}
+        />
+        <p className="ref-name-hint">Recorded on the match card after submit.</p>
+      </div>
+
       <div className="ref-entry-cta-wrap">
         <button
           type="button"
           className="ref-entry-cta"
           onClick={() => void session.startMatch()}
+          disabled={session.refName.trim().length < 2}
         >
           ⚽ KICK OFF
         </button>
@@ -582,11 +607,16 @@ interface ReviewConsoleProps {
   clock: ClockHook
   token: string
   sessionStorageKey: string | null
+  /* S060 #41 — passed through from useMatchSession so injury tags + ref name
+   * survive the live → review → submit → reload cycle. */
+  refName: string
+  injuredIds: Set<string>
+  toggleInjured: (id: string) => void
   onSubmitted: () => void
   onBackToLive: () => void
 }
 
-function ReviewConsole({ payload, clock, token, sessionStorageKey, onSubmitted, onBackToLive }: ReviewConsoleProps) {
+function ReviewConsole({ payload, clock, token, sessionStorageKey, refName, injuredIds, toggleInjured, onSubmitted, onBackToLive }: ReviewConsoleProps) {
   const [notes, setNotes] = useState('')
   const [motmPickerOpen, setMotmPickerOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<MatchEvent | null>(null)
@@ -611,7 +641,7 @@ function ReviewConsole({ payload, clock, token, sessionStorageKey, onSubmitted, 
     setSubmitBusy(true)
     setSubmitError(null)
     try {
-      const refPayload = buildSubmitPayload(clock.state, payload, notes, winner)
+      const refPayload = buildSubmitPayload(clock.state, payload, notes, winner, refName, injuredIds)
       const { error } = await supabase.rpc('submit_ref_entry', {
         p_token: token,
         p_payload: refPayload as unknown as Json,
@@ -675,6 +705,49 @@ function ReviewConsole({ payload, clock, token, sessionStorageKey, onSubmitted, 
           >
             {clock.state.motm ? 'Change MOTM' : 'Set MOTM'}
           </button>
+        </div>
+
+        {/* S060 #41 — Injured Players. Toggle the bandage tag per player.
+            Tapped = player tagged as is_no_show on submit. Same data source
+            as the bandage marker on the live match card. */}
+        <div className="ref-review-injuries">
+          <div className="ref-review-section-label">
+            🩹 INJURED PLAYERS · OPTIONAL
+          </div>
+          <div className="ref-review-injuries-teams">
+            {(['white', 'black'] as const).map((team) => {
+              const roster = team === 'white' ? payload.white : payload.black
+              return (
+                <div key={team} className={`ref-review-injuries-team ref-review-injuries-team--${team}`}>
+                  <div className="ref-review-injuries-team-label">{team === 'white' ? '⚪ WHITE' : '⚫ BLACK'}</div>
+                  <ul className="ref-review-injuries-list">
+                    {roster.map((p) => {
+                      const pid = p.profile_id ?? p.guest_id ?? ''
+                      if (pid === '') return null
+                      const isInjured = injuredIds.has(pid)
+                      return (
+                        <li key={pid} className="ref-review-injuries-row">
+                          <span className="ref-review-injuries-name">{p.display_name}</span>
+                          <button
+                            type="button"
+                            className={
+                              'ref-review-injury-btn' +
+                              (isInjured ? ' ref-review-injury-btn--active' : '')
+                            }
+                            onClick={() => toggleInjured(pid)}
+                            disabled={submitBusy}
+                            aria-pressed={isInjured}
+                          >
+                            🩹 {isInjured ? 'Tagged' : 'Tag'}
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         <div className="ref-review-notes">
@@ -803,6 +876,10 @@ interface SubmitPlayer {
   yellow_cards: number
   red_cards: number
   is_motm: boolean
+  /* S060 #41 — set when ref taps the bandage Tag button on Review screen.
+   * Server reads this onto pending_match_entry_players.is_no_show and
+   * approve_match_entry copies it onto match_players.is_no_show. */
+  is_no_show: boolean
 }
 
 interface SubmitEvent {
@@ -821,6 +898,8 @@ interface SubmitPayload {
   score_white: number
   score_black: number
   notes: string | null
+  /* S060 #41 — typed by ref on pre-match screen, lands on matches.ref_name. */
+  ref_name: string | null
   players: SubmitPlayer[]
   events: SubmitEvent[]
   timing: {
@@ -843,6 +922,8 @@ function buildSubmitPayload(
   payload: RefMatchdayPayload,
   notes: string,
   winner: 'white' | 'black' | 'draw',
+  refName: string,
+  injuredIds: Set<string>,
 ): SubmitPayload {
   const eachRoster: Array<{ team: 'white' | 'black'; players: typeof payload.white }> = [
     { team: 'white', players: payload.white },
@@ -872,6 +953,10 @@ function buildSubmitPayload(
           (state.motm.profile_id !== null && state.motm.profile_id === p.profile_id)
           || (state.motm.guest_id !== null && state.motm.guest_id === p.guest_id)
         )
+      // S060 #41 — match the player's id (profile_id || guest_id) against
+      // the ref's injured set. We only ever have one of the two non-null,
+      // and ids are uuids — collisions are impossible.
+      const pid = p.profile_id ?? p.guest_id ?? ''
       return {
         profile_id: p.profile_id,
         guest_id: p.guest_id,
@@ -880,6 +965,7 @@ function buildSubmitPayload(
         yellow_cards: yellow,
         red_cards: red,
         is_motm: isMotm,
+        is_no_show: pid !== '' && injuredIds.has(pid),
       }
     }),
   )
@@ -897,11 +983,13 @@ function buildSubmitPayload(
 
   const trimmedNotes = notes.trim()
 
+  const trimmedRef = refName.trim()
   return {
     result: winner,
     score_white: state.score_white,
     score_black: state.score_black,
     notes: trimmedNotes === '' ? null : trimmedNotes,
+    ref_name: trimmedRef === '' ? null : trimmedRef,
     players,
     events,
     timing: {

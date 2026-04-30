@@ -681,6 +681,7 @@ export type Database = {
           motm_guest_id: string | null
           motm_user_id: string | null
           notes: string | null
+          ref_name: string | null
           result: Database["public"]["Enums"]["match_result"] | null
           score_black: number | null
           score_white: number | null
@@ -702,6 +703,7 @@ export type Database = {
           motm_guest_id?: string | null
           motm_user_id?: string | null
           notes?: string | null
+          ref_name?: string | null
           result?: Database["public"]["Enums"]["match_result"] | null
           score_black?: number | null
           score_white?: number | null
@@ -723,6 +725,7 @@ export type Database = {
           motm_guest_id?: string | null
           motm_user_id?: string | null
           notes?: string | null
+          ref_name?: string | null
           result?: Database["public"]["Enums"]["match_result"] | null
           score_black?: number | null
           score_white?: number | null
@@ -886,6 +889,7 @@ export type Database = {
           kickoff_at: string | null
           matchday_id: string
           notes: string | null
+          ref_name: string | null
           rejected_at: string | null
           rejected_by: string | null
           rejection_reason: string | null
@@ -907,6 +911,7 @@ export type Database = {
           kickoff_at?: string | null
           matchday_id: string
           notes?: string | null
+          ref_name?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
@@ -928,6 +933,7 @@ export type Database = {
           kickoff_at?: string | null
           matchday_id?: string
           notes?: string | null
+          ref_name?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
@@ -977,6 +983,7 @@ export type Database = {
           guest_id: string | null
           id: string
           is_motm: boolean
+          is_no_show: boolean
           pending_entry_id: string
           profile_id: string | null
           red_cards: number
@@ -988,6 +995,7 @@ export type Database = {
           guest_id?: string | null
           id?: string
           is_motm?: boolean
+          is_no_show?: boolean
           pending_entry_id: string
           profile_id?: string | null
           red_cards?: number
@@ -999,6 +1007,7 @@ export type Database = {
           guest_id?: string | null
           id?: string
           is_motm?: boolean
+          is_no_show?: boolean
           pending_entry_id?: string
           profile_id?: string | null
           red_cards?: number
@@ -2002,6 +2011,7 @@ export type Database = {
           motm_guest_id: string | null
           motm_user_id: string | null
           notes: string | null
+          ref_name: string | null
           result: Database["public"]["Enums"]["match_result"] | null
           score_black: number | null
           score_white: number | null

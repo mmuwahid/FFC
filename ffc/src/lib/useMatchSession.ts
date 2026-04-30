@@ -46,6 +46,13 @@ export interface RefMatchdayPayload {
 interface PersistedState {
   mode: MatchMode
   kickoff_started_at: string | null
+  /* S060 #41 — typed by ref on the pre-match screen, persists through to
+   * submit_ref_entry → approve_match_entry → matches.ref_name. */
+  ref_name: string
+  /* S060 #41 — `profile_id || guest_id` of players the ref tagged as
+   * injured during review. Persisted as an array because Set isn't
+   * JSON-serializable. */
+  injured_player_ids: string[]
 }
 
 const STORAGE_PREFIX = 'ffc_ref_'
@@ -86,6 +93,12 @@ export function useMatchSession(token: string | undefined) {
   const [storageKey, setStorageKey] = useState<string | null>(null)
   const [kickoffAt, setKickoffAt] = useState<string | null>(null)
   const [fetchKey, setFetchKey] = useState(0)
+  /* S060 #41 — ref types their name once on the pre-match screen. Required
+   * to enable KICK OFF (RefEntry.tsx gates the button on refName length). */
+  const [refName, setRefName] = useState<string>('')
+  /* S060 #41 — set of `profile_id || guest_id` ids the ref has tagged as
+   * injured during review. Toggle via toggleInjured(id). */
+  const [injuredIds, setInjuredIds] = useState<Set<string>>(() => new Set())
 
   // Resolve storage key from token (async because Web Crypto is async). The
   // setState calls inside this and the next effect are intentional async-arrival
@@ -133,6 +146,12 @@ export function useMatchSession(token: string | undefined) {
         if (persisted) {
           setMode(persisted.mode)
           setKickoffAt(persisted.kickoff_started_at)
+          // S060 #41 — restore ref name + injured tags. Older persisted
+          // payloads (pre-#41) are missing both keys; default safely.
+          if (typeof persisted.ref_name === 'string') setRefName(persisted.ref_name)
+          if (Array.isArray(persisted.injured_player_ids)) {
+            setInjuredIds(new Set(persisted.injured_player_ids))
+          }
         } else {
           setMode('pre')
         }
@@ -141,12 +160,29 @@ export function useMatchSession(token: string | undefined) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchKey is intentional refresh trigger
   }, [storageKey, token, fetchKey])
 
-  // Persist whenever mode or kickoffAt change (and we have a key).
+  // Persist whenever mode / kickoffAt / refName / injuredIds change (and we
+  // have a key). S060 #41 extends the persisted shape; older snapshots stay
+  // forward-compatible because hydration tolerates missing keys.
   useEffect(() => {
     if (!storageKey) return
     if (mode === 'loading' || mode === 'invalid') return
-    writePersisted(storageKey, { mode, kickoff_started_at: kickoffAt })
-  }, [storageKey, mode, kickoffAt])
+    writePersisted(storageKey, {
+      mode,
+      kickoff_started_at: kickoffAt,
+      ref_name: refName,
+      injured_player_ids: Array.from(injuredIds),
+    })
+  }, [storageKey, mode, kickoffAt, refName, injuredIds])
+
+  /** S060 #41 — flip injured-tag for a player by `profile_id || guest_id`. */
+  const toggleInjured = (id: string) => {
+    setInjuredIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const startMatch = async () => {
     setKickoffAt(new Date().toISOString())
@@ -186,5 +222,10 @@ export function useMatchSession(token: string | undefined) {
     reopenLive,
     refresh: () => setFetchKey((k) => k + 1),
     sessionStorageKey: storageKey,
+    // S060 #41
+    refName,
+    setRefName,
+    injuredIds,
+    toggleInjured,
   }
 }

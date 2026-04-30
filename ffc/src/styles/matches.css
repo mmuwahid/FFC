@@ -28,6 +28,29 @@
 .mt-card-banner-title { font-weight: 700; letter-spacing: 0.12em; font-size: 11px; color: #60a5fa; }
 .mt-card-banner-date { font-size: 10px; color: #8b97ad; letter-spacing: 0.08em; }
 
+/* S060 #41 — gold REF pill in banner middle. Sits between title (left) and
+ * date (right) by virtue of the banner's `justify-content: space-between`.
+ * Hidden by render condition in JSX when matches.ref_name is null. */
+.mt-card-ref-pill {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: rgba(229, 186, 91, 0.14);
+  color: #e5ba5b;
+  border: 1px solid rgba(229, 186, 91, 0.32);
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mt-card-ref-pill-label { opacity: 0.7; font-weight: 700; }
+
 /* S058 #25b — friendly chip in banner row. Marks matches that don't count
  * toward the leaderboard so the user can tell why a friendly result doesn't
  * shift the standings. */
@@ -129,6 +152,9 @@
 .mt-stat-icon { font-size: 10px; line-height: 1; opacity: 0.95; margin-left: 3px; display: inline-flex; align-items: center; gap: 1px; }
 .mt-stat-icon--yellow { font-size: 10px; }
 .mt-stat-icon--red { font-size: 10px; }
+/* S060 #41 — bandage marker for ref-tagged injured players. Replaces the
+ * 🤕 used previously; same data source: match_players.is_no_show. */
+.mt-stat-icon--injury { font-size: 11px; color: #f4c89a; }
 
 /* MOTM strip */
 .mt-motm-strip {
