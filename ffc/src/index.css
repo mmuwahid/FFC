@@ -6926,6 +6926,32 @@ body.is-leaderboard-landscape .lb-table-grid {
 }
 
 
+/* Drag-and-drop additions (dev branch) */
+.rs-drag-ghost {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  background: var(--accent);
+  color: #0e1826;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.92;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+.rs-chip--dragging { opacity: 0.35; }
+.rs-slot--drag-over {
+  border-color: var(--accent) !important;
+  background: rgba(229,186,91,0.12) !important;
+}
+.rs-slot--dragging { opacity: 0.4; }
+.rs-pool-chips--drop-target { background: rgba(229,186,91,0.06); border-radius: 8px; }
+
 /* ============================================================= */
 /* RESTORED in S058: Payments CSS (357 lines) deleted by PR #28   */
 /* squash-merge regression. Original commit: 9b5fcbb (S056).      */
