@@ -1,13 +1,11 @@
 # FFC Todo
 
-## NEXT SESSION — S057
+## NEXT SESSION — S058
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: after S057 session-start, HEAD on `main` is `105bb19` (two Atomo PRs merged: PR #28 roster-setup-v2 + PR #29 datetime-confirm on top of S056 `9b5fcbb`).
-- Migrations on live DB: **55** (S056 added 0055 `payment_tracker.sql`). PRs #28/#29 are frontend-only — no new migrations.
-- Issues closed (S057 session start): #16 (✏ pencil, S056 `e2a8a33`), #17 (position pill colours, S056 `e2a8a33`), #19 (datetime confirm, PR #29), #20 (roster-setup-v2, PR #28). Issue #18 still open (3 complex sub-asks deferred).
-- New open issues from Atomo: **#21 #22 #23 #24 #25 #26 #27** — see triage block below.
+- Expected tip: HEAD on `main` is `717ab34` (S057 close). No new migrations (still 55).
+- Issues closed this session: #16 #17 #19 #20 (S056/PR delivery) + #24 #26 #27 (S057 quick-wins + formula fix). Issue #18 still open (3 complex sub-asks deferred). Issue #21 #22 #23 #25 deferred to S058.
 
 **S057 agenda — live verification, Atomo issues triage, payment tracker mockup:**
 
@@ -17,13 +15,16 @@
    - [x] Issues #19, #20 auto-closed by PR merges.
 
 00a. **Atomo new issues triage (#21–#27):**
-   - [ ] **#22 (UI footer alignment)** — CSS/layout audit across all screens. Bottom nav shifts, dynamic island bleed, season management misalignment. Quick fix (no mockup needed). Priority: high — affects every screen.
-   - [ ] **#24 (Player profile screen)** — (a) avatar initial overflows box (CSS overflow fix, quick). (b) header not clearing dynamic island (safe-area fix). (c) career goals formula mismatch vs leaderboard — investigate query source.
-   - [ ] **#26 (Season Awards logic)** — awards showing only last-game data instead of cumulative season totals. Fix `v_season_award_winners_live` view logic. Plus: winner name on hero card should navigate to profile (same as runner-up does).
-   - [ ] **#27 (Admin match management)** — guard against entering results for future-date matches. Add a date check before showing the result-entry UI.
-   - [ ] **#25 (Recent matches)** — (a) matches tab empty despite logged matches — investigate `v_season_standings` or match query. (b) player-profile recent-match card format should match WhatsApp share card.
-   - [ ] **#23 (Push notification)** — notifications not appearing in bell panel or PWA after match creation / result. Investigate notification pipeline end-to-end.
-   - [ ] **#21 (Edit result + roster flow)** — major UX redesign: Edit Roster moves to match-list level, scorer drop-down gets search bar, delete-match button. Needs mockup first per CLAUDE.md rule #1.
+   - [x] **#27 (Admin match management)** — `isPast` guard added: "Enter result" only renders when kickoff timestamp has passed. `275ede8`.
+   - [x] **#24a (Avatar initial overflow)** — `.pf-avatar-wrap img.pf-avatar { display: block }` — now only `<img>` gets `display:block`; the `<span>` initials variant keeps `display:grid; place-items:center`. `275ede8`.
+   - [x] **#24b (Profile header dynamic island)** — `.pf-nav` padding-top now `calc(var(--safe-top, 0px) + 10px)`. `275ede8`.
+   - [x] **#26 winner tap** — Avatar photo on awards hero card is now a `<button>` that navigates to the winner's profile (same onClick as name); larger tap target on mobile. `f135a66`.
+   - [ ] **#22 (UI footer alignment)** — Full CSS/layout audit: bottom nav shifts on load, dynamic island bleed on non-profile screens, season management row misalignment. Deferred to S058.
+   - [x] **#24c (Career goals formula mismatch)** — Fixed `717ab34`: career stats now aggregate from `v_season_standings` across all seasons (same source as leaderboard). Issue #24 closed.
+   - [x] **#26 awards data (cumulative)** — View `v_season_award_winners_live` confirmed correct. "Only last game" = only 1 match approved in live DB. Issue #26 closed with explanation.
+   - [ ] **#25 (Recent matches)** — (a) matches tab empty despite logged matches. (b) player-profile recent-match card format should match WhatsApp share card. Deferred to S058.
+   - [ ] **#23 (Push notification)** — notifications not appearing. Trace pipeline end-to-end. Deferred to S058.
+   - [ ] **#21 (Edit result + roster flow redesign)** — mockup first per CLAUDE.md rule #1. Deferred to S058.
 
 0d. **S056 live verification:**
    - [ ] **#16 (AdminPlayers)** — active player row shows faint ✏ on the right; tapping anywhere on the row still opens the edit sheet; tapping 🚫 still opens ban sheet (no double-action regression).
