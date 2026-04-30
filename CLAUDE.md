@@ -2,10 +2,10 @@
 
 FFC is a mobile-first PWA for managing a weekly 7v7 friends football league: Monday poll → Thursday game cycle, with match history, leaderboard, seasons, awards, and WhatsApp share integration.
 
-## Current state (S052 close, 28/APR/2026)
-- **Phase:** Phase 1 complete. Phase 2A + Phase 2B code-complete (S051). Phase 2 live acceptance still owed on a real Thursday matchday. **S052 = GitHub-issue fix-pack** — issues #2 (Poll No/Maybe feedback) · #3 (Leaderboard portrait col fit) · #4 (Settings restructure + drawer Install + Admin moved out) · #5 (Matches stale-on-tab-return) · #6 (Admin scroll-to-top) · #7 (admin_delete_player RPC + EditSheet delete button) closed. Issue #1 deferred per user (pills stay).
-- **Live:** https://ffc-gilt.vercel.app · `main` clean at `be8c8dd`.
-- **Migrations on live DB:** 46 (`0001` → `0046_admin_delete_player_rpc`). S052 added 0046.
+## Current state (S053 close, 30/APR/2026)
+- **Phase:** Phase 1 complete. Phase 2A + Phase 2B code-complete (S051). Phase 2 live acceptance still owed on a real Thursday matchday. **S053 = Admin Roster Setup (Issue #11)** — drag-and-drop team builder + cap enforcement + waitlist + edit-existing-match flow. PR open on `feature/fix-login → main`, awaiting Mohammed review.
+- **Live:** https://ffc-gilt.vercel.app · `main` clean at S052 close. S053 PR not yet merged.
+- **Migrations on live DB:** 48 (`0001` → `0048_admin_replace_match_roster`). S053 added 0047 + 0048.
 - **pg_cron jobs live:** `auto-lock-matchdays` (`* * * * *`) · `vote-reminders` (`*/5 * * * *`).
 - **Edge Functions live:** `notify-dispatch` (S048) · `purge-deleted-auth-user` (S051) · `notify-signup-outcome` (S051; `RESEND_API_KEY` set as Supabase project secret).
 - **Authoritative plan:** `planning/FFC-masterplan-V3.0.md` (player analytics + H2H comparison restored to Phase 3 backlog this session).

@@ -1,15 +1,16 @@
 # FFC Todo
 
-## NEXT SESSION — S053
+## NEXT SESSION — S054
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S052 fix-pack close (commit hash filled at push) on `main`.
-- Migrations on live DB: **46** (S052 added 0046 admin_delete_player_rpc).
+- Expected tip: S053 PR (`feature/fix-login → main`) merged. Migrations on live DB: **48** (0047 unlock_roster + 0048 admin_replace_match_roster).
 
-**S053 agenda — Phase 2 close-out via single-Thursday live acceptance (deferred from S052; S052 was a GitHub-issue fix-pack instead):**
+**S054 agenda:**
 
-1. **Phase 2 close: V3.0:122 8-box acceptance on a real Thursday matchday.** Same 8 boxes as the previous S052 agenda — copied below verbatim.
+1. **Types cleanup (5 min):** after PR merges, regen types and check if `admin_replace_match_roster` appears. If yes, remove `@ts-expect-error` at `AdminRosterSetup.tsx:467`, commit + push.
+2. **Live test Roster Setup:** go to `/admin/roster` on the deployed app — new matchday drag-and-drop, existing matchday Edit Roster (confirm it loads current assignments, not blank), cap error on over-limit save, waitlist lane visible if >14 yes-voters.
+3. **Phase 2 live acceptance (8-box)** — still owed on a real Thursday matchday:
    - [ ] No vote-chasing in WhatsApp — push reminders alone cover non-voters.
    - [ ] Roster locks itself at the deadline; confirmed/waitlist players get `roster_locked` push.
    - [ ] Captain pair auto-set on lock; admin gets `captain_auto_picked` push with override deeplink.
