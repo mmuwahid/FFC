@@ -4,17 +4,26 @@
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: S056 close-out at `9b5fcbb` on `main`, in sync with origin/main (Stream B pushed all 7 S056 commits at 20:07). Two parallel streams contributed: Stream A (design spec `07c9dfe` + issue fix-pack `e2a8a33`) and Stream B (impl plan `a84e852` + mig 0055 `8def94d` + types regen `99fd209` + skeleton `f435b1f` + screens + CSS `9b5fcbb`).
-- Migrations on live DB: **55** (S056 added 0055 `payment_tracker.sql` — applied + pushed by Stream B).
-- Note: GitHub issues #16/#17/#19 from `e2a8a33` did NOT use `Closes #N` trailers; they remain open on GitHub. S057 should `gh issue close 16 17 19 -c "shipped in e2a8a33"` and add a partial-fix comment to #18+#20.
+- Expected tip: after S057 session-start, HEAD on `main` is `105bb19` (two Atomo PRs merged: PR #28 roster-setup-v2 + PR #29 datetime-confirm on top of S056 `9b5fcbb`).
+- Migrations on live DB: **55** (S056 added 0055 `payment_tracker.sql`). PRs #28/#29 are frontend-only — no new migrations.
+- Issues closed (S057 session start): #16 (✏ pencil, S056 `e2a8a33`), #17 (position pill colours, S056 `e2a8a33`), #19 (datetime confirm, PR #29), #20 (roster-setup-v2, PR #28). Issue #18 still open (3 complex sub-asks deferred).
+- New open issues from Atomo: **#21 #22 #23 #24 #25 #26 #27** — see triage block below.
 
-**S057 agenda — push S056, close issues, live verification, mockup #18+#20 complex sub-asks, payment tracker mockup:**
+**S057 agenda — live verification, Atomo issues triage, payment tracker mockup:**
 
-00. **Push S056 commits + close issues #16/#17/#19, comment on #18+#20** —
-   - [ ] `git push origin main` — pushes `07c9dfe` (payment tracker spec) + `e2a8a33` (issue fix-pack).
-   - [ ] `gh issue close 16 -c "Edit affordance shipped: faint ✏ pencil added to active player rows in e2a8a33."` (and same shape for #17, #19).
-   - [ ] `gh issue comment 18 -b "Partial fix shipped in e2a8a33: × button moved inside chip boundary, no auto-promote on cancel, cap overflow → waitlist on add. Remaining sub-asks (removed-players category, lock-before-team-select gate, player return-to-origin, dirty-nav guard) need an HTML mockup first per CLAUDE.md operating rule #1 — deferred to a follow-up session."` (same for #20 as duplicate of #18).
-   - [ ] Verify Vercel auto-deploy fires after push.
+00. ~~**Push S056 commits + close issues #16/#17/#19, comment on #18+#20**~~ — **DONE (S057 session start)**
+   - [x] PRs #28 (roster-setup-v2) + #29 (datetime-confirm) merged. `tsc -b` EXIT 0.
+   - [x] Issues #16, #17 closed via `gh issue close` with S056 delivery notes.
+   - [x] Issues #19, #20 auto-closed by PR merges.
+
+00a. **Atomo new issues triage (#21–#27):**
+   - [ ] **#22 (UI footer alignment)** — CSS/layout audit across all screens. Bottom nav shifts, dynamic island bleed, season management misalignment. Quick fix (no mockup needed). Priority: high — affects every screen.
+   - [ ] **#24 (Player profile screen)** — (a) avatar initial overflows box (CSS overflow fix, quick). (b) header not clearing dynamic island (safe-area fix). (c) career goals formula mismatch vs leaderboard — investigate query source.
+   - [ ] **#26 (Season Awards logic)** — awards showing only last-game data instead of cumulative season totals. Fix `v_season_award_winners_live` view logic. Plus: winner name on hero card should navigate to profile (same as runner-up does).
+   - [ ] **#27 (Admin match management)** — guard against entering results for future-date matches. Add a date check before showing the result-entry UI.
+   - [ ] **#25 (Recent matches)** — (a) matches tab empty despite logged matches — investigate `v_season_standings` or match query. (b) player-profile recent-match card format should match WhatsApp share card.
+   - [ ] **#23 (Push notification)** — notifications not appearing in bell panel or PWA after match creation / result. Investigate notification pipeline end-to-end.
+   - [ ] **#21 (Edit result + roster flow)** — major UX redesign: Edit Roster moves to match-list level, scorer drop-down gets search bar, delete-match button. Needs mockup first per CLAUDE.md rule #1.
 
 0d. **S056 live verification:**
    - [ ] **#16 (AdminPlayers)** — active player row shows faint ✏ on the right; tapping anywhere on the row still opens the edit sheet; tapping 🚫 still opens ban sheet (no double-action regression).
@@ -72,9 +81,23 @@
 
 3. **GitHub issue #1 (deferred from S052)** — Leaderboard player abbreviation. User explicitly wants pills (position + MOTM star) to STAY. Re-open only if portrait readability still feels poor.
 
-4. **Mockup + implement #18 + #20 complex sub-asks** (deferred from S056 per CLAUDE.md operating rule #1):
-   - [ ] HTML mockup in `mockups/` showing: removed-players parking category (where cancelled players land for re-add), lock-before-team-select gate (must lock pool before any slot becomes tappable), player return-to-origin on slot remove (back to pool not auto-clear), dirty-nav guard (block back-button if unsaved changes).
+4. **Issue #18 — remaining 3 complex sub-asks** (still deferred, #20 shipped via PR #28):
+   - [ ] HTML mockup in `mockups/` showing: lock-before-team-select gate (must lock pool before any slot is tappable), player return-to-origin on slot remove (back to correct section not auto-clear), dirty-nav guard (block back-button if unsaved changes). *(Removed-players category was delivered in PR #28.)*
    - [ ] User review → finalise → spec → plan → implement.
+
+4a. **Atomo issues fix-pack (quick wins — no mockup needed):**
+   - [ ] **#22** — bottom nav fixed, dynamic island safe-area, season management alignment, back buttons on drill-down screens.
+   - [ ] **#24** — avatar initial overflow, dynamic island on profile header, career goals formula vs leaderboard source.
+   - [ ] **#26** — awards cumulative data fix (`v_season_award_winners_live`), winner name tap → profile navigation.
+   - [ ] **#27** — block result entry for future-date matches (date guard in admin result UI).
+
+4b. **Atomo issues requiring investigation:**
+   - [ ] **#25** — diagnose why matches tab shows no history despite logged matches; align player-profile recent-match card to share-card format.
+   - [ ] **#23** — trace notification pipeline (match creation → result add → ranking change); verify bell panel shows all notifications with timestamps + clear action.
+
+4c. **Issue #21 (edit result + roster flow redesign)** — mockup-first per CLAUDE.md rule #1:
+   - [ ] HTML mockup: Edit Roster button at match-list level (outside result sheet), scorer drop-down with search bar, delete-match button.
+   - [ ] User review → finalise → implement.
 
 5. **Phase 3 payment tracker** (V3.0:147 — full slice on top of S056 spec at `docs/superpowers/specs/2026-04-29-payment-tracker-design.md`):
    - [ ] HTML mockup in `mockups/` for the 3-screen flow (season overview → admin drilldown → player ledger). Use Option B compact card layout + Option C inline status icons (✓/⏳/✗). Reject any return of outline pills.
