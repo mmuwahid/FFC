@@ -118,11 +118,145 @@ export function AdminRosterSetup() {
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Drag-and-drop state (pointer-events engine — works on touch + mouse)
+  const dragPlayerRef = useRef<PoolPlayer | null>(null)
+  const dragSourceRef = useRef<{ kind: 'pool' } | { kind: 'slot'; team: TeamColor; idx: number } | null>(null)
+  const ghostRef = useRef<HTMLDivElement | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dragOverSlot, setDragOverSlot] = useState<{ team: TeamColor; idx: number } | null>(null)
+  const [dragOverPool, setDragOverPool] = useState(false)
+
   function showToast(msg: string) {
     setToast(msg)
     if (toastTimer.current) clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => setToast(null), 3000)
   }
+
+  // ── Drag engine ──────────────────────────────────────────────────────────
+  function startDrag(
+    e: React.PointerEvent,
+    player: PoolPlayer,
+    source: { kind: 'pool' } | { kind: 'slot'; team: TeamColor; idx: number }
+  ) {
+    e.currentTarget.releasePointerCapture(e.pointerId)
+    dragPlayerRef.current = player
+    dragSourceRef.current = source
+    setDraggingId(player.id)
+    const ghost = document.createElement('div')
+    ghost.className = 'rs-drag-ghost'
+    ghost.textContent = player.display_name
+    ghost.style.left = `${e.clientX - 60}px`
+    ghost.style.top = `${e.clientY - 20}px`
+    document.body.appendChild(ghost)
+    ghostRef.current = ghost
+  }
+
+  useEffect(() => {
+    function onMove(e: PointerEvent) {
+      const ghost = ghostRef.current
+      if (!ghost) return
+      ghost.style.left = `${e.clientX - 60}px`
+      ghost.style.top = `${e.clientY - 20}px`
+      ghost.style.display = 'none'
+      const el = document.elementFromPoint(e.clientX, e.clientY)
+      ghost.style.display = ''
+      const slotEl = (el as Element | null)?.closest('[data-drop-team]')
+      if (slotEl) {
+        const t = slotEl.getAttribute('data-drop-team') as TeamColor
+        const i = parseInt(slotEl.getAttribute('data-drop-idx') ?? '-1')
+        if (i >= 0) { setDragOverSlot({ team: t, idx: i }); setDragOverPool(false); return }
+      }
+      const poolEl = (el as Element | null)?.closest('[data-drop-pool]')
+      setDragOverPool(!!poolEl)
+      setDragOverSlot(null)
+    }
+
+    function onUp(e: PointerEvent) {
+      const player = dragPlayerRef.current
+      const source = dragSourceRef.current
+      if (ghostRef.current) ghostRef.current.style.display = 'none'
+      const el = document.elementFromPoint(e.clientX, e.clientY)
+      if (ghostRef.current) { ghostRef.current.remove(); ghostRef.current = null }
+      dragPlayerRef.current = null
+      dragSourceRef.current = null
+      setDraggingId(null); setDragOverSlot(null); setDragOverPool(false)
+      if (!player || !source) return
+
+      const slotEl = (el as Element | null)?.closest('[data-drop-team]')
+      if (slotEl) {
+        const team = slotEl.getAttribute('data-drop-team') as TeamColor
+        const idx = parseInt(slotEl.getAttribute('data-drop-idx') ?? '-1')
+        if (idx < 0) return
+        if (source.kind === 'pool') {
+          // chip → slot
+          const setSlots = team === 'white' ? setWhite : setBlack
+          setSlots(prev => {
+            const next = [...prev]
+            const target = next[idx]
+            if (target.kind === 'empty') {
+              next[idx] = { kind: 'filled', player, originalStatus: player.status }
+            } else {
+              // slot occupied — swap displaced player back to pool
+              const displaced = target.player
+              const displacedOriginal = target.originalStatus
+              next[idx] = { kind: 'filled', player, originalStatus: player.status }
+              setPool(prev2 => [...prev2.filter(p => p.id !== player.id), { ...displaced, status: displacedOriginal }])
+              setNextTeam(team === 'white' ? 'black' : 'white')
+              return next
+            }
+            return next
+          })
+          setPool(prev => prev.filter(p => p.id !== player.id))
+          setNextTeam(team === 'white' ? 'black' : 'white')
+        } else {
+          // slot → slot: swap
+          const srcTeam = source.team; const srcIdx = source.idx
+          if (srcTeam === team && srcIdx === idx) return
+          const setSrc = srcTeam === 'white' ? setWhite : setBlack
+          const setTgt = team === 'white' ? setWhite : setBlack
+          if (srcTeam === team) {
+            setTgt(prev => {
+              const next = [...prev]
+              const tmp = next[srcIdx]
+              next[srcIdx] = next[idx]
+              next[idx] = tmp
+              return next
+            })
+          } else {
+            // Cross-team swap: do both teams in separate setStates (React batches)
+            setSrc(prev => {
+              const next = [...prev]
+              next[srcIdx] = { kind: 'empty' }
+              return next
+            })
+            setTgt(prev => {
+              const next = [...prev]
+              const srcSlots = srcTeam === 'white' ? white : black
+              const srcSlot = srcSlots[srcIdx]
+              const tgtSlot = next[idx]
+              next[idx] = srcSlot.kind === 'filled' ? { kind: 'filled', player: srcSlot.player, originalStatus: srcSlot.originalStatus } : { kind: 'empty' }
+              setSrc(ps => { const ns = [...ps]; ns[srcIdx] = tgtSlot; return ns })
+              return next
+            })
+          }
+        }
+        return
+      }
+
+      // slot → pool area = remove from slot
+      const poolEl = (el as Element | null)?.closest('[data-drop-pool]')
+      if (poolEl && source.kind === 'slot') {
+        removeFromSlot(source.team, source.idx)
+      }
+    }
+
+    document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup', onUp)
+    return () => {
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup', onUp)
+    }
+  }, [white, black, removeFromSlot])
 
   // ── Load matchday list ────────────────────────────────────────────────────
   useEffect(() => {
@@ -303,6 +437,12 @@ export function AdminRosterSetup() {
 
   // ── Phase transitions ─────────────────────────────────────────────────────
   function lockRoster() {
+    const over = unassigned.length + totalAssigned - cap
+    if (over > 0) {
+      setError(`${over} player${over > 1 ? 's are' : ' is'} over the ${cap}-player cap. Move them to Waitlist before proceeding.`)
+      return
+    }
+    setError(null)
     const wc = white.filter(s => s.kind === 'filled').length
     const bc = black.filter(s => s.kind === 'filled').length
     setNextTeam(wc <= bc ? 'white' : 'black')
@@ -397,12 +537,13 @@ export function AdminRosterSetup() {
         { p_matchday_id: selectedMdId, p_profile_id: p.id } as never
       ) as { error: unknown }
       if (err) throw err
+      const overCap = unassigned.length + totalAssigned >= cap
       const newPlayer: PoolPlayer = {
         id: p.id,
         display_name: p.display_name,
         primary_position: p.primary_position,
         isGuest: false,
-        status: 'unassigned',
+        status: overCap ? 'waitlist' : 'unassigned',
       }
       setPool(prev => [...prev, newPlayer])
       showToast(`${p.display_name} added`)
@@ -812,21 +953,23 @@ export function AdminRosterSetup() {
                 </button>
               </div>
 
-              {/* Unassigned chips (selectable) */}
-              <div className="rs-pool-section">
+              {/* Unassigned chips (tap to assign OR drag to slot) */}
+              <div className="rs-pool-section" data-drop-pool>
                 <div className="rs-section-head">
                   <span className="rs-section-title">Unassigned ({unassigned.length})</span>
                   {nextHint && unassigned.length > 0 && (
                     <span className="rs-auto-hint">{nextHint}</span>
                   )}
                 </div>
-                <div className="rs-pool-chips">
+                <div className={`rs-pool-chips${dragOverPool ? ' rs-pool-chips--drop-target' : ''}`}>
                   {unassigned.map(p => (
                     <button
                       key={p.id}
                       type="button"
-                      className="rs-chip rs-chip--selectable"
+                      className={`rs-chip rs-chip--selectable${draggingId === p.id ? ' rs-chip--dragging' : ''}`}
+                      style={{ touchAction: 'none' }}
                       onClick={() => tapChip(p)}
+                      onPointerDown={e => startDrag(e, p, { kind: 'pool' })}
                     >
                       {p.primary_position && (
                         <span className={`rs-chip-pos${p.primary_position === 'GK' ? ' rs-chip-pos--gk' : ''}`}>
@@ -843,9 +986,57 @@ export function AdminRosterSetup() {
                 </div>
               </div>
 
-              {/* Teams: interactive */}
+              {/* Waitlist (visible but not assignable) */}
+              {waitlisted.length > 0 && (
+                <>
+                  <hr className="rs-pool-divider" />
+                  <div className="rs-pool-section">
+                    <div className="rs-section-head">
+                      <span className="rs-section-title rs-section-title--waitlist">Waitlist ({waitlisted.length})</span>
+                    </div>
+                    <div className="rs-pool-chips">
+                      {waitlisted.map(p => (
+                        <div key={p.id} className="rs-chip rs-chip--waitlist">
+                          {p.primary_position && (
+                            <span className={`rs-chip-pos${p.primary_position === 'GK' ? ' rs-chip-pos--gk' : ''}`}>
+                              {p.primary_position}
+                            </span>
+                          )}
+                          {p.display_name}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Removed (visible, read-only in team phase) */}
+              {removedPlayers.length > 0 && (
+                <>
+                  <hr className="rs-pool-divider" />
+                  <div className="rs-pool-section">
+                    <div className="rs-section-head">
+                      <span className="rs-section-title rs-section-title--removed">Removed ({removedPlayers.length})</span>
+                    </div>
+                    <div className="rs-pool-chips">
+                      {removedPlayers.map(p => (
+                        <div key={p.id} className="rs-chip rs-chip--removed">
+                          {p.primary_position && (
+                            <span className={`rs-chip-pos${p.primary_position === 'GK' ? ' rs-chip-pos--gk' : ''}`}>
+                              {p.primary_position}
+                            </span>
+                          )}
+                          {p.display_name}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Teams: tap to assign + drag to slot */}
               <div className="rs-teams-header">
-                <span className="rs-teams-label">Teams</span>
+                <span className="rs-teams-label">Teams — drag or tap to assign</span>
               </div>
               <div className="rs-teams">
                 {(['white', 'black'] as TeamColor[]).map(team => {
@@ -864,14 +1055,48 @@ export function AdminRosterSetup() {
                         </span>
                       </div>
                       {slots.map((slot, idx) => {
+                        const isOver = dragOverSlot?.team === team && dragOverSlot?.idx === idx
                         if (slot.kind === 'filled') {
-                          return renderSlotFilled(slot, idx, team, true)
+                          return (
+                            <div
+                              key={idx}
+                              className={`rs-slot rs-slot--filled${isOver ? ' rs-slot--drag-over' : ''}${draggingId === slot.player.id ? ' rs-slot--dragging' : ''}`}
+                              data-drop-team={team}
+                              data-drop-idx={idx}
+                            >
+                              <span
+                                className="rs-slot-num"
+                                style={{ touchAction: 'none', cursor: 'grab' }}
+                                onPointerDown={e => startDrag(e, slot.player, { kind: 'slot', team, idx })}
+                              >{idx + 1}</span>
+                              <span className="rs-slot-name-group">
+                                <span className="rs-slot-name">{slot.player.display_name}</span>
+                                <button
+                                  type="button"
+                                  className="rs-slot-remove"
+                                  onClick={() => removeFromSlot(team, idx)}
+                                  aria-label={`Remove ${slot.player.display_name}`}
+                                >×</button>
+                              </span>
+                              {slot.player.primary_position && (
+                                <span className={`rs-slot-pos${slot.player.primary_position === 'GK' ? ' rs-slot-pos--gk' : ''}`}>
+                                  {slot.player.primary_position}
+                                </span>
+                              )}
+                              {slot.player.isGuest && <span className="rs-slot-guest-badge">G</span>}
+                            </div>
+                          )
                         }
                         const isNext = nextTeam === team && idx === firstEmptyIdx
                         return (
-                          <div key={idx} className={`rs-slot${isNext ? ' rs-slot--active' : ''}`}>
+                          <div
+                            key={idx}
+                            className={`rs-slot${isNext ? ' rs-slot--active' : ''}${isOver ? ' rs-slot--drag-over' : ''}`}
+                            data-drop-team={team}
+                            data-drop-idx={idx}
+                          >
                             <span className="rs-slot-num">{idx + 1}</span>
-                            <span className="rs-slot-empty">{isNext ? '← next' : '—'}</span>
+                            <span className="rs-slot-empty">{isOver ? 'drop here' : isNext ? '← next' : '—'}</span>
                           </div>
                         )
                       })}
