@@ -1,11 +1,78 @@
 # FFC Todo
 
-## NEXT SESSION — S058
+## NEXT SESSION — S059
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: HEAD on `main` is `717ab34` (S057 close). No new migrations (still 55).
-- Issues closed this session: #16 #17 #19 #20 (S056/PR delivery) + #24 #26 #27 (S057 quick-wins + formula fix). Issue #18 still open (3 complex sub-asks deferred). Issue #21 #22 #23 #25 deferred to S058.
+- Expected tip: HEAD on `main` is the S058 close docs commit (TBD on push). 4 new migrations applied this session (0056, 0057, 0058, 0059). Live DB now at 58.
+- All 4 carried-over GitHub issues closed in S058: #21 #22 #23 #25. Issue #18 still open (3 complex sub-asks pending mockup; not new — deferred from S056).
+
+**S059 agenda — Phase 3 payment tracker, finally:**
+
+1. **Phase 3 payment tracker** (V3.0:147 — long-deferred):
+   - [ ] Build HTML mockup at `mockups/payment-tracker.html` for the 3-screen flow (overview → admin drilldown → player ledger). Use Option B compact card layout + Option C inline status icons (✓ green / ⏳ amber / ✗ red — user explicitly rejected outline pills as "ugly").
+   - [ ] User review → finalize.
+   - [ ] Migration adding the 3 tables (`match_fees`, `match_payments`, `payment_ledger_view`) per spec. (Note: S056 mig 0055 already added some payment infra — verify what's there before duplicating.)
+   - [ ] Frontend pages — `/payments` overview + admin drilldown sheet + player ledger sheet (S056 already shipped a skeleton in `Payments.tsx` and `PaymentLedgerSheet.tsx`; S058 restored the deleted CSS).
+
+2. **S058 live verification** — admin/auth-gated paths unreachable from preview, only confirmable on a real Thursday matchday:
+   - [ ] **#22 layout** — bottom-nav doesn't bob during Leaderboard/Matches load · dynamic island doesn't bleed on Settings/Rules · back buttons work on AdminMatches/AdminPlayers · AdminSeasons rows align cleanly · Payments page renders with proper styling (regression fix).
+   - [ ] **#25 PNG hero** — open Profile → tap recent match → PNG hero loads at top of MatchDetailSheet · loading shimmer renders · failure path (no PNG yet) hides hero gracefully.
+   - [ ] **#25 friendlies in Matches tab** — confirm friendly matches now appear in Matches tab with yellow `FRIENDLY` chip · leaderboard standings unaffected.
+   - [ ] **#23 notification scope** — admin approves a match → only the 14 players in that match get `match_entry_approved` (was: ALL active profiles).
+   - [ ] **#23 matchday_created** — admin creates a matchday → other admins (NOT the creator) get `📅 Matchday created` notification.
+   - [ ] **#23 ranking_changed** — admin approves a match → players whose leaderboard rank changed get `📈` notification with payload `{old_rank, new_rank, points}` · first match of season is silent (no prior snapshot).
+   - [ ] **#21 4-button admin grid** — past approved match card shows `👥 Edit roster` + `🗑 Delete match` next to existing Edit result / Formation / Pick captains.
+   - [ ] **#21 Edit roster post-match** — opens sheet showing current 14 players · per-team cap chips show 7/7 · search-filtered add picker works · save calls `admin_edit_match_roster` · roster updates · re-snapshot fires ranking_changed for shifted players.
+   - [ ] **#21 Delete match** — opens sheet with type-DELETE confirm · destructive button armed only when "DELETE" typed · calls `admin_delete_match` · match disappears · matchday row preserved · payment records cleared · ranking_changed fires for shifted players.
+   - [ ] **#21 search on roster-add picker** — typing filters live · clears on selection · "No matches" empty state when query has no hits.
+
+3. **Phase 2 close: V3.0:122 8-box acceptance on a real Thursday matchday** (still pending from S052/S053/S054/S055/S057).
+   - [ ] No vote-chasing in WhatsApp — push reminders alone cover non-voters.
+   - [ ] Roster locks itself at the deadline; confirmed/waitlist players get `roster_locked` push.
+   - [ ] Captain pair auto-set on lock; admin gets `captain_auto_picked` push with override deeplink.
+   - [ ] Confirmed player drops post-lock → admins + captains see CaptainDropoutBanner appear realtime.
+   - [ ] Ref runs entire match on console (no paper).
+   - [ ] Goals / cards / MOTM time-stamped at moment of capture.
+   - [ ] After full-time, ref taps SUBMIT → admin gets push within 30 seconds.
+   - [ ] Admin opens review screen, taps APPROVE → leaderboard updates without manual entry.
+
+4. **Optional / follow-up:**
+   - [ ] **Tap-to-increment Scorer Picker sheet** (mockup tile B from S058) — only if user finds per-row goals input tedious for high-scoring matches.
+   - [ ] **Issue #18 remaining 3 complex sub-asks** — HTML mockup of: lock-before-team-select gate, player return-to-origin on slot remove, dirty-nav guard. Mockup-first per Rule #1.
+
+**Backburner:**
+- **Awards backfill RPC** — admin-triggered `backfill_season_awards()` to populate `season_awards` for ended seasons predating mig 0047.
+- **Awards push notification** — when `seasons.ended_at` flips, push admins + winners ("Season N awards are in!").
+- **Resend custom sender domain** — verify a domain in Resend, set `NOTIFY_FROM` env on `notify-signup-outcome` EF.
+- **Phase 3 backlog (post-S058):** ~~payment tracker~~ (S059 active) · multi-season comparison stats · player analytics · H2H comparison · player badges / achievements · injury / unavailable list. Mockups in `mockups/` first per Rule #1.
+- **Player analytics + H2H** (V3.0:145–146) — first attempt rejected in S053; re-attempt with different style direction if user wants.
+
+## Completed in S058 (30/APR/2026, Work PC)
+
+### All 4 outstanding GitHub issues closed (#22 #25 #23 #21)
+
+**5 commits, 4 migrations. Live DB: 55 → 58. Final HEAD: S058 close docs commit (TBD on push).**
+
+See `sessions/S058/session-log.md` for full per-phase narrative.
+
+- [x] **Phase A `d366629` — issue #22 UI audit + Payments CSS regression restore.** Skeleton row min-heights locked (Leaderboard + Matches). Settings + Rules safe-area-top padding (suppress AppTopBar so screen pads itself). Back buttons added on AdminMatches + AdminPlayers. AdminSeasons topbar 3-col grid alignment via shared `min-height: 44px`. **Bonus regression fix:** PR #28 squash-merge had silently deleted 357 lines of Payments page CSS that S056 added — restored verbatim from commit `9b5fcbb`.
+- [x] **Phase B `51c64dd` — issue #25 hybrid PNG hero + matches-tab show friendlies.** Migration 0056 opens `get_match_card_payload` to any authenticated user. New `getMatchCardUrl()` helper with 14-min session cache. MatchDetailSheet renders PNG hero above existing W/D/L chip + rosters when match is approved. Live-DB diagnosis showed user's "matches tab empty" was likely a friendly match seen in Profile (no filter) but excluded from Matches tab; dropped client-side `is_friendly` filter, friendlies now render with yellow `FRIENDLY` chip in card banner.
+- [x] **Phase C `d878b36` — issue #23 full notification pipeline coverage.** (1) BUG: `approve_match_entry` was inserting per-active-profile (200+ rows / approval); migration 0057 scopes to match's 14 players. (2) GAP: matchday creation was silent; migration 0057 adds `matchday_created` enum value + `notify_matchday_created()` AFTER INSERT trigger on matchdays (notifies admins except creator). (3) GAP: leaderboard rank changes had no event source (view, not table); migration 0058 adds `ranking_changed` enum + `player_rank_snapshots` table + `snapshot_and_diff_ranks(season_id)` function + `approve_match_entry` calls it. Frontend wiring in `notificationDeeplinks.ts` + `sw.ts` + NotificationsPanel icon mapping.
+- [x] **Phase D `47553ff` — issue #21 admin match management redesign (mockup-first).** Mockup `mockups/admin-matches-v2.html` (4 phone tiles) shipped + approved with one iteration (added tap-to-increment scorer picker after user feedback). Migration 0059: `admin_delete_match` (audit BEFORE + explicit clear of payment FKs that don't cascade + hard-delete + post-snapshot) and `admin_edit_match_roster` (replace strategy + per-team cap validation + post-snapshot). MatchdayCard gains `👥 Edit roster` + `🗑 Delete match` buttons on approved cards. DeleteMatchSheet (type-DELETE confirm) + EditRosterPostSheet (parallel load, per-team caps, search-filtered picker). ResultEntrySheet add-player picker gets sticky search input. **Deferred to S059:** dedicated Scorer Picker sheet (per-row goals input handles multi-goal adequately for now).
+- [x] **GitHub:** all 4 issues closed via `gh issue close` with detailed delivery comments.
+- [x] **Verification:** `tsc -b` EXIT 0 + `vite build` clean across all 4 phases. PWA precache ended at 12 entries / 1696.25 KiB (+34 KiB total session). Migrations verified live.
+
+### S058 patterns / lessons (additive)
+
+- **Squash-merge of long-lived branches can silently delete unrelated changes.** PR #28's squash deleted 357 lines of S056 Payments CSS. Pattern: before merging any squash that touches a high-traffic file, grep diff stat for unexpected deletions.
+- **Plan-mode AskUserQuestion for multi-decision sessions.** Resolving 3 scoping forks up-front via one round-trip → plan approved without revision; same pattern as S055 #15.
+- **Mockup-first delivers; don't skip even when implementation seems obvious.** Issue #21 user caught "what if he scored more than 1 goal" via mockup review before any code shipped.
+- **CASCADE vs NO ACTION FK cleanup before DELETE.** Query `pg_constraint` for child tables; anything `confdeltype='a'` needs explicit DELETE before the parent. Used in `admin_delete_match` for payment_records + payment_windows.
+- **`ALTER TYPE … ADD VALUE` must be in its own BEGIN/COMMIT block.** PG requires the new enum value committed before use. Followed S043/S045 split-block pattern in 0057 + 0058.
+- **Re-snapshot ranks after any leaderboard-shifting admin action.** `admin_delete_match`, `admin_edit_match_roster`, `approve_match_entry` all call `snapshot_and_diff_ranks(season_id)`. The view recomputes on read; the snapshot table needs manual maintenance to avoid drifting baselines that fire incorrect future notifications.
+- **Live-DB diagnosis before assuming a frontend bug.** Issue #25b — DB query showed data was fine; user's report was likely friendly-match in Profile vs filtered Matches tab. Diagnosing prevents over-engineering.
+- **Restore deleted CSS verbatim from a known-good commit.** Don't rewrite, don't refactor — `git show <hash>:path | sed -n 'N,Mp' >> target` with banner comment. Rewriting introduces drift.
 
 **S057 agenda — live verification, Atomo issues triage, payment tracker mockup:**
 
