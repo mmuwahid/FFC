@@ -33,7 +33,7 @@ interface ParticipantRow {
   yellow_cards: number
   red_cards: number
   is_no_show: boolean
-  profile: { id: string; display_name: string } | null
+  profile: { id: string; display_name: string; formal_name: string | null } | null
   guest: { id: string; display_name: string } | null
 }
 
@@ -99,7 +99,7 @@ function groupParticipants(
     if (p.team !== team) continue
     // Skip players with zero stats — they played fine and don't need a row.
     if (p.goals === 0 && p.yellow_cards === 0 && p.red_cards === 0 && !p.is_no_show) continue
-    const name = p.profile?.display_name ?? p.guest?.display_name ?? '—'
+    const name = p.profile?.formal_name ?? p.profile?.display_name ?? p.guest?.display_name ?? '—'
     const existing = byName.get(name)
     if (existing) {
       existing.goals += p.goals
@@ -210,7 +210,7 @@ export function Matches() {
           matchday:matchdays!inner(id, kickoff_at, is_friendly),
           motm_member:profiles!matches_motm_user_id_fkey(display_name),
           motm_guest:match_guests!matches_motm_guest_id_fkey(display_name),
-          participants:match_players(team, goals, yellow_cards, red_cards, is_no_show, profile:profiles!match_players_profile_id_fkey(id, display_name), guest:match_guests(id, display_name))
+          participants:match_players(team, goals, yellow_cards, red_cards, is_no_show, profile:profiles!match_players_profile_id_fkey(id, display_name, formal_name), guest:match_guests(id, display_name))
         `)
         .eq('season_id', seasonId)
         .not('approved_at', 'is', null)

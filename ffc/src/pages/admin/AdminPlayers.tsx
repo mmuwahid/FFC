@@ -23,7 +23,7 @@ type UserRole = Database['public']['Enums']['user_role']
 type PendingRow = Database['public']['Tables']['pending_signups']['Row']
 type ProfileRow = Pick<
   Database['public']['Tables']['profiles']['Row'],
-  'id' | 'display_name' | 'email' | 'role' | 'primary_position' | 'secondary_position' | 'is_active' | 'reject_reason'
+  'id' | 'display_name' | 'formal_name' | 'email' | 'role' | 'primary_position' | 'secondary_position' | 'is_active' | 'reject_reason'
 >
 type BanRow = Database['public']['Tables']['player_bans']['Row']
 
@@ -85,7 +85,7 @@ export function AdminPlayers() {
   const loadAll = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const selectCols = 'id, display_name, email, role, primary_position, secondary_position, is_active, reject_reason'
+    const selectCols = 'id, display_name, formal_name, email, role, primary_position, secondary_position, is_active, reject_reason'
     const [pendingRes, profilesRes, bansRes] = await Promise.all([
       supabase.from('pending_signups').select('*').eq('resolution', 'pending').order('created_at'),
       supabase.from('profiles').select(selectCols).neq('role', 'rejected').order('display_name'),
@@ -576,6 +576,7 @@ function EditSheet({
   profile, isSuperAdmin, busy, setBusy, onDone, onError, onCancel, onDelete,
 }: SheetBaseProps & { profile: ProfileRow; isSuperAdmin: boolean; onDelete: () => void }) {
   const [name, setName] = useState(profile.display_name)
+  const [formalName, setFormalName] = useState(profile.formal_name ?? '')
   const [primary, setPrimary] = useState<Position | ''>(profile.primary_position ?? '')
   const [secondary, setSecondary] = useState<Position | ''>(profile.secondary_position ?? '')
   const [isActive, setIsActive] = useState<boolean>(profile.is_active)
@@ -584,6 +585,7 @@ function EditSheet({
   const invalid = name.trim().length < 2 || (primary && secondary && primary === secondary)
   const dirty =
     name.trim() !== profile.display_name.trim()
+    || formalName.trim() !== (profile.formal_name ?? '')
     || (primary || null) !== (profile.primary_position ?? null)
     || (secondary || null) !== (profile.secondary_position ?? null)
     || isActive !== profile.is_active
@@ -592,19 +594,28 @@ function EditSheet({
   const save = async () => {
     if (invalid || !dirty) return
     setBusy(true)
-    const args: Database['public']['Functions']['update_player_profile']['Args'] = {
-      p_profile_id: profile.id,
-      p_display_name: name.trim(),
-      p_primary_position: (primary || null) as Position,
-      p_secondary_position: (secondary || null) as Position,
-      p_is_active: isActive,
-    }
-    if (isSuperAdmin && newRole !== profile.role) {
-      args.p_role = newRole
-    }
-    const { error } = await supabase.rpc('update_player_profile', args)
+
+    const formalChanged = formalName.trim() !== (profile.formal_name ?? '')
+    const [profileRes, formalRes] = await Promise.all([
+      supabase.rpc('update_player_profile', {
+        p_profile_id: profile.id,
+        p_display_name: name.trim(),
+        p_primary_position: (primary || null) as Position,
+        p_secondary_position: (secondary || null) as Position,
+        p_is_active: isActive,
+        ...(isSuperAdmin && newRole !== profile.role ? { p_role: newRole } : {}),
+      } as Database['public']['Functions']['update_player_profile']['Args']),
+      formalChanged
+        ? supabase.rpc('set_player_formal_name', {
+            p_profile_id: profile.id,
+            p_formal_name: formalName.trim() || undefined,
+          })
+        : Promise.resolve({ error: null }),
+    ])
+
     setBusy(false)
-    if (error) { onError(error.message); return }
+    if (profileRes.error) { onError(profileRes.error.message); return }
+    if (formalRes.error) { onError(formalRes.error.message); return }
     await onDone()
   }
 
@@ -614,8 +625,19 @@ function EditSheet({
       <p className="sheet-sub">Editing as admin · changes are audit-logged.</p>
 
       <label className="admin-field">
-        <span className="admin-field-label">Display name</span>
+        <span className="admin-field-label">Nickname (display name)</span>
         <input className="auth-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={30} />
+      </label>
+
+      <label className="admin-field">
+        <span className="admin-field-label">Formal name <span style={{ opacity: 0.5, fontWeight: 400 }}>(First Name + Initial — shown in leaderboard)</span></span>
+        <input
+          className="auth-input"
+          placeholder="e.g. Ibrahim A."
+          value={formalName}
+          onChange={(e) => setFormalName(e.target.value)}
+          maxLength={40}
+        />
       </label>
 
       <label className="admin-field">

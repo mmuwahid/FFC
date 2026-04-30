@@ -1335,6 +1335,7 @@ export type Database = {
           deleted_at: string | null
           display_name: string
           email: string | null
+          formal_name: string | null
           id: string
           is_active: boolean
           joined_on: string
@@ -1361,6 +1362,7 @@ export type Database = {
           deleted_at?: string | null
           display_name: string
           email?: string | null
+          formal_name?: string | null
           id?: string
           is_active?: boolean
           joined_on?: string
@@ -1387,6 +1389,7 @@ export type Database = {
           deleted_at?: string | null
           display_name?: string
           email?: string | null
+          formal_name?: string | null
           id?: string
           is_active?: boolean
           joined_on?: string
@@ -2155,6 +2158,10 @@ export type Database = {
           black_captain: string
           white_captain: string
         }[]
+      }
+      set_player_formal_name: {
+        Args: { p_formal_name?: string; p_profile_id: string }
+        Returns: undefined
       }
       share_formation: { Args: { p_formation_id: string }; Returns: undefined }
       snapshot_and_diff_ranks: {

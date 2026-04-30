@@ -45,6 +45,7 @@ interface RosterRow {
   member: {
     id: string
     display_name: string
+    formal_name: string | null
     primary_position: string | null
     secondary_position: string | null
   } | null
@@ -140,7 +141,7 @@ export function MatchDetailSheet({ matchId, profileId, onClose }: Props) {
           .select(`
             id, team, is_captain, goals, yellow_cards, red_cards, is_no_show,
             profile_id, guest_id,
-            member:profiles!match_players_profile_id_fkey(id, display_name, primary_position, secondary_position),
+            member:profiles!match_players_profile_id_fkey(id, display_name, formal_name, primary_position, secondary_position),
             guest:match_guests!match_players_guest_id_fkey(id, display_name, primary_position, secondary_position,
               inviter:profiles!match_guests_inviter_id_fkey(display_name))
           `)
@@ -369,7 +370,7 @@ function RosterSection({
           const isGuest = !!r.guest_id
           const name = isGuest
             ? (r.guest?.display_name ?? 'Guest')
-            : (r.member?.display_name ?? 'Player')
+            : (r.member?.formal_name ?? r.member?.display_name ?? 'Player')
           const pos1 = isGuest ? r.guest?.primary_position : r.member?.primary_position
           const pos2 = isGuest ? r.guest?.secondary_position : r.member?.secondary_position
           const inviter = isGuest ? r.guest?.inviter?.display_name : null
