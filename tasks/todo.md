@@ -4,9 +4,9 @@
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: HEAD on `main` is `e960df2` (S059 close docs commit will follow). 3 new migrations applied in S059 (0061, 0062, 0063) + retroactively recorded 0060 `seasons_games_seeded`. **Live DB now at 63.**
+- Expected tip: HEAD on `main` is `1dd1f27` (S059 re-log docs commit will follow). 3 new migrations applied in S059 (0061, 0062, 0063) + retroactively recorded 0060 `seasons_games_seeded`. **Live DB now at 63.**
+- **Open GitHub issues: 0.** S059 sweep closed #30 #31 #32 #33 #34 #35 #36 #37 #38 (issue #18 was not open during S059 — note in todo was stale).
 - **Apr 30 follow-up:** user must hit Edit → Save once in AdminRosterSetup so slot_index gets refreshed from current array order (S059 backfill assigned arbitrary slot_index because all 14 rows shared transaction-start created_at). Future matches inherit correct ordering automatically.
-- Issue #18 still open (3 complex sub-asks pending mockup; not new — deferred from S056).
 
 **S060 agenda — Phase 3 payment tracker (carried from S059 cold-start, not started):**
 
@@ -42,10 +42,18 @@
    - [ ] After full-time, ref taps SUBMIT → admin gets push within 30 seconds.
    - [ ] Admin opens review screen, taps APPROVE → leaderboard updates without manual entry.
 
-4. **Optional / follow-up:**
+4. **#38 audit follow-ups** (recommended split into discrete issues vs. single design-system pass):
+   - [ ] **CRITICAL** — Topbar touch targets `.app-topbar-bell` + `.app-topbar-avatar` are 36×36; bump to ≥ 44×44 per Apple HIG.
+   - [ ] **HIGH** — Border-radius scale: define `--radius-sm: 6px / --radius-md: 10px / --radius-lg: 14px` tokens, replace numeric `10px / 12px / 0px` mix.
+   - [ ] **HIGH** — Global `:focus-visible` ring rule (`outline: 2px solid var(--accent); outline-offset: 2px`) so keyboard nav has consistent affordance.
+   - [ ] **HIGH** — Skeleton-row coverage: extend Leaderboard/Matches pattern to Poll, Profile, Settings, Admin* landings.
+   - [ ] **POLISH** (single design-system sprint): state-flip transitions (Poll voting → locked → revealed; tab switches; season picker), hover/active feedback on cards (`transform: scale(0.98)` on `:active`), typography scale tokens (10/11/13/15/18/22), brand-colour tokenisation (some `.po-row--team-white` etc still hardcode), padding-top unification across screens that suppress AppTopBar, 4pt spacing grid enforcement (kill `14px`, `6px 12px` patterns).
+
+5. **Optional / follow-up:**
    - [ ] **Tap-to-increment Scorer Picker sheet** (mockup tile B from S058) — only if user finds per-row goals input tedious for high-scoring matches.
    - [ ] **Manual slot reorder UI** in AdminRosterSetup (drag/swap on locked rosters) — S059 added the slot_index column but no UI to reorder once saved; only re-save replaces.
-   - [ ] **Issue #18 remaining 3 complex sub-asks** — HTML mockup of: lock-before-team-select gate, player return-to-origin on slot remove, dirty-nav guard. Mockup-first per Rule #1.
+   - [ ] **Audit existing CSS grid tables** for column-order-vs-JSX-order mismatches per S059 #30 lesson (Leaderboard had this latent since launch — likely other grid tables in the app have similar issues that haven't surfaced yet).
+   - [ ] **Audit any new `match_players` SELECT** before merge for the FK ambiguity bug (S058 #25 + S059 #36 both bit on the same `profile:profiles(...)` ambiguous embed).
 
 **Backburner:**
 - **Awards backfill RPC** — admin-triggered `backfill_season_awards()` to populate `season_awards` for ended seasons predating mig 0047.
@@ -56,7 +64,28 @@
 
 ## Completed in S059 (30/APR/2026, Work PC)
 
-### Live ref access flow + Poll team-split fix + matchday delete + slot_index
+### Post-original-close: 9-issue GitHub sweep (3 commits, no migrations)
+
+After original S059 close (`e960df2` + docs `69768aa`) user confirmed Apr 30 + May 7 fixes worked end-to-end and asked to triage GitHub issues. 5 open at start; 4 more (#35-#38) opened mid-sweep as testing surfaced fresh bugs.
+
+- [x] **Phase E `f9ea2d4` — 5-issue batch (#30 #31 #32 #33 #34).** WhatsApp share button now surfaces every result kind via coloured toast (was silently dropping desktop-fallback). Sign-out duplicate removed from Settings. AdminPlayers default tab `pending` → `active`. Leaderboard last-5 column had two bugs: grid-template column-order didn't match JSX cell-order (Pts was template-10th but JSX-3rd, so Last-5 cell rendered at 44px — bug since launch); D pill was cream-translucent rather than grey. Reordered template, made Last-5 `minmax(140px, 1fr)`, recoloured D pill `#8a8e96`. Match cards now show yellow/red cards + injuries inline with goals via new `ParticipantBadge` component.
+- [x] **Phase F `4e07a72` — Poll locked-row layout (#35) + EditRoster auto-populate (#36).** Poll: when locked, `.po-rank` cell omitted from JSX but grid template still 4 columns → timestamp ended up in wide 1fr slot, name squeezed into 32px slot. Added `.po-row--locked` modifier with 3-column grid. EditRosterPostSheet: same PostgREST FK ambiguity bug Matches.tsx scorers had in S058 (`profile:profiles(...)` ambiguous when match_players has 3 FKs to profiles). Disambiguated via `!match_players_profile_id_fkey`, added slot_index ordering, added error console-log.
+- [x] **Phase G `1dd1f27` — match-card alignment + cleanup (#37).** Cards were 14px inset from screen edges (`.mt-list { padding: 0 14px }` while `.mt-screen` had no horizontal padding). Dropped list padding, dropped `.mt-card` 440px max-width cap. Per user follow-up: removed MOTM footer strip (scorer list already shows MOTM inline as gold ⭐ + name in gold) and HAT pill (`×N` suffix conveys hat-trick).
+- [x] **Phase H — UI audit issue (#38).** Treated as research/audit ask not single-fix bug. Posted comprehensive audit comment with categorised findings (CRITICAL / HIGH / POLISH); mapped 9 already-fixed items to today's commits. Closed #38 — audit IS the deliverable. CRITICAL + HIGH items queued in NEXT SESSION agenda above.
+- [x] **Verification:** all sweep fixes verified via DOM-eval at dev preview before each push (button widths, grid templates, presence/absence of expected elements, sheet overlays, console errors). `tsc -b` EXIT 0 across all 3 sweep commits.
+- [x] **GitHub:** 9 issues closed via `gh issue close` with detailed delivery comments.
+
+### S059 sweep patterns / lessons (additive — see also lessons.md)
+
+- **Grid template column-order MUST match JSX cell-order; CSS doesn't auto-reflow on mismatch.** Latent in Leaderboard since launch; surfaced when Last-5 fell to the narrow 44px Pts slot.
+- **Conditional JSX rendering of a grid cell breaks the column count.** If `{cond && <X />}` removes a child, must adjust `grid-template-columns` via a class.
+- **PostgREST embed-ambiguity is a recurring class of bug.** `match_players → profiles` ambiguity bit S058 #25 AND S059 #36; always use `!match_players_profile_id_fkey` explicitly.
+- **For browser features that vary across platforms (Web Share API), always wire result handling to user-visible feedback.** Silent download fallback on desktop Chrome looked like "nothing happened" until #34's toast.
+- **Issue body can override what the title implies.** #30 title was "color code wins/draws/losses"; body revealed the real bug was column clipping. Read body in full before scoping.
+- **DOM eval at the dev preview is faster than re-deploying** for verification of DOM-observable fixes. Used throughout the sweep.
+- **An audit-style issue is its own deliverable; don't spawn 10 sub-issues mechanically.** #38 closed with comprehensive comment as the output; user can break out items if/when prioritized.
+
+### Original S059 close: Live ref access flow + Poll team-split fix + matchday delete + slot_index
 
 **3 commits, 3 migrations applied (0061, 0062, 0063) + retroactively recorded 0060. Live DB: 58 → 63. Final HEAD: `e960df2`.**
 

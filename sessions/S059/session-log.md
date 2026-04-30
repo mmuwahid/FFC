@@ -1,9 +1,10 @@
-# Session 059 — Live ref access flow + Poll team-split fix + matchday delete
+# Session 059 — Live ref access flow + Poll team fix + matchday delete + 9-issue sweep
 
 **Date:** 30/APR/2026
 **PC:** Work (UNHOEC03)
-**Tip on close:** `e960df2` (3 commits this session)
+**Tip on close:** `1dd1f27` (6 implementation commits + S059-docs commit; this re-log extends the original S059 close which was at `e960df2` to also cover the issue sweep that followed in the same session)
 **Live DB:** 58 → 63 migrations (added 0061, 0062, 0063; retroactively recorded 0060 `seasons_games_seeded` which was already on remote but missing from local history)
+**Open GitHub issues:** 9 → 0 (#30 #31 #32 #33 #34 #35 #36 #37 #38 all closed)
 
 ---
 
@@ -136,6 +137,54 @@ Frontend:
 
 ---
 
+---
+
+## Post-original-close: 9-issue GitHub sweep
+
+After the original S059 close (commit `e960df2` + docs commit `69768aa`) the user confirmed Apr 30 + May 7 fixes worked end-to-end and asked to triage GitHub open issues. 5 issues at start of sweep (#30 #31 #32 #33 #34); 4 more (#35 #36 #37 #38) opened by user mid-sweep as testing surfaced fresh bugs.
+
+## Phase E — `f9ea2d4` — issues #30 #31 #32 #33 #34 batch (6 files, +196/−69)
+
+- **#34 WhatsApp share button silent failure.** Root cause: `MatchDetailSheet`'s share button onClick discarded `shareMatchCard()`'s `ShareResult`. On desktop browsers `navigator.canShare({files})` returns false → falls through to `a.click()` silent download → button reverts → user perceives "nothing happened". Same UX for `kind: 'error'`. Fix: wired result kinds to a coloured toast inside the sheet — green ✓ Shared / amber ⬇ Image downloaded — open WhatsApp and attach… / red Couldn't share: <message> / silent on cancelled. New `.md-share-toast` + tone modifiers in `index.css`.
+- **#31 Sign-out duplication.** Removed Sign-out button + `handleSignOut` handler from `Settings.tsx` (account section now shows email + Delete-account only). Avatar drawer remains the single source of truth.
+- **#32 AdminPlayers default tab.** Flipped `useState<Tab>('pending')` → `useState<Tab>('active')`. Active is the regular roster, common drill-down from AdminHome.
+- **#30 Leaderboard last-5 column.** Two bugs:
+  1. **Grid template column-order didn't match JSX cell-order.** JSX renders rank → player → Pts → MP → W → D → L → GF → Win% → Last 5; CSS template was 36 + 160 + 40 + 32 + 32 + 32 + 36 + 52 + 140 + 44 with Pts as the LAST column (44px) and Last-5 as the 9th (140px). Children fill grid cells in document order, so Pts (3rd JSX) landed in the 40px MP slot and Last-5 (10th JSX) landed in the 44px Pts slot. Pills (5 × 22 + 4 gap = 110px) clipped at 44px. Reordered template to match JSX, made Last-5 `minmax(140px, 1fr)` so it expands when extra horizontal space is available.
+  2. **Draw pill colour.** Was `rgba(242, 234, 214, 0.55)` cream-translucent; user requested grey. Set to `#8a8e96`.
+  3. Added `overflow: visible` on `.lb-cell--last5` so pills can't be clipped by the cell's inherited `overflow: hidden`.
+- **#33 Match history — cards + injuries.** Extended `match_players` SELECT in `Matches.tsx` to also pull `yellow_cards`, `red_cards`, `is_no_show`. Renamed `ScorerRow` → `ParticipantRow`, `groupScorers` → `groupParticipants` — returns one row per player with any disciplinary stat. New `ParticipantBadge` component renders combined ⚽×N + 🟨[×N] + 🟥 + 🤕 markers in a single row per player. Sort: scorers (goals desc) → card holders → no-shows; alphabetised within each tier. Added `.mt-stat-icon` styles in `styles/matches.css`.
+
+Verification: `tsc -b` EXIT 0; preview verified Matches cards render + Leaderboard Last-5 cell width was now 140px (was 44px).
+
+## Phase F — `4e07a72` — issues #35 #36 (3 files, +26/−4)
+
+User reported these after Phase E deployed.
+
+- **#35 Poll locked-row layout overlap.** When the roster is locked the `.po-rank` cell is omitted from JSX (S059 Phase D added `{!locked && <span className="po-rank">...}`). But the CSS grid template still declared 4 columns `26px 32px 1fr auto`. With 3 children in document order: avatar → 26px slot, name-block → 32px slot, timestamp → 1fr slot. Timestamp ended up in the wide column with name squeezed into the avatar slot — visual overlap. Fix: added `.po-row--locked` modifier class with 3-column grid `32px 1fr auto`, conditionally applied via `${locked ? 'po-row--locked' : ''}`. Verified at 375px viewport: avatar 32 / name 193 / ts 47 — timestamp anchored right with no overlap.
+- **#36 EditRosterPostSheet empty roster.** Same PostgREST FK ambiguity bug Matches.tsx scorers had in S058. `match_players` has THREE FKs to `profiles` (`profile_id`, `substituted_in_by`, `updated_by`); a bare `profile:profiles(display_name)` embed errors silently and the parent SELECT returns no rows. Disambiguated to `profile:profiles!match_players_profile_id_fkey(display_name)`. Also added `.order('team').order('slot_index', { nullsFirst: false })` so the loaded roster matches Roster Setup order, plus error console-log so future ambiguity / RLS regressions don't masquerade as empty sheets.
+
+## Phase G — `1dd1f27` — issue #37 + MOTM/HAT cleanup (3 files, +14/−10)
+
+User asked to also remove the MOTM footer strip + HAT pill in the same patch.
+
+- **#37 Match-card alignment.** Card was inset 14px from `.mt-screen` edges relative to the season header. Root cause: `.mt-list { padding: 0 14px }` while `.mt-screen` had no horizontal padding. Dropped the list padding so cards align flush left/right with the header. Also dropped the `.mt-card { max-width: 440px }` cap so cards fill the full column on wider viewports. Verified at 375px: card x=16 right=359 matches screen x=16 right=359 (343px wide).
+- **MOTM footer strip removed.** `<div className="mt-motm-strip">⭐ MOTM · {name}</div>` deleted from `Matches.tsx`. Scorer list already shows MOTM inline (gold ⭐ + name in gold) — strip duplicated the same fact. Variable `motmName` removed too.
+- **HAT pill deleted** from `ParticipantBadge`. The `×N` suffix already conveys a hat-trick; the pink `HAT` pill was clutter per user feedback.
+
+## Phase H — issue #38 UI audit (no commit; tracking comment)
+
+User pasted a senior-engineer UI/UX audit prompt as an issue. Treated as research/audit ask rather than a single-fix bug. Ran a focused DOM-eval pass across screens + compiled findings against the user's framework.
+
+**Findings posted as the issue's tracking comment:**
+- 9 already-fixed items mapped back to today's commits (#30-#37 + S059 Poll team-split).
+- 1 CRITICAL: `.app-topbar-bell` and `.app-topbar-avatar` measured 36×36 in dev preview (Apple HIG ≥ 44×44).
+- 3 HIGH PRIORITY: inconsistent border-radius scale (`10px`, `12px`, `0px` mixed across components); no `:focus-visible` ring; skeleton-row pattern only on Leaderboard + Matches.
+- 6 POLISH: no transitions on state flips, no hover/active feedback on cards, typography scale not codified, fixed brand colours partially un-tokenised, cross-screen padding-top inconsistency, spacing system not on a strict 4pt grid.
+
+Recommendation in the comment: items 1-4 break out as discrete issues if/when prioritised; items 5-10 better tackled as a single "design-system pass" sprint. Closed #38 — audit IS the deliverable.
+
+---
+
 ## Files Created or Modified
 
 ### Commit 1 — `2c10cb7` (5 files, +228/−10)
@@ -156,6 +205,27 @@ Frontend:
 - `ffc/src/pages/admin/AdminRosterSetup.tsx` — topbar `🗑` delete button + loadRoster ORDER BY slot_index.
 - `ffc/src/index.css` — `.rs-topbar-delete` styles, `.po-captain` restyled as gold pill.
 
+### Docs Commit — `69768aa` (5 files, +267/−11)
+- S059 close docs (session log, INDEX, todo, lessons, CLAUDE.md status).
+
+### Commit 4 — `f9ea2d4` (6 files, +196/−69) — Phase E sweep
+- `ffc/src/components/MatchDetailSheet.tsx` — `shareToast` state + result-aware UX wiring (#34).
+- `ffc/src/index.css` — `.md-share-toast` + tone modifiers (#34); `.lb-table-grid` columns reordered + Last-5 minmax + D pill colour fix + `.lb-cell--last5 { overflow: visible }` (#30).
+- `ffc/src/pages/Settings.tsx` — Removed Sign-out button + `handleSignOut` (#31).
+- `ffc/src/pages/admin/AdminPlayers.tsx` — Default tab `pending` → `active` (#32).
+- `ffc/src/pages/Matches.tsx` — `ScorerRow` → `ParticipantRow`, `groupScorers` → `groupParticipants`, new `ParticipantBadge` component, query select adds yellow/red/is_no_show (#33).
+- `ffc/src/styles/matches.css` — `.mt-stat-icon` markers (#33).
+
+### Commit 5 — `4e07a72` (3 files, +26/−4) — Phase F sweep
+- `ffc/src/pages/Poll.tsx` — `.po-row--locked` class threaded into the row className (#35).
+- `ffc/src/index.css` — `.po-row.po-row--locked { grid-template-columns: 32px 1fr auto }` (#35).
+- `ffc/src/pages/admin/AdminMatches.tsx` — `match_players` SELECT disambiguated via `!match_players_profile_id_fkey`, ORDER BY slot_index, error console-log (#36).
+
+### Commit 6 — `1dd1f27` (3 files, +14/−10) — Phase G sweep
+- `ffc/src/index.css` — `.mt-list { padding: 0 }` (was `0 14px`) (#37).
+- `ffc/src/styles/matches.css` — `.mt-card` max-width cap removed (#37).
+- `ffc/src/pages/Matches.tsx` — MOTM footer strip removed; HAT pill removed from `ParticipantBadge` (#37 follow-ups).
+
 ---
 
 ## Key Decisions
@@ -165,6 +235,9 @@ Frontend:
 - **`slot_index` as DB column rather than client-side sort key.** Tried client-side sort by `created_at, id`; failed because all bulk-insert rows share `now()`. DB column is the only reliable option going forward.
 - **`CREATE OR REPLACE FUNCTION` in 3 places (create_match_draft, admin_update_match_draft, admin_edit_match_roster) instead of new wrapper.** Each RPC's signature unchanged, body re-issued — Postgres allows OR REPLACE freely as long as args match. No GRANT re-issue needed.
 - **Backfill via ROW_NUMBER OVER (...) ORDER BY created_at, id** even though we know it's arbitrary for rows sharing created_at. Better than NULL — gives Apr 30 a deterministic (if random) order until user re-saves. Idempotent if re-run since `WHERE slot_index IS NULL`.
+- **Issue sweep ordered easiest-first to ship visible wins fast.** Phase E batched 5 independent issues into one commit (kept commit history grouped, easier to revert if needed). #34 was actually the highest user-impact (broken share button) — fixed first within the batch.
+- **Audit issue (#38) closed with the audit itself as the deliverable** rather than spawning 10 sub-issues. User can decide to break out items 1-4 (CRITICAL + HIGH PRIORITY) into discrete tracked issues; items 5-10 (POLISH) better as a single design-system pass.
+- **MOTM footer strip + HAT pill deletions accepted in same commit as the alignment fix (#37).** User asked for both as follow-ups while #37 was in flight; bundling kept the diff cohesive ("match-card cleanup" rather than 3 separate trivial PRs).
 
 ## Open Questions
 
@@ -187,11 +260,23 @@ Frontend:
 - [30/APR/2026] **`WITH ORDINALITY` + `ROW_NUMBER() OVER (PARTITION BY ... ORDER BY ord)` for slot_index in jsonb-array RPCs.** `admin_edit_match_roster` accepts a jsonb array; using `WITH ORDINALITY` exposes the input position as `ord`, then PARTITION BY team gives per-team 1-based slot_index. Single-statement insert, no procedural counter. **Why:** clean SQL idiom that matches how create_match_draft / admin_update_match_draft do it via FOREACH counters.
 - [30/APR/2026] **Verify hypothesis with DOM eval before coding the fix.** Phase A debug: tapped Review/approve in user's screenshot → opened EditResultSheet not MatchEntryReview → that 1 fact reframed the entire diagnosis (it's a `matches` row, not a `pending_match_entries` row). **Why:** UI-state evidence trumps schema reading; the schema technically allowed both interpretations, the user's screenshot disambiguated.
 
+### Sweep-phase patterns (E/F/G/H)
+
+- [30/APR/2026] **Grid template column-order MUST match JSX cell-order; CSS doesn't auto-reflow on mismatch.** Leaderboard #30 had `grid-template-columns` declaring Pts last but JSX placed Pts 3rd — children fill cells in document order, so the template's column widths landed against the wrong content. Bug had been present since launch but each cell got SOME workable width (Pts=44, Win%=52) until the very narrow Pts slot fell to Last-5 which actually needed 140+. **How to apply:** when defining a grid table, write the JSX cell sequence as a comment above `grid-template-columns`. Audit any existing grid table once.
+- [30/APR/2026] **Conditional JSX rendering of a grid cell breaks the column count.** Poll #35: hiding `.po-rank` when locked left the grid template at 4 columns but only 3 children rendered, all packed left. Fix is a modifier class with a different `grid-template-columns` declaration. **General rule:** if you remove a grid child via `{cond && <X />}`, you MUST also adjust grid-template-columns via a class or `display: contents` placeholder.
+- [30/APR/2026] **PostgREST embed-ambiguity is a recurring class of bug, not a one-off.** Same `match_players → profiles` ambiguity bit Matches.tsx scorers in S058 and bit EditRosterPostSheet in S059 #36. **General rule:** any `match_players` SELECT with a profile embed MUST use `!match_players_profile_id_fkey` explicitly. Audit any new query before merge.
+- [30/APR/2026] **For browser features that vary across platforms (Web Share API), always wire result handling to user-visible feedback.** `navigator.canShare({files})` returns false on desktop Chrome → silent download fallback. Without surfacing the fallback, the user thinks the action failed. **How to apply:** every `navigator.share` call should branch on success / fallback / error / cancel and emit user-visible state for at least the first three.
+- [30/APR/2026] **Issue body can override what the title implies.** #30 title was "color code wins/draws/losses"; reading body revealed colours were already mostly correct (W green / L red present; D was cream not grey) and the real bug was column-width clipping. **General rule:** read issue body in full before scoping; titles are headlines, not specifications.
+- [30/APR/2026] **DOM eval at the dev preview is a faster verification loop than re-deploying.** Verified all 9 issue fixes via `preview_eval` queries (button widths, grid template, presence of `.mt-motm-strip` / `.mt-hat-badge`, sheet overlay, etc) before pushing each commit. Saved several Vercel deploy cycles. **How to apply:** for any DOM-observable fix, add a 1-liner DOM eval as the verification step.
+- [30/APR/2026] **An audit-style issue is its own deliverable; don't spawn 10 sub-issues mechanically.** #38 asked for a comprehensive audit. Posting findings as a single comment with categorisation (CRITICAL / HIGH / POLISH) lets the user decide which to break out — vs. flooding the issue tracker with 10 small items. **How to apply:** for any "review and report" ask, the report IS the deliverable.
+
 ## Next Actions
 
-- [ ] **User must Edit → Save Apr 30 roster** in AdminRosterSetup so slot_index gets refreshed from current array order. Future matches inherit correct ordering automatically.
-- [ ] **Apr 30 live verification** on actual Thursday matchday — ref link mint, KICK OFF console, live timer, goal/card timestamps, SUBMIT → admin review.
-- [ ] **S060 cold-start** — sync per Cross-PC protocol; tip on close `e960df2`; live DB at 63 migrations.
+- [x] User confirmed Apr 30 + May 7 fixes worked end-to-end (mid-session).
+- [ ] **Apr 30 live verification** on actual Thursday matchday — ref link mint, KICK OFF console, live timer, goal/card timestamps, SUBMIT → admin review. Plus all 9 issue-sweep deliverables.
+- [ ] **#38 audit follow-up — break out CRITICAL + HIGH PRIORITY items** as discrete issues if/when prioritized: (1) topbar touch targets 36→44px, (2) border-radius scale tokenisation, (3) global focus-visible ring, (4) skeleton-row coverage on Poll/Profile/Settings/Admin*.
+- [ ] **#38 design-system pass** — single sprint to address polish-tier items: state-flip transitions, hover/active feedback, typography scale, brand-colour tokenisation, padding-top unification, 4pt spacing grid enforcement.
+- [ ] **S060 cold-start** — sync per Cross-PC protocol; tip on close `1dd1f27`; live DB at 63 migrations; 0 open GitHub issues; user agenda for S060 is Phase 3 payment tracker.
 
 ---
 
@@ -200,8 +285,14 @@ Frontend:
 - **Commit 1:** `2c10cb7` — feat(admin): delete-matchday RPC + UI; allow delete-match on unapproved
 - **Commit 2:** `2a955ac` — fix: Poll team-split scrambled + delete-matchday refusing draft matches
 - **Commit 3:** `e960df2` — feat: slot_index for stable team-list order + Poll polish + topbar Delete
+- **Docs commit:** `69768aa` — docs(s059): session log + INDEX + todo + lessons + CLAUDE.md status (original S059 close)
+- **Commit 4:** `f9ea2d4` — fix: 5 open issues sweep (#30 #31 #32 #33 #34)
+- **Commit 5:** `4e07a72` — fix: Poll locked-row layout (#35) + EditRoster auto-populate (#36)
+- **Commit 6:** `1dd1f27` — fix(#37): match-card alignment + remove duplicate MOTM strip + HAT pill
+- **Audit comment:** issue #38 closed with structured audit findings (no commit)
 - **Live:** https://ffc-gilt.vercel.app
 - **Migrations applied this session:** 0061, 0062, 0063 (+ retroactively recorded 0060)
+- **GitHub issues closed:** #30 #31 #32 #33 #34 #35 #36 #37 #38 (9 total)
 
 ---
-_Session logged: 30/APR/2026 | Logged by: Claude (session-log skill) | Session059_
+_Session logged: 30/APR/2026 | Logged by: Claude (session-log skill) | Session059 (re-logged after issue sweep)_
