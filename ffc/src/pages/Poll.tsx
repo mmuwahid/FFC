@@ -554,9 +554,12 @@ export function Poll() {
               </div>
             )}
           </div>
-          {!locked && (
-            <button type="button" className="auth-btn auth-btn--reject po-status-cancel" onClick={cancelAttempt} disabled={busy}>Cancel</button>
-          )}
+          {/* S058 follow-up: show cancel even when locked. The cancelAttempt
+           * handler already routes through the penalty/ban sheet (locked OR
+           * within-24h triggers it). The lock strip below also surfaces the
+           * cost copy ("Cancelling costs N pts + X-day ban") so the player
+           * has both the warning AND a way to act on it. */}
+          <button type="button" className="auth-btn auth-btn--reject po-status-cancel" onClick={cancelAttempt} disabled={busy}>Cancel</button>
         </div>
       )
     }

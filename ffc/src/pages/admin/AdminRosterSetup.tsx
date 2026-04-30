@@ -439,8 +439,33 @@ export function AdminRosterSetup() {
         if (err) throw err
       }
       showToast('Roster saved')
-      // Reload to get updated draftMatch.id (if newly created)
+
+      // S058 follow-up: when admin saves a COMPLETE roster (all 14 slots
+      // filled for 7v7, or 10 for 5v5) and the matchday isn't yet locked,
+      // auto-lock the matchday so the Poll screen flips to its existing
+      // post-lock UX (State 6 / 7 / 8 — players see "you're in/out" status,
+      // cancel-vote with late-cancel penalty/ban warning, no further voting).
       const md = matchdays.find(m => m.id === selectedMdId)
+      const totalAssigned =
+        white.filter(s => s.kind === 'filled').length +
+        black.filter(s => s.kind === 'filled').length
+      const isComplete = totalAssigned === rosterCap(format)
+      if (md && !md.roster_locked_at && isComplete) {
+        const { error: lockErr } = await supabase.rpc('lock_roster', { p_matchday_id: selectedMdId })
+        if (lockErr && !/already_locked/i.test(lockErr.message)) {
+          // Save succeeded but lock failed — surface as a non-blocking warning
+          // (admin can retry the lock from AdminMatches → "Lock roster").
+          setError('Saved, but lock failed: ' + lockErr.message)
+        } else {
+          // Optimistic local update — no full re-fetch of matchdays needed.
+          setMatchdays(prev => prev.map(m =>
+            m.id === selectedMdId ? { ...m, roster_locked_at: new Date().toISOString() } : m
+          ))
+          showToast('Roster locked — Poll screen will now show locked state')
+        }
+      }
+
+      // Reload to get updated draftMatch.id (if newly created)
       if (md) await loadRoster(selectedMdId, md.effective_format)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e))
