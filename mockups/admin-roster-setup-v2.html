@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Mockup — Admin Roster Setup v2 (Issue #20)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #111;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  justify-content: center;
+  padding: 32px 16px 64px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ─── Phone frame ─── */
+.phone {
+  --safe-top: 59px;
+  --safe-bottom: 34px;
+  --bg:      #0e1826;
+  --surface: rgba(255,255,255,0.06);
+  --text:    #f2ead6;
+  --accent:  #e5ba5b;
+  --danger:  #e63349;
+  --success: #4fbf93;
+  --warn:    #e5913a;
+  --muted:   rgba(242,234,214,0.45);
+
+  width: 390px;
+  height: 844px;
+  background: var(--bg);
+  border-radius: 50px;
+  border: 2px solid #333;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+/* Dynamic Island */
+.phone::before {
+  content: '';
+  position: absolute;
+  top: 12px; left: 50%;
+  transform: translateX(-50%);
+  width: 120px; height: 34px;
+  background: #000;
+  border-radius: 20px;
+  z-index: 100;
+}
+
+.statusbar {
+  height: var(--safe-top);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 28px;
+  padding-top: 14px;
+  font-size: 13px; font-weight: 600;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  color: var(--text);
+  position: relative;
+  z-index: 10;
+}
+
+.phone-inner {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  -webkit-overflow-scrolling: touch;
+}
+.phone-inner > * { flex-shrink: 0; }
+
+/* ─── Screen tokens ─── */
+.rs-screen {
+  --bg: #0e1826;
+  --surface: rgba(255,255,255,0.06);
+  --text: #f2ead6;
+  --accent: #e5ba5b;
+  --danger: #e63349;
+  --success: #4fbf93;
+  --warn: #e5913a;
+  --muted: rgba(242,234,214,0.45);
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding-bottom: var(--safe-bottom);
+}
+
+/* Top bar */
+.rs-topbar {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px 8px;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+.rs-back {
+  background: none; border: none;
+  color: var(--accent);
+  font-size: 22px; cursor: pointer;
+  padding: 4px 8px 4px 0; line-height: 1;
+}
+.rs-title {
+  font-size: 18px; font-weight: 700;
+  color: var(--text); flex: 1;
+}
+.rs-draft-badge {
+  font-size: 11px; color: var(--warn); font-weight: 600;
+  background: rgba(229,145,58,0.15);
+  border-radius: 6px; padding: 3px 8px;
+}
+
+/* Matchday selector */
+.rs-matchday-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+.rs-matchday-label {
+  font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--muted); white-space: nowrap;
+}
+.rs-matchday-select {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid rgba(229,186,91,0.3);
+  border-radius: 8px; color: var(--text);
+  font-size: 14px; font-weight: 600;
+  padding: 7px 10px; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.rs-matchday-select span { color: var(--muted); font-size: 13px; }
+
+/* Phase indicator */
+.rs-phase-bar {
+  display: flex; align-items: center;
+  padding: 8px 16px 6px;
+  gap: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+.rs-phase-step {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.rs-phase-step--active { color: var(--accent); }
+.rs-phase-step--done { color: var(--success); }
+.rs-phase-dot {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+  flex-shrink: 0;
+}
+.rs-phase-step--done .rs-phase-dot {
+  background: var(--success);
+  border-color: var(--success);
+  color: #0e1826;
+}
+.rs-phase-step--active .rs-phase-dot {
+  background: rgba(229,186,91,0.15);
+}
+.rs-phase-divider {
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+  margin: 0 6px;
+}
+
+/* ── Pool section ── */
+.rs-pool-section {
+  padding: 10px 16px 4px;
+  flex-shrink: 0;
+}
+.rs-section-head {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+.rs-section-title {
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
+}
+.rs-section-title--waitlist { color: var(--warn); }
+.rs-section-title--removed { color: rgba(230,51,73,0.6); }
+
+.rs-pool-chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+
+/* Chips */
+.rs-chip {
+  display: flex; align-items: center; gap: 4px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px;
+  padding: 4px 4px 4px 6px;
+  font-size: 13px; color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rs-chip:hover { background: rgba(255,255,255,0.13); }
+/* Chip in "selectable" mode (team phase) — highlight on hover */
+.rs-chip--selectable {
+  border-color: rgba(229,186,91,0.4);
+  cursor: pointer;
+}
+.rs-chip--selectable:hover { background: rgba(229,186,91,0.12); }
+
+/* Waitlist chip */
+.rs-chip--waitlist {
+  background: rgba(229,145,58,0.08);
+  border-color: rgba(229,145,58,0.25);
+  color: rgba(242,234,214,0.8);
+}
+/* Removed chip */
+.rs-chip--removed {
+  background: rgba(230,51,73,0.07);
+  border-color: rgba(230,51,73,0.2);
+  color: rgba(242,234,214,0.45);
+  text-decoration: line-through;
+}
+
+.rs-chip-pos {
+  font-size: 10px; font-weight: 700;
+  color: var(--accent);
+  background: rgba(229,186,91,0.15);
+  border-radius: 10px; padding: 1px 5px;
+  letter-spacing: 0.04em;
+}
+.rs-chip-pos--gk { color: #7fc9ff; background: rgba(127,201,255,0.15); }
+.rs-chip-guest {
+  font-size: 9px; font-weight: 700;
+  color: var(--accent);
+  background: rgba(229,186,91,0.2);
+  border-radius: 8px; padding: 1px 4px;
+}
+
+/* Chip action buttons (×, →) */
+.rs-chip-action {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  line-height: 1; flex-shrink: 0;
+  margin-left: 2px;
+}
+.rs-chip-action--remove {
+  background: rgba(230,51,73,0.15);
+  color: var(--danger);
+}
+.rs-chip-action--remove:hover { background: rgba(230,51,73,0.3); }
+.rs-chip-action--promote {
+  background: rgba(229,145,58,0.15);
+  color: var(--warn);
+  font-size: 10px;
+}
+.rs-chip-action--promote:hover { background: rgba(229,145,58,0.3); }
+.rs-chip-action--unremove {
+  background: rgba(255,255,255,0.08);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.rs-pool-empty {
+  font-size: 12px; color: var(--muted); font-style: italic;
+}
+
+/* ── Add player button ── */
+.rs-add-player-btn {
+  background: none;
+  border: 1px solid rgba(229,186,91,0.35);
+  border-radius: 14px;
+  color: var(--accent);
+  font-size: 12px; font-weight: 600;
+  padding: 4px 10px; cursor: pointer;
+}
+.rs-add-player-btn:hover { background: rgba(229,186,91,0.08); }
+
+/* Lock/Unlock bar */
+.rs-lock-bar {
+  padding: 10px 16px 6px;
+  flex-shrink: 0;
+}
+.rs-lock-btn {
+  width: 100%;
+  padding: 11px;
+  border-radius: 9px; border: none;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer; letter-spacing: 0.02em;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.rs-lock-btn--lock {
+  background: rgba(229,186,91,0.15);
+  color: var(--accent);
+  border: 1px solid rgba(229,186,91,0.3);
+}
+.rs-lock-btn--lock:hover { background: rgba(229,186,91,0.22); }
+.rs-lock-btn--locked {
+  background: rgba(79,191,147,0.12);
+  color: var(--success);
+  border: 1px solid rgba(79,191,147,0.3);
+  font-size: 13px;
+}
+
+/* ── Team section (assignment phase) ── */
+.rs-teams-header {
+  display: flex; align-items: center;
+  padding: 8px 16px 4px;
+  gap: 8px;
+}
+.rs-teams-title {
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
+  flex: 1;
+}
+.rs-auto-hint {
+  font-size: 11px; color: rgba(229,186,91,0.7);
+  font-style: italic;
+}
+
+/* Teams grid */
+.rs-teams {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 4px 16px 6px;
+  flex: 1;
+}
+.rs-team {
+  display: flex; flex-direction: column; gap: 5px;
+}
+.rs-team:first-child { padding-right: 8px; border-right: 1px solid rgba(255,255,255,0.07); }
+.rs-team:last-child  { padding-left: 8px; }
+
+.rs-team-header {
+  display: flex; align-items: center;
+  justify-content: space-between; margin-bottom: 2px;
+}
+.rs-team-name {
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+}
+.rs-team-name--white { color: #f2ead6; }
+.rs-team-name--black { color: #b0b8c8; }
+.rs-team-count { font-size: 11px; color: var(--muted); }
+.rs-team-count--full { color: var(--success); font-weight: 700; }
+
+/* Slots */
+.rs-slot {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--surface);
+  border: 1px dashed rgba(255,255,255,0.13);
+  border-radius: 7px;
+  padding: 5px 7px; min-height: 32px;
+  cursor: pointer;
+}
+.rs-slot:hover { border-color: rgba(229,186,91,0.4); }
+/* Locked = not interactive before lock */
+.rs-slot--locked {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.rs-slot--active {
+  border-style: solid;
+  border-color: var(--accent);
+  background: rgba(229,186,91,0.08);
+}
+.rs-slot--filled {
+  border-style: solid;
+  border-color: rgba(255,255,255,0.12);
+  cursor: default;
+}
+.rs-slot--filled:hover { border-color: rgba(255,255,255,0.12); }
+.rs-slot-num {
+  font-size: 10px; color: var(--muted);
+  width: 13px; text-align: center; flex-shrink: 0;
+}
+.rs-slot-name {
+  font-size: 12px; color: var(--text);
+  flex: 1; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.rs-slot-pos {
+  font-size: 10px; font-weight: 700; color: var(--accent);
+}
+.rs-slot-pos--gk { color: #7fc9ff; }
+.rs-slot-guest-badge {
+  font-size: 9px;
+  background: rgba(229,186,91,0.2); color: var(--accent);
+  border-radius: 6px; padding: 1px 4px; font-weight: 700;
+}
+/* ×  sits right after name, visually grouped */
+.rs-slot-remove {
+  background: none; border: none;
+  color: rgba(230,51,73,0.7);
+  font-size: 13px; cursor: pointer;
+  padding: 0 2px; line-height: 1;
+  flex-shrink: 0;
+  /* No absolute positioning — stays inline next to name */
+}
+.rs-slot-remove:hover { color: var(--danger); }
+.rs-slot-empty {
+  font-size: 10px; color: rgba(242,234,214,0.2);
+  font-style: italic;
+}
+
+/* Submit bar */
+.rs-submit-bar {
+  padding: 10px 16px;
+  padding-bottom: calc(var(--safe-bottom) + 4px);
+  border-top: 1px solid rgba(255,255,255,0.07);
+  display: flex; flex-direction: column; gap: 7px;
+  flex-shrink: 0;
+}
+.rs-progress {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  font-size: 12px; color: var(--muted);
+}
+.rs-progress-ready { color: var(--success); font-weight: 700; }
+.rs-progress-bar {
+  width: 100%; height: 3px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px; overflow: hidden;
+}
+.rs-progress-fill {
+  height: 100%; background: var(--accent);
+  border-radius: 2px; transition: width 0.3s;
+}
+.rs-progress-fill--full { background: var(--success); }
+
+.rs-btn {
+  width: 100%; padding: 12px; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 700;
+  cursor: pointer; letter-spacing: 0.02em;
+}
+.rs-btn--primary {
+  background: var(--accent); color: #0e1826;
+}
+.rs-btn--primary:disabled {
+  background: rgba(229,186,91,0.3);
+  color: rgba(229,186,91,0.5);
+  cursor: not-allowed;
+}
+.rs-btn--primary-active {
+  background: var(--success); color: #0e1826;
+}
+.rs-btn-row {
+  display: flex; gap: 8px;
+}
+.rs-btn--secondary {
+  flex: 1; padding: 12px; border-radius: 10px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text);
+}
+
+/* Sheet */
+.rs-sheet-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex; flex-direction: column;
+  justify-content: flex-end; z-index: 50;
+}
+.rs-sheet {
+  background: #1a2436;
+  border-radius: 18px 18px 0 0;
+  padding: 20px 20px calc(var(--safe-bottom) + 16px);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.rs-sheet--tall { max-height: 75%; }
+.rs-sheet-handle {
+  width: 36px; height: 4px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 2px; margin: -12px auto 6px;
+}
+.rs-sheet-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.rs-sheet-subtitle { font-size: 12px; color: var(--muted); margin-top: -8px; }
+.rs-sheet-input {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px; padding: 11px 12px;
+  color: var(--text); font-size: 15px; width: 100%; outline: none;
+}
+.rs-sheet-input:focus { border-color: var(--accent); }
+.rs-sheet-input::placeholder { color: rgba(242,234,214,0.3); }
+.rs-sheet-btns { display: flex; gap: 10px; }
+.rs-sheet-btn {
+  flex: 1; padding: 12px; border: none;
+  border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.rs-sheet-btn--cancel { background: rgba(255,255,255,0.08); color: var(--text); }
+.rs-sheet-btn--add { background: var(--accent); color: #0e1826; }
+
+/* Toast */
+.rs-toast {
+  position: absolute; bottom: calc(var(--safe-bottom) + 72px);
+  left: 50%; transform: translateX(-50%);
+  background: rgba(30,45,65,0.96);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px; padding: 9px 18px;
+  font-size: 13px; color: var(--text);
+  white-space: nowrap; z-index: 60;
+}
+
+/* Banner */
+.rs-banner {
+  margin: 8px 16px 2px;
+  padding: 8px 11px;
+  border-radius: 8px; font-size: 12px; flex-shrink: 0;
+}
+.rs-banner--warn {
+  background: rgba(229,145,58,0.1);
+  border: 1px solid rgba(229,145,58,0.25);
+  color: var(--warn);
+}
+.rs-banner--info {
+  background: rgba(79,191,147,0.08);
+  border: 1px solid rgba(79,191,147,0.2);
+  color: var(--success);
+}
+
+/* Divider between pool subsections */
+.rs-pool-divider {
+  margin: 4px 0 6px;
+  border: none; border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Labels */
+.label {
+  font-size: 13px; text-align: center;
+  color: rgba(255,255,255,0.5);
+  margin-top: 6px; font-style: italic;
+}
+</style>
+</head>
+<body>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     SCREEN 1 — POOL PHASE: 16 confirmed (14 + 2 waitlisted), none removed
+     ════════════════════════════════════════════════════════════ -->
+<div>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+  <div class="phone-inner">
+  <div class="rs-screen">
+
+    <div class="rs-topbar">
+      <button class="rs-back">‹</button>
+      <span class="rs-title">Roster Setup</span>
+    </div>
+
+    <div class="rs-matchday-bar">
+      <span class="rs-matchday-label">Matchday</span>
+      <button class="rs-matchday-select">
+        THU · 01/MAY/2026 · 8:00pm <span>▾</span>
+      </button>
+    </div>
+
+    <!-- Phase indicator -->
+    <div class="rs-phase-bar">
+      <div class="rs-phase-step rs-phase-step--active">
+        <div class="rs-phase-dot">1</div>
+        <span>Pool</span>
+      </div>
+      <div class="rs-phase-divider"></div>
+      <div class="rs-phase-step">
+        <div class="rs-phase-dot">2</div>
+        <span>Teams</span>
+      </div>
+      <div class="rs-phase-divider"></div>
+      <div class="rs-phase-step">
+        <div class="rs-phase-dot">3</div>
+        <span>Save</span>
+      </div>
+    </div>
+
+    <!-- Unassigned pool (14 = cap) -->
+    <div class="rs-pool-section">
+      <div class="rs-section-head">
+        <span class="rs-section-title">Unassigned (14)</span>
+        <button class="rs-add-player-btn">+ Add player</button>
+      </div>
+      <div class="rs-pool-chips">
+        <div class="rs-chip"><span class="rs-chip-pos rs-chip-pos--gk">GK</span>Ali<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">CB</span>Hassan<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">CB</span>Omar<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">CM</span>Khalid<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">CM</span>Salim<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">FW</span>Faris<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">FW</span>Ziad<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos rs-chip-pos--gk">GK</span>Tariq<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">CB</span>Nasser<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">CM</span>Yousuf<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">CM</span>Bilal<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">FW</span>Hamad<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">FW</span>Rashed<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">FW</span>Mazen<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+      </div>
+    </div>
+
+    <!-- Waitlist (2 over cap) -->
+    <hr class="rs-pool-divider" />
+    <div class="rs-pool-section">
+      <div class="rs-section-head">
+        <span class="rs-section-title rs-section-title--waitlist">Waitlist (2)</span>
+      </div>
+      <div class="rs-pool-chips">
+        <div class="rs-chip rs-chip--waitlist"><span class="rs-chip-pos">CB</span>Jaber<button class="rs-chip-action rs-chip-action--promote" title="Move to Unassigned">↑</button></div>
+        <div class="rs-chip rs-chip--waitlist"><span class="rs-chip-pos">FW</span>Mohsin<button class="rs-chip-action rs-chip-action--promote" title="Move to Unassigned">↑</button></div>
+      </div>
+    </div>
+
+    <!-- Lock bar -->
+    <div class="rs-lock-bar">
+      <button class="rs-lock-btn rs-lock-btn--lock">🔒 Lock Roster — Start Team Assignment</button>
+    </div>
+
+    <!-- Teams: locked / non-interactive -->
+    <div class="rs-teams-header">
+      <span class="rs-teams-title">Teams — locked until roster is confirmed above</span>
+    </div>
+    <div class="rs-teams">
+      <div class="rs-team">
+        <div class="rs-team-header">
+          <span class="rs-team-name rs-team-name--white">White</span>
+          <span class="rs-team-count">0 / 7</span>
+        </div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">1</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">2</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">3</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">4</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">5</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">6</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">7</span><span class="rs-slot-empty">locked</span></div>
+      </div>
+      <div class="rs-team">
+        <div class="rs-team-header">
+          <span class="rs-team-name rs-team-name--black">Black</span>
+          <span class="rs-team-count">0 / 7</span>
+        </div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">1</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">2</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">3</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">4</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">5</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">6</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">7</span><span class="rs-slot-empty">locked</span></div>
+      </div>
+    </div>
+
+  </div>
+  </div>
+</div>
+<p class="label">Screen 1 — Pool phase (16 confirmed, 14+2 waitlist). Teams locked until "Lock Roster".</p>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     SCREEN 2 — POOL PHASE: some removed, waitlist promoted
+     ════════════════════════════════════════════════════════════ -->
+<div>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+  <div class="phone-inner">
+  <div class="rs-screen">
+
+    <div class="rs-topbar">
+      <button class="rs-back">‹</button>
+      <span class="rs-title">Roster Setup</span>
+    </div>
+    <div class="rs-matchday-bar">
+      <span class="rs-matchday-label">Matchday</span>
+      <button class="rs-matchday-select">THU · 01/MAY/2026 · 8:00pm <span>▾</span></button>
+    </div>
+
+    <div class="rs-phase-bar">
+      <div class="rs-phase-step rs-phase-step--active">
+        <div class="rs-phase-dot">1</div><span>Pool</span>
+      </div>
+      <div class="rs-phase-divider"></div>
+      <div class="rs-phase-step">
+        <div class="rs-phase-dot">2</div><span>Teams</span>
+      </div>
+      <div class="rs-phase-divider"></div>
+      <div class="rs-phase-step">
+        <div class="rs-phase-dot">3</div><span>Save</span>
+      </div>
+    </div>
+
+    <!-- Unassigned (13, one moved to removed) -->
+    <div class="rs-pool-section">
+      <div class="rs-section-head">
+        <span class="rs-section-title">Unassigned (13)</span>
+        <button class="rs-add-player-btn">+ Add player</button>
+      </div>
+      <div class="rs-pool-chips">
+        <div class="rs-chip"><span class="rs-chip-pos rs-chip-pos--gk">GK</span>Ali<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">CB</span>Hassan<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">CB</span>Omar<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">CM</span>Khalid<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">CM</span>Salim<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">FW</span>Faris<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">FW</span>Ziad<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos rs-chip-pos--gk">GK</span>Tariq<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">CB</span>Nasser<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">CM</span>Yousuf<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">CM</span>Bilal<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <div class="rs-chip"><span class="rs-chip-pos">FW</span>Rashed<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+        <!-- Jaber promoted from waitlist -->
+        <div class="rs-chip"><span class="rs-chip-pos">CB</span>Jaber<button class="rs-chip-action rs-chip-action--remove">×</button></div>
+      </div>
+    </div>
+
+    <!-- Waitlist: 1 left (Mohsin not promoted) -->
+    <hr class="rs-pool-divider" />
+    <div class="rs-pool-section">
+      <div class="rs-section-head">
+        <span class="rs-section-title rs-section-title--waitlist">Waitlist (1)</span>
+      </div>
+      <div class="rs-pool-chips">
+        <div class="rs-chip rs-chip--waitlist"><span class="rs-chip-pos">FW</span>Mohsin<button class="rs-chip-action rs-chip-action--promote" title="Move to Unassigned">↑</button></div>
+      </div>
+    </div>
+
+    <!-- Removed: Hamad moved here (tapped × once) -->
+    <hr class="rs-pool-divider" />
+    <div class="rs-pool-section">
+      <div class="rs-section-head">
+        <span class="rs-section-title rs-section-title--removed">Removed (1)</span>
+      </div>
+      <div class="rs-pool-chips">
+        <!-- × again = delete completely -->
+        <div class="rs-chip rs-chip--removed"><span class="rs-chip-pos">FW</span>Hamad<button class="rs-chip-action rs-chip-action--remove" title="Remove completely">×</button></div>
+      </div>
+    </div>
+
+    <div class="rs-lock-bar">
+      <button class="rs-lock-btn rs-lock-btn--lock">🔒 Lock Roster — Start Team Assignment</button>
+    </div>
+
+    <!-- Teams: still locked -->
+    <div class="rs-teams-header">
+      <span class="rs-teams-title">Teams — locked</span>
+    </div>
+    <div class="rs-teams">
+      <div class="rs-team">
+        <div class="rs-team-header">
+          <span class="rs-team-name rs-team-name--white">White</span>
+          <span class="rs-team-count">0 / 7</span>
+        </div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">1</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">2</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">3</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">4</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">5</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">6</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">7</span><span class="rs-slot-empty">locked</span></div>
+      </div>
+      <div class="rs-team">
+        <div class="rs-team-header">
+          <span class="rs-team-name rs-team-name--black">Black</span>
+          <span class="rs-team-count">0 / 7</span>
+        </div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">1</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">2</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">3</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">4</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">5</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">6</span><span class="rs-slot-empty">locked</span></div>
+        <div class="rs-slot rs-slot--locked"><span class="rs-slot-num">7</span><span class="rs-slot-empty">locked</span></div>
+      </div>
+    </div>
+
+  </div>
+  </div>
+</div>
+<p class="label">Screen 2 — Pool: 1 promoted from waitlist, 1 removed (× once), 1 waitlist remains.</p>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     SCREEN 3 — TEAM PHASE: locked, assigning in progress (auto-alternating)
+     ════════════════════════════════════════════════════════════ -->
+<div>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+  <div class="phone-inner">
+  <div class="rs-screen">
+
+    <div class="rs-topbar">
+      <button class="rs-back">‹</button>
+      <span class="rs-title">Roster Setup</span>
+    </div>
+    <div class="rs-matchday-bar">
+      <span class="rs-matchday-label">Matchday</span>
+      <button class="rs-matchday-select">THU · 01/MAY/2026 · 8:00pm <span>▾</span></button>
+    </div>
+
+    <div class="rs-phase-bar">
+      <div class="rs-phase-step rs-phase-step--done">
+        <div class="rs-phase-dot">✓</div><span>Pool</span>
+      </div>
+      <div class="rs-phase-divider"></div>
+      <div class="rs-phase-step rs-phase-step--active">
+        <div class="rs-phase-dot">2</div><span>Teams</span>
+      </div>
+      <div class="rs-phase-divider"></div>
+      <div class="rs-phase-step">
+        <div class="rs-phase-dot">3</div><span>Save</span>
+      </div>
+    </div>
+
+    <!-- Banner: auto-alternating mode -->
+    <div class="rs-banner rs-banner--info">
+      Tap a player chip to assign — alternates White → Black automatically.
+    </div>
+
+    <!-- Unlock option inline with lock status -->
+    <div style="padding:6px 16px 2px; display:flex; align-items:center; gap:8px; flex-shrink:0;">
+      <span style="font-size:11px; color:var(--success); font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">🔒 Roster Locked</span>
+      <button style="background:none;border:1px solid rgba(230,51,73,0.35);border-radius:10px;color:var(--danger);font-size:11px;font-weight:600;padding:3px 9px;cursor:pointer;">Unlock</button>
+    </div>
+
+    <!-- Unassigned chips (selectable) -->
+    <div class="rs-pool-section">
+      <div class="rs-section-head">
+        <span class="rs-section-title">Unassigned (8)</span>
+        <span class="rs-auto-hint">→ next: White #5</span>
+      </div>
+      <div class="rs-pool-chips">
+        <div class="rs-chip rs-chip--selectable"><span class="rs-chip-pos">CM</span>Salim</div>
+        <div class="rs-chip rs-chip--selectable"><span class="rs-chip-pos">FW</span>Ziad</div>
+        <div class="rs-chip rs-chip--selectable"><span class="rs-chip-pos">CB</span>Nasser</div>
+        <div class="rs-chip rs-chip--selectable"><span class="rs-chip-pos">CM</span>Yousuf</div>
+        <div class="rs-chip rs-chip--selectable"><span class="rs-chip-pos">CM</span>Bilal</div>
+        <div class="rs-chip rs-chip--selectable"><span class="rs-chip-pos">FW</span>Rashed</div>
+        <div class="rs-chip rs-chip--selectable"><span class="rs-chip-pos">CB</span>Jaber</div>
+        <div class="rs-chip rs-chip--selectable"><span class="rs-chip-pos">FW</span>Mazen</div>
+      </div>
+    </div>
+
+    <!-- Teams: unlocked, partial fill (W4/B4 done) -->
+    <div class="rs-teams-header">
+      <span class="rs-teams-title">Teams</span>
+    </div>
+    <div class="rs-teams">
+      <!-- White: 4 filled, slot 5 is active (next) -->
+      <div class="rs-team">
+        <div class="rs-team-header">
+          <span class="rs-team-name rs-team-name--white">White</span>
+          <span class="rs-team-count">4 / 7</span>
+        </div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">1</span><span class="rs-slot-name">Ali</span><span class="rs-slot-pos rs-slot-pos--gk">GK</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">2</span><span class="rs-slot-name">Hassan</span><span class="rs-slot-pos">CB</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">3</span><span class="rs-slot-name">Khalid</span><span class="rs-slot-pos">CM</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">4</span><span class="rs-slot-name">Faris</span><span class="rs-slot-pos">FW</span><button class="rs-slot-remove">×</button></div>
+        <!-- Slot 5: active/next target -->
+        <div class="rs-slot rs-slot--active"><span class="rs-slot-num">5</span><span class="rs-slot-empty">← next</span></div>
+        <div class="rs-slot"><span class="rs-slot-num">6</span><span class="rs-slot-empty">—</span></div>
+        <div class="rs-slot"><span class="rs-slot-num">7</span><span class="rs-slot-empty">—</span></div>
+      </div>
+      <!-- Black: 4 filled -->
+      <div class="rs-team">
+        <div class="rs-team-header">
+          <span class="rs-team-name rs-team-name--black">Black</span>
+          <span class="rs-team-count">4 / 7</span>
+        </div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">1</span><span class="rs-slot-name">Tariq</span><span class="rs-slot-pos rs-slot-pos--gk">GK</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">2</span><span class="rs-slot-name">Omar</span><span class="rs-slot-pos">CB</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">3</span><span class="rs-slot-name">Yousuf</span><span class="rs-slot-pos">CM</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">4</span><span class="rs-slot-name">Hamad</span><span class="rs-slot-pos">FW</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot"><span class="rs-slot-num">5</span><span class="rs-slot-empty">—</span></div>
+        <div class="rs-slot"><span class="rs-slot-num">6</span><span class="rs-slot-empty">—</span></div>
+        <div class="rs-slot"><span class="rs-slot-num">7</span><span class="rs-slot-empty">—</span></div>
+      </div>
+    </div>
+
+    <!-- Submit bar: disabled until full -->
+    <div class="rs-submit-bar">
+      <div class="rs-progress">
+        <span>8 / 14 assigned</span>
+        <span>57%</span>
+      </div>
+      <div class="rs-progress-bar"><div class="rs-progress-fill" style="width:57%"></div></div>
+      <button class="rs-btn rs-btn--primary" disabled>Confirm Roster</button>
+    </div>
+
+  </div>
+  </div>
+</div>
+<p class="label">Screen 3 — Team phase: locked, auto-alternating. Slots highlight next target. × returns to original section.</p>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     SCREEN 4 — TEAM PHASE: full roster, ready to confirm
+     ════════════════════════════════════════════════════════════ -->
+<div>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+  <div class="phone-inner">
+  <div class="rs-screen">
+
+    <div class="rs-topbar">
+      <button class="rs-back">‹</button>
+      <span class="rs-title">Roster Setup</span>
+    </div>
+    <div class="rs-matchday-bar">
+      <span class="rs-matchday-label">Matchday</span>
+      <button class="rs-matchday-select">THU · 01/MAY/2026 · 8:00pm <span>▾</span></button>
+    </div>
+
+    <div class="rs-phase-bar">
+      <div class="rs-phase-step rs-phase-step--done">
+        <div class="rs-phase-dot">✓</div><span>Pool</span>
+      </div>
+      <div class="rs-phase-divider"></div>
+      <div class="rs-phase-step rs-phase-step--active">
+        <div class="rs-phase-dot">2</div><span>Teams</span>
+      </div>
+      <div class="rs-phase-divider"></div>
+      <div class="rs-phase-step">
+        <div class="rs-phase-dot">3</div><span>Save</span>
+      </div>
+    </div>
+
+    <!-- Unlock row -->
+    <div style="padding:6px 16px 2px; display:flex; align-items:center; gap:8px; flex-shrink:0;">
+      <span style="font-size:11px; color:var(--success); font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">🔒 Roster Locked</span>
+      <button style="background:none;border:1px solid rgba(230,51,73,0.35);border-radius:10px;color:var(--danger);font-size:11px;font-weight:600;padding:3px 9px;cursor:pointer;">Unlock</button>
+    </div>
+
+    <!-- Pool: all assigned -->
+    <div class="rs-pool-section">
+      <div class="rs-section-head">
+        <span class="rs-section-title">Unassigned (0)</span>
+      </div>
+      <div class="rs-pool-chips">
+        <span class="rs-pool-empty">All players assigned ✓</span>
+      </div>
+    </div>
+
+    <!-- Teams: full 7+7 -->
+    <div class="rs-teams-header">
+      <span class="rs-teams-title">Teams</span>
+    </div>
+    <div class="rs-teams">
+      <div class="rs-team">
+        <div class="rs-team-header">
+          <span class="rs-team-name rs-team-name--white">White</span>
+          <span class="rs-team-count rs-team-count--full">7 / 7 ✓</span>
+        </div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">1</span><span class="rs-slot-name">Ali</span><span class="rs-slot-pos rs-slot-pos--gk">GK</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">2</span><span class="rs-slot-name">Hassan</span><span class="rs-slot-pos">CB</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">3</span><span class="rs-slot-name">Khalid</span><span class="rs-slot-pos">CM</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">4</span><span class="rs-slot-name">Faris</span><span class="rs-slot-pos">FW</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">5</span><span class="rs-slot-name">Salim</span><span class="rs-slot-pos">CM</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">6</span><span class="rs-slot-name">Nasser</span><span class="rs-slot-pos">CB</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">7</span><span class="rs-slot-name">Jaber</span><span class="rs-slot-pos">CB</span><button class="rs-slot-remove">×</button></div>
+      </div>
+      <div class="rs-team">
+        <div class="rs-team-header">
+          <span class="rs-team-name rs-team-name--black">Black</span>
+          <span class="rs-team-count rs-team-count--full">7 / 7 ✓</span>
+        </div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">1</span><span class="rs-slot-name">Tariq</span><span class="rs-slot-pos rs-slot-pos--gk">GK</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">2</span><span class="rs-slot-name">Omar</span><span class="rs-slot-pos">CB</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">3</span><span class="rs-slot-name">Yousuf</span><span class="rs-slot-pos">CM</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">4</span><span class="rs-slot-name">Ziad</span><span class="rs-slot-pos">FW</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">5</span><span class="rs-slot-name">Bilal</span><span class="rs-slot-pos">CM</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">6</span><span class="rs-slot-name">Rashed</span><span class="rs-slot-pos">FW</span><button class="rs-slot-remove">×</button></div>
+        <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">7</span><span class="rs-slot-name">Mazen</span><span class="rs-slot-pos">FW</span><button class="rs-slot-remove">×</button></div>
+      </div>
+    </div>
+
+    <!-- Submit bar: active -->
+    <div class="rs-submit-bar">
+      <div class="rs-progress">
+        <span>14 / 14 assigned</span>
+        <span class="rs-progress-ready">✓ Ready</span>
+      </div>
+      <div class="rs-progress-bar"><div class="rs-progress-fill rs-progress-fill--full" style="width:100%"></div></div>
+      <button class="rs-btn rs-btn--primary-active">Confirm Roster</button>
+    </div>
+
+  </div>
+  </div>
+</div>
+<p class="label">Screen 4 — All 14 assigned (7+7). × on slot returns player to their original pool section.</p>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     SCREEN 5 — SAVED STATE: roster confirmed, edit option
+     ════════════════════════════════════════════════════════════ -->
+<div>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+  <div class="phone-inner">
+  <div class="rs-screen">
+
+    <div class="rs-topbar">
+      <button class="rs-back">‹</button>
+      <span class="rs-title">Roster Setup</span>
+      <span style="font-size:11px;color:var(--success);font-weight:600;background:rgba(79,191,147,0.12);border-radius:6px;padding:3px 8px;">SAVED</span>
+    </div>
+    <div class="rs-matchday-bar">
+      <span class="rs-matchday-label">Matchday</span>
+      <button class="rs-matchday-select">THU · 01/MAY/2026 · 8:00pm <span>▾</span></button>
+    </div>
+
+    <div class="rs-phase-bar">
+      <div class="rs-phase-step rs-phase-step--done">
+        <div class="rs-phase-dot">✓</div><span>Pool</span>
+      </div>
+      <div class="rs-phase-divider"></div>
+      <div class="rs-phase-step rs-phase-step--done">
+        <div class="rs-phase-dot">✓</div><span>Teams</span>
+      </div>
+      <div class="rs-phase-divider"></div>
+      <div class="rs-phase-step rs-phase-step--done">
+        <div class="rs-phase-dot">✓</div><span>Save</span>
+      </div>
+    </div>
+
+    <div class="rs-banner rs-banner--info">
+      Roster saved successfully. Tap Edit to make changes.
+    </div>
+
+    <!-- Read-only teams -->
+    <div class="rs-teams-header" style="margin-top:8px;">
+      <span class="rs-teams-title">Confirmed Roster</span>
+    </div>
+    <div class="rs-teams">
+      <div class="rs-team">
+        <div class="rs-team-header">
+          <span class="rs-team-name rs-team-name--white">White</span>
+          <span class="rs-team-count rs-team-count--full">7 / 7 ✓</span>
+        </div>
+        <div class="rs-slot rs-slot--filled" style="cursor:default"><span class="rs-slot-num">1</span><span class="rs-slot-name">Ali</span><span class="rs-slot-pos rs-slot-pos--gk">GK</span></div>
+        <div class="rs-slot rs-slot--filled" style="cursor:default"><span class="rs-slot-num">2</span><span class="rs-slot-name">Hassan</span><span class="rs-slot-pos">CB</span></div>
+        <div class="rs-slot rs-slot--filled" style="cursor:default"><span class="rs-slot-num">3</span><span class="rs-slot-name">Khalid</span><span class="rs-slot-pos">CM</span></div>
+        <div class="rs-slot rs-slot--filled" style="cursor:default"><span class="rs-slot-num">4</span><span class="rs-slot-name">Faris</span><span class="rs-slot-pos">FW</span></div>
+        <div class="rs-slot rs-slot--filled" style="cursor:default"><span class="rs-slot-num">5</span><span class="rs-slot-name">Salim</span><span class="rs-slot-pos">CM</span></div>
+        <div class="rs-slot rs-slot--filled" style="cursor:default"><span class="rs-slot-num">6</span><span class="rs-slot-name">Nasser</span><span class="rs-slot-pos">CB</span></div>
+        <div class="rs-slot rs-slot--filled" style="cursor:default"><span class="rs-slot-num">7</span><span class="rs-slot-name">Jaber</span><span class="rs-slot-pos">CB</span></div>
+      </div>
+      <div class="rs-team">
+        <div class="rs-team-header">
+          <span class="rs-team-name rs-team-name--black">Black</span>
+          <span class="rs-team-count rs-team-count--full">7 / 7 ✓</span>
+        </div>
+        <div class="rs-slot rs-slot--filled" style="cursor:default"><span class="rs-slot-num">1</span><span class="rs-slot-name">Tariq</span><span class="rs-slot-pos rs-slot-pos--gk">GK</span></div>
+        <div class="rs-slot rs-slot--filled" style="cursor:default"><span class="rs-slot-num">2</span><span class="rs-slot-name">Omar</span><span class="rs-slot-pos">CB</span></div>
+        <div class="rs-slot rs-slot--filled" style="cursor:default"><span class="rs-slot-num">3</span><span class="rs-slot-name">Yousuf</span><span class="rs-slot-pos">CM</span></div>
+        <div class="rs-slot rs-slot--filled" style="cursor:default"><span class="rs-slot-num">4</span><span class="rs-slot-name">Ziad</span><span class="rs-slot-pos">FW</span></div>
+        <div class="rs-slot rs-slot--filled" style="cursor:default"><span class="rs-slot-num">5</span><span class="rs-slot-name">Bilal</span><span class="rs-slot-pos">CM</span></div>
+        <div class="rs-slot rs-slot--filled" style="cursor:default"><span class="rs-slot-num">6</span><span class="rs-slot-name">Rashed</span><span class="rs-slot-pos">FW</span></div>
+        <div class="rs-slot rs-slot--filled" style="cursor:default"><span class="rs-slot-num">7</span><span class="rs-slot-name">Mazen</span><span class="rs-slot-pos">FW</span></div>
+      </div>
+    </div>
+
+    <!-- Save bar: saved state -->
+    <div class="rs-submit-bar">
+      <div class="rs-progress">
+        <span>14 / 14 assigned</span>
+        <span class="rs-progress-ready">✓ Saved</span>
+      </div>
+      <div class="rs-progress-bar"><div class="rs-progress-fill rs-progress-fill--full" style="width:100%"></div></div>
+      <div class="rs-btn-row">
+        <button class="rs-btn rs-btn--secondary" style="flex:0.4">Edit</button>
+        <button class="rs-btn rs-btn--primary-active" style="flex:0.6;opacity:0.5;cursor:not-allowed">Saved ✓</button>
+      </div>
+    </div>
+
+  </div>
+  </div>
+</div>
+<p class="label">Screen 5 — Saved state: read-only view, "Edit" re-opens editing, no × on slots.</p>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     SCREEN 6 — SLOT × BEHAVIOUR NOTE (close-up / annotation)
+     Shows × button placement inside name boundary (req #9)
+     ════════════════════════════════════════════════════════════ -->
+<div>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+  <div class="phone-inner">
+  <div class="rs-screen">
+
+    <div class="rs-topbar">
+      <button class="rs-back">‹</button>
+      <span class="rs-title">Slot × placement (detail)</span>
+    </div>
+
+    <div style="padding:16px; display:flex; flex-direction:column; gap:16px; flex-shrink:0;">
+
+      <!-- Annotated: OLD behaviour (× floats at far right) -->
+      <div>
+        <p style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;">Before — × floats at far right</p>
+        <div class="rs-slot rs-slot--filled" style="justify-content:space-between;">
+          <span class="rs-slot-num">3</span>
+          <span class="rs-slot-name">Khalid</span>
+          <span class="rs-slot-pos">CM</span>
+          <!-- space + × at far right -->
+          <button class="rs-slot-remove" style="margin-left:auto; color:var(--danger);">×</button>
+        </div>
+        <p style="font-size:10px;color:rgba(230,51,73,0.7);margin-top:4px;">× is isolated far right, outside name "zone"</p>
+      </div>
+
+      <!-- Annotated: NEW behaviour (× immediately after name) -->
+      <div>
+        <p style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;">After — × sits right after name</p>
+        <div class="rs-slot rs-slot--filled">
+          <span class="rs-slot-num">3</span>
+          <!-- name + × grouped together -->
+          <span style="display:flex;align-items:center;gap:3px;flex:1;min-width:0;">
+            <span class="rs-slot-name" style="flex:none;max-width:80px;">Khalid</span>
+            <button class="rs-slot-remove">×</button>
+          </span>
+          <span class="rs-slot-pos">CM</span>
+        </div>
+        <p style="font-size:10px;color:var(--success);margin-top:4px;">× is adjacent to name, within its visual boundary</p>
+      </div>
+
+      <!-- Full team column preview with new × placement -->
+      <div>
+        <p style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;">White team — new × placement</p>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">1</span><span style="display:flex;align-items:center;gap:3px;flex:1;min-width:0;"><span class="rs-slot-name" style="flex:none;max-width:80px;">Ali</span><button class="rs-slot-remove">×</button></span><span class="rs-slot-pos rs-slot-pos--gk">GK</span></div>
+          <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">2</span><span style="display:flex;align-items:center;gap:3px;flex:1;min-width:0;"><span class="rs-slot-name" style="flex:none;max-width:80px;">Hassan</span><button class="rs-slot-remove">×</button></span><span class="rs-slot-pos">CB</span></div>
+          <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">3</span><span style="display:flex;align-items:center;gap:3px;flex:1;min-width:0;"><span class="rs-slot-name" style="flex:none;max-width:80px;">Mohammed Al-Rashidi</span><button class="rs-slot-remove">×</button></span><span class="rs-slot-pos">CB</span></div>
+          <div class="rs-slot rs-slot--filled"><span class="rs-slot-num">4</span><span style="display:flex;align-items:center;gap:3px;flex:1;min-width:0;"><span class="rs-slot-name" style="flex:none;max-width:80px;">Faris</span><button class="rs-slot-remove">×</button></span><span class="rs-slot-pos">FW</span></div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+  </div>
+</div>
+<p class="label">Screen 6 — UI detail: × button placement before vs after (req #9)</p>
+</div>
+
+</body>
+</html>
