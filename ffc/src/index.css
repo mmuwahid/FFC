@@ -6502,6 +6502,8 @@ body.is-leaderboard-landscape .lb-table-grid {
 .rs-sheet-btn--cancel { background: rgba(255,255,255,0.08); color: var(--text); }
 .rs-sheet-btn--add { background: var(--accent); color: #0e1826; }
 .rs-sheet-btn--add:disabled { opacity: 0.5; cursor: not-allowed; }
+.rs-sheet-btn--danger { background: var(--danger); color: #fff; }
+.rs-sheet-btn--danger:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* Empty state */
 .rs-empty-state {
@@ -6798,6 +6800,13 @@ body.is-leaderboard-landscape .lb-table-grid {
   flex: 0.35 !important;
 }
 .rs-btn--secondary:hover { background: rgba(255,255,255,0.12); }
+.rs-btn--danger {
+  background: rgba(230,51,73,0.14);
+  border: 1px solid rgba(230,51,73,0.45);
+  color: var(--danger);
+  flex: 0.35 !important;
+}
+.rs-btn--danger:hover { background: rgba(230,51,73,0.22); }
 
 /* Topbar badges */
 .rs-badge {

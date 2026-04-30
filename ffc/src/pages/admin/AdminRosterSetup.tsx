@@ -110,6 +110,12 @@ export function AdminRosterSetup() {
   const [playerSearch, setPlayerSearch] = useState('')
   const [playerBusy, setPlayerBusy] = useState<string | null>(null)
 
+  // Delete matchday sheet (S058 follow-up — lets admin scrub a matchday
+  // created by mistake; type-DELETE confirm so it can't be a fat-finger).
+  const [deleteSheet, setDeleteSheet] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [deleteBusy, setDeleteBusy] = useState(false)
+
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   function showToast(msg: string) {
@@ -470,6 +476,35 @@ export function AdminRosterSetup() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e))
       setBusy(false)
+    }
+  }
+
+  // ── Delete matchday (S058 follow-up) ──────────────────────────────────────
+  // Hard-deletes the selected matchday + its cascaded children (poll_votes,
+  // ref_tokens, pending_match_entries, draft_sessions, formations,
+  // match_guests). Refuses if a matches row exists — user must delete the
+  // match first via Admin → Matches.
+  async function handleDeleteMatchday() {
+    if (!selectedMdId) return
+    setDeleteBusy(true)
+    setError(null)
+    try {
+      const { error: err } = await supabase.rpc('admin_delete_matchday', {
+        p_matchday_id: selectedMdId,
+      })
+      if (err) throw err
+      // Drop the deleted matchday from local state, clear the selection,
+      // and bounce back to AdminMatches so the user sees the updated list.
+      setMatchdays(prev => prev.filter(m => m.id !== selectedMdId))
+      setSelectedMdId(null)
+      setDeleteSheet(false)
+      setDeleteConfirm('')
+      showToast('Matchday deleted')
+      navigate('/admin/matches')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setDeleteBusy(false)
     }
   }
 
@@ -911,6 +946,14 @@ export function AdminRosterSetup() {
                     <div className="rs-progress-fill rs-progress-fill--full" style={{ width: '100%' }} />
                   </div>
                   <div className="rs-btn-row">
+                    <button
+                      type="button"
+                      className="rs-btn rs-btn--danger"
+                      onClick={() => setDeleteSheet(true)}
+                      title="Delete this matchday and its roster"
+                    >
+                      🗑 Delete
+                    </button>
                     <button type="button" className="rs-btn rs-btn--secondary" onClick={editRoster}>
                       Edit
                     </button>
@@ -1013,6 +1056,56 @@ export function AdminRosterSetup() {
               className="rs-sheet-btn rs-sheet-btn--cancel"
               onClick={() => { setPlayerSheet(false); setPlayerSearch('') }}
             >Done</button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete matchday confirm sheet (S058 follow-up) */}
+      {deleteSheet && (
+        <div
+          className="rs-sheet-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setDeleteSheet(false)
+              setDeleteConfirm('')
+            }
+          }}
+        >
+          <div className="rs-sheet">
+            <div className="rs-sheet-handle" />
+            <div className="rs-sheet-title">Delete matchday?</div>
+            <div className="rs-sheet-subtitle">
+              {selectedMd ? `${fmtDatetime(selectedMd.kickoff_at)} — ` : ''}
+              this hard-deletes the matchday and its entire roster, poll votes,
+              ref tokens, draft + formations. <strong>This can't be undone.</strong>
+            </div>
+            <div className="rs-sheet-subtitle" style={{ marginTop: 8 }}>
+              Type <strong>DELETE</strong> to confirm.
+            </div>
+            <input
+              className="rs-sheet-input"
+              type="text"
+              placeholder="DELETE"
+              value={deleteConfirm}
+              onChange={e => setDeleteConfirm(e.target.value)}
+              autoFocus
+            />
+            <div className="rs-sheet-btns">
+              <button
+                type="button"
+                className="rs-sheet-btn rs-sheet-btn--cancel"
+                onClick={() => { setDeleteSheet(false); setDeleteConfirm('') }}
+                disabled={deleteBusy}
+              >Cancel</button>
+              <button
+                type="button"
+                className="rs-sheet-btn rs-sheet-btn--danger"
+                disabled={deleteConfirm.trim().toUpperCase() !== 'DELETE' || deleteBusy}
+                onClick={handleDeleteMatchday}
+              >
+                {deleteBusy ? 'Deleting…' : '🗑 Delete matchday'}
+              </button>
+            </div>
           </div>
         </div>
       )}

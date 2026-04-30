@@ -700,17 +700,19 @@ function MatchdayCard({
             👔 Pick captains
           </button>
         )}
-        {/* S058 issue #21 — admin match management on approved matches.
-         * Edit roster (post-match) + Delete match (red, type-DELETE confirm). */}
+        {/* S058 issue #21 — admin match management.
+         * Edit roster (post-match) is approved-only.
+         * Delete match shows on ANY matches row (approved or not) so admin
+         * can scrub a result entered against the wrong matchday. */}
         {approved && md.match && (
-          <>
-            <button type="button" className="auth-btn auth-btn--sheet-cancel admin-md-btn" onClick={onEditRoster}>
-              👥 Edit roster
-            </button>
-            <button type="button" className="auth-btn auth-btn--reject-filled admin-md-btn" onClick={onDeleteMatch}>
-              🗑 Delete match
-            </button>
-          </>
+          <button type="button" className="auth-btn auth-btn--sheet-cancel admin-md-btn" onClick={onEditRoster}>
+            👥 Edit roster
+          </button>
+        )}
+        {md.match && (
+          <button type="button" className="auth-btn auth-btn--reject-filled admin-md-btn" onClick={onDeleteMatch}>
+            🗑 Delete match
+          </button>
         )}
       </div>
 
