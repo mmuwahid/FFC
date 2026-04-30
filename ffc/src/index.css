@@ -3507,6 +3507,15 @@ textarea.auth-input {
   display: grid;
   grid-template-columns: 26px 32px 1fr auto;
   gap: 10px; align-items: center;
+}
+/* Issue #35 — when roster is locked the .po-rank cell is omitted from the
+ * JSX. Without dropping it from the grid template too, the remaining 3
+ * children (avatar, name-block, timestamp) fill columns 1-3 and the
+ * timestamp ends up in the wide 1fr slot while the name gets squeezed
+ * into the 32px avatar slot. Drop the rank column entirely in the locked
+ * variant so columns are: avatar(32) | name(1fr) | timestamp(auto). */
+.po-row.po-row--locked {
+  grid-template-columns: 32px 1fr auto;
   padding: 10px 10px; border: 0; background: var(--surface);
   text-align: left; cursor: pointer;
   color: var(--text);

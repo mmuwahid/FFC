@@ -643,7 +643,7 @@ export function Poll() {
       <button
         type="button"
         key={(c.profile_id ?? c.guest_id) + ':' + c.rank}
-        className={`po-row ${c.kind === 'guest' ? 'po-row--guest' : ''} ${isSelf ? 'po-row--me' : ''} ${c.team ? `po-row--team-${c.team}` : ''}`}
+        className={`po-row ${locked ? 'po-row--locked' : ''} ${c.kind === 'guest' ? 'po-row--guest' : ''} ${isSelf ? 'po-row--me' : ''} ${c.team ? `po-row--team-${c.team}` : ''}`}
         onClick={() => {
           if (c.kind === 'player' && c.profile_id) navigate(`/profile?profile_id=${c.profile_id}`)
           else if (c.kind === 'guest' && c.guest_id) setExpandedGuest((v) => v === c.guest_id ? null : c.guest_id ?? null)

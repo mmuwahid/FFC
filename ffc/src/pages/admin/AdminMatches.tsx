@@ -1813,11 +1813,19 @@ function EditRosterPostSheet({
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const [{ data: mp }, { data: ap }] = await Promise.all([
+      // Issue #36 — `match_players` has THREE FKs to `profiles`
+      // (profile_id, substituted_in_by, updated_by). The bare
+      // `profile:profiles(display_name)` embed was ambiguous → PostgREST
+      // silently errored the whole query → loaded rows came back empty
+      // → sheet rendered with no roster. Disambiguate via the explicit
+      // FK constraint name (same fix Matches.tsx scorers needed in S058).
+      const [{ data: mp, error: mpErr }, { data: ap }] = await Promise.all([
         supabase
           .from('match_players')
-          .select('profile_id, team, is_captain, goals, yellow_cards, red_cards, is_no_show, profile:profiles(display_name)')
-          .eq('match_id', match.id),
+          .select('profile_id, team, is_captain, goals, yellow_cards, red_cards, is_no_show, slot_index, profile:profiles!match_players_profile_id_fkey(display_name)')
+          .eq('match_id', match.id)
+          .order('team', { ascending: true })
+          .order('slot_index', { ascending: true, nullsFirst: false }),
         supabase
           .from('profiles')
           .select('id, display_name, primary_position, secondary_position, role, is_active')
@@ -1825,6 +1833,11 @@ function EditRosterPostSheet({
           .eq('is_active', true)
           .order('display_name'),
       ])
+      if (mpErr) {
+        // Surface in console so future ambiguity / RLS regressions don't
+        // hide as an empty sheet.
+        console.error('[EditRosterPostSheet] match_players load error:', mpErr)
+      }
       if (cancelled) return
       const loaded: PostRosterRow[] = ((mp ?? []) as unknown as Array<{
         profile_id: string | null
