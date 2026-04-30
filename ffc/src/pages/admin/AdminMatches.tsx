@@ -294,6 +294,7 @@ export function AdminMatches() {
 
   return (
     <section className="admin-matches">
+      <button type="button" className="admin-back" onClick={() => navigate('/admin')}>‹ Back</button>
       <header className="admin-players-top">
         <h1>Admin · Matches</h1>
         <button type="button" className="auth-btn auth-btn--approve admin-create-btn" onClick={() => setSheet({ kind: 'create' })}>

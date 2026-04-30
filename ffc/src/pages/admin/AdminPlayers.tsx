@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useApp } from '../../lib/AppContext'
 import type { Database } from '../../lib/database.types'
@@ -62,6 +63,7 @@ function dateLabel(iso: string | null): string {
 }
 
 export function AdminPlayers() {
+  const navigate = useNavigate()
   const { role } = useApp()
   const isSuperAdmin = role === 'super_admin'
 
@@ -149,6 +151,7 @@ export function AdminPlayers() {
 
   return (
     <section className="admin-players">
+      <button type="button" className="admin-back" onClick={() => navigate('/admin')}>‹ Back</button>
       <header className="admin-players-top">
         <h1>Admin · Players</h1>
       </header>
