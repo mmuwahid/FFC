@@ -5029,13 +5029,15 @@ textarea.auth-input {
 }
 .app-topbar-bell {
   position: relative;
-  width: 36px;
-  height: 36px;
+  /* S060 #38 (CRITICAL) — Apple HIG minimum touch target is 44×44pt.
+   * Was 36×36 — too small for thumb hit reliability on real phones. */
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
   border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
   background: transparent;
   color: var(--text, #f2ead6);
-  font-size: 18px;
+  font-size: 20px;
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -5061,9 +5063,11 @@ textarea.auth-input {
   pointer-events: none;
 }
 .app-topbar-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
+  /* S060 #38 (CRITICAL) — Apple HIG minimum touch target is 44×44pt.
+   * Was 36×36 — too small for thumb hit reliability on real phones. */
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
   border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
   background: var(--accent, #e5ba5b);
   color: #0e1826;
@@ -5081,7 +5085,7 @@ textarea.auth-input {
   display: block;
 }
 .app-topbar-avatar-initials {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.01em;
 }
