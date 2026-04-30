@@ -128,42 +128,41 @@
   z-index: 3;
 }
 
-/* Scorer footer */
-.splitc-footer { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.2); }
-.splitc-footer-half { padding: 8px 12px; display: flex; flex-direction: column; gap: 3px; min-height: 28px; justify-content: center; }
-.splitc-footer-half.right { align-items: flex-end; border-left: 1px solid rgba(255,255,255,0.06); }
-.mt-scorer-row { font-size: 11px; line-height: 1.35; color: #c7d0df; display: inline-flex; align-items: center; gap: 5px; }
-.mt-scorer-ball { opacity: 0.6; font-size: 10px; }
-.splitc-footer-half.empty .mt-scorer-row { opacity: 0.4; font-style: italic; }
-
-/* S058 follow-up — MOTM scorer in gold with ⭐. Highlights when the match
- * MOTM also scored. The bottom mt-motm-strip still shows the formal MOTM
- * line; this just makes the connection visible in the scorer list. */
-.mt-scorer-row--motm {
-  color: #e5ba5b;
-  font-weight: 700;
+/* FIFA Player Table — Issue #41 redesign */
+.mt-player-table {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  background: rgba(0,0,0,0.18);
 }
-.mt-scorer-star {
-  color: #e5ba5b;
-  font-size: 10px;
+.mt-player-col { padding: 6px 0; }
+.mt-player-col.right { border-left: 1px solid rgba(255,255,255,0.06); }
+.mt-player-section-head {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+  color: #4b5870; text-transform: uppercase; padding: 4px 10px 2px;
 }
-.mt-hat-badge { display: inline-block; margin-left: 3px; padding: 1px 5px; border-radius: 999px; background: rgba(236,72,153,0.2); color: #f472b6; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; }
-/* Issue #33 — disciplinary stat markers (yellow, red, no-show / injury). */
-.mt-stat-icon { font-size: 10px; line-height: 1; opacity: 0.95; margin-left: 3px; display: inline-flex; align-items: center; gap: 1px; }
-.mt-stat-icon--yellow { font-size: 10px; }
-.mt-stat-icon--red { font-size: 10px; }
-/* S060 #41 — bandage marker for ref-tagged injured players. Replaces the
- * 🤕 used previously; same data source: match_players.is_no_show. */
-.mt-stat-icon--injury { font-size: 11px; color: #f4c89a; }
-
-/* MOTM strip */
-.mt-motm-strip {
-  padding: 5px 12px;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  color: #facc15;
-  background: rgba(250,204,21,0.06);
-  border-top: 1px solid rgba(250,204,21,0.12);
-  text-align: center;
-  font-weight: 600;
+.mt-player-section-head.right { text-align: right; }
+.mt-player-row {
+  display: flex; align-items: center;
+  padding: 3px 10px; gap: 5px; min-height: 26px;
 }
+.mt-player-row.right { flex-direction: row-reverse; }
+.mt-ps-goals {
+  font-size: 10px; font-weight: 800; color: #e7ecf5;
+  background: rgba(255,255,255,0.08); border-radius: 4px;
+  padding: 0 5px; line-height: 18px; min-width: 22px; text-align: center;
+  flex-shrink: 0;
+}
+.mt-ps-goals--motm { background: rgba(229,186,91,0.18); color: #e5ba5b; }
+.mt-player-name-wrap { flex: 1; display: flex; flex-direction: column; gap: 1px; overflow: hidden; }
+.mt-player-name { font-size: 11px; color: #c7d0df; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mt-player-row.right .mt-player-name { text-align: right; }
+.mt-player-name--motm { color: #e5ba5b; font-weight: 700; }
+.mt-player-icons { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.mt-player-row.right .mt-player-icons { flex-direction: row-reverse; }
+.mt-icon-yellow  { font-size: 10px; line-height: 1; }
+.mt-icon-red     { font-size: 10px; line-height: 1; }
+.mt-icon-injury  { font-size: 11px; color: #f4c89a; line-height: 1; }
+.mt-icon-motm    { font-size: 10px; line-height: 1; color: #e5ba5b; }
+.mt-player-row--no-goal .mt-ps-goals { visibility: hidden; }
+.mt-player-empty { font-size: 11px; color: #3d4f65; font-style: italic; padding: 6px 10px; }

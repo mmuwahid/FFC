@@ -142,33 +142,6 @@ function bannerLabel(matchdayNumber: number, total: number | null): string {
   return total ? `GAME ${matchdayNumber} / ${total}` : `GAME ${matchdayNumber}`
 }
 
-// Issue #33 — single row that combines goals + cards + injury markers for
-// one player. Examples: `⚽ ⭐ Latif ×2`, `🟨 Saz`, `⚽ Karim ×1 🟥`,
-// `🩹 Moe Hamdan` (injured / no-show). S060 #41 — swapped 🤕 → 🩹 to match
-// FIFA-style. HAT pill removed per follow-up feedback ("just adds clutter").
-function ParticipantBadge({ row }: { row: GroupedParticipant }) {
-  const scored = row.goals > 0
-  return (
-    <span className={`mt-scorer-row${row.isMotm ? ' mt-scorer-row--motm' : ''}`}>
-      {scored && <span className="mt-scorer-ball">⚽</span>}
-      {scored && row.isMotm && <span className="mt-scorer-star">⭐</span>}
-      {!scored && row.is_no_show && <span className="mt-stat-icon mt-stat-icon--injury" aria-label="Injury" title="Injury">🩹</span>}
-      {row.name}
-      {scored && <> ×{row.goals}</>}
-      {row.yellow_cards > 0 && (
-        <span className="mt-stat-icon mt-stat-icon--yellow" aria-label={`${row.yellow_cards} yellow card${row.yellow_cards > 1 ? 's' : ''}`} title="Yellow card">
-          🟨{row.yellow_cards > 1 ? `×${row.yellow_cards}` : ''}
-        </span>
-      )}
-      {row.red_cards > 0 && (
-        <span className="mt-stat-icon mt-stat-icon--red" aria-label="Red card" title="Red card">🟥</span>
-      )}
-      {scored && row.is_no_show && (
-        <span className="mt-stat-icon mt-stat-icon--injury" aria-label="Injury" title="Injury">🩹</span>
-      )}
-    </span>
-  )
-}
 
 export function Matches() {
   const [seasons, setSeasons] = useState<SeasonRow[]>([])
@@ -432,19 +405,43 @@ export function Matches() {
                     <div className="splitc-vs">VS</div>
                   </div>
 
-                  <div className="splitc-footer">
-                    <div className={`splitc-footer-half${whiteRows.length === 0 ? ' empty' : ''}`}>
+                  <div className="mt-player-table">
+                    <div className="mt-player-col">
+                      <div className="mt-player-section-head">White</div>
                       {whiteRows.length === 0 ? (
-                        <span className="mt-scorer-row">no goals</span>
+                        <p className="mt-player-empty">—</p>
                       ) : whiteRows.map(r => (
-                        <ParticipantBadge key={`w-${r.name}`} row={r} />
+                        <div key={`w-${r.name}`} className={`mt-player-row${r.goals === 0 ? ' mt-player-row--no-goal' : ''}`}>
+                          <span className={`mt-ps-goals${r.isMotm && r.goals > 0 ? ' mt-ps-goals--motm' : ''}`}>×{r.goals}</span>
+                          <div className="mt-player-name-wrap">
+                            <span className={`mt-player-name${r.isMotm ? ' mt-player-name--motm' : ''}`}>{r.name}</span>
+                          </div>
+                          <div className="mt-player-icons">
+                            {r.yellow_cards > 0 && <span className="mt-icon-yellow" title={`${r.yellow_cards} yellow card${r.yellow_cards > 1 ? 's' : ''}`}>🟨{r.yellow_cards > 1 ? `×${r.yellow_cards}` : ''}</span>}
+                            {r.red_cards > 0 && <span className="mt-icon-red" title="Red card">🟥</span>}
+                            {r.is_no_show && <span className="mt-icon-injury" title="No-show / injury">🩹</span>}
+                            {r.isMotm && <span className="mt-icon-motm">⭐</span>}
+                          </div>
+                        </div>
                       ))}
                     </div>
-                    <div className={`splitc-footer-half right${blackRows.length === 0 ? ' empty' : ''}`}>
+                    <div className="mt-player-col right">
+                      <div className="mt-player-section-head right">Black</div>
                       {blackRows.length === 0 ? (
-                        <span className="mt-scorer-row">no goals</span>
+                        <p className="mt-player-empty" style={{ textAlign: 'right' }}>—</p>
                       ) : blackRows.map(r => (
-                        <ParticipantBadge key={`b-${r.name}`} row={r} />
+                        <div key={`b-${r.name}`} className={`mt-player-row right${r.goals === 0 ? ' mt-player-row--no-goal' : ''}`}>
+                          <span className={`mt-ps-goals${r.isMotm && r.goals > 0 ? ' mt-ps-goals--motm' : ''}`}>×{r.goals}</span>
+                          <div className="mt-player-name-wrap">
+                            <span className={`mt-player-name${r.isMotm ? ' mt-player-name--motm' : ''}`}>{r.name}</span>
+                          </div>
+                          <div className="mt-player-icons">
+                            {r.yellow_cards > 0 && <span className="mt-icon-yellow" title={`${r.yellow_cards} yellow card${r.yellow_cards > 1 ? 's' : ''}`}>🟨{r.yellow_cards > 1 ? `×${r.yellow_cards}` : ''}</span>}
+                            {r.red_cards > 0 && <span className="mt-icon-red" title="Red card">🟥</span>}
+                            {r.is_no_show && <span className="mt-icon-injury" title="No-show / injury">🩹</span>}
+                            {r.isMotm && <span className="mt-icon-motm">⭐</span>}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
