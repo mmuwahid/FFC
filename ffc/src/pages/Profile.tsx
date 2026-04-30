@@ -62,6 +62,16 @@ interface AllStandingRow {
   goals: number | null
 }
 
+interface CareerStandingRow {
+  wins: number | null
+  draws: number | null
+  losses: number | null
+  goals: number | null
+  yellows: number | null
+  reds: number | null
+  motms: number | null
+}
+
 interface Last5Row {
   outcome: string | null
   kickoff_at: string | null
@@ -687,8 +697,13 @@ export function Profile() {
       .limit(1)
       .maybeSingle()
 
-    Promise.all([profileP, standingP, allStandingsP, last5P, recentP, banP]).then(
-      ([p, s, as_, l, r, b]) => {
+    const careerStandingsP = supabase
+      .from('v_season_standings')
+      .select('wins, draws, losses, goals, yellows, reds, motms')
+      .eq('profile_id', viewProfileId)
+
+    Promise.all([profileP, standingP, allStandingsP, last5P, recentP, banP, careerStandingsP]).then(
+      ([p, s, as_, l, r, b, cs]) => {
         if (cancelled) return
         if (p.error) { setError(p.error.message); setLoading(false); return }
 
@@ -709,13 +724,15 @@ export function Profile() {
           })
         setRecentMatches(allMatches.slice(0, 10))
 
-        const careerGoals = allMatches.reduce((acc, m) => acc + m.goals, 0)
-        const careerYellows = allMatches.reduce((acc, m) => acc + m.yellow_cards, 0)
-        const careerReds = allMatches.reduce((acc, m) => acc + m.red_cards, 0)
-        const careerMotms = allMatches.filter((m) => m.matches?.motm_user_id === viewProfileId).length
+        const csRows = (cs.data ?? []) as CareerStandingRow[]
+        const careerGoals = csRows.reduce((acc, row) => acc + (row.goals ?? 0), 0)
+        const careerYellows = csRows.reduce((acc, row) => acc + (row.yellows ?? 0), 0)
+        const careerReds = csRows.reduce((acc, row) => acc + (row.reds ?? 0), 0)
+        const careerMotms = csRows.reduce((acc, row) => acc + (row.motms ?? 0), 0)
+        const careerMatches = csRows.reduce((acc, row) => acc + ((row.wins ?? 0) + (row.draws ?? 0) + (row.losses ?? 0)), 0)
         const { bestW, bestWSeasonId, worstL, worstLSeasonId } = computeStreaks(allMatches)
         setCareer({
-          matches: allMatches.length,
+          matches: careerMatches,
           goals: careerGoals,
           yellows: careerYellows,
           reds: careerReds,
