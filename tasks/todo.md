@@ -1,13 +1,14 @@
 # FFC Todo
 
-## NEXT SESSION — S059
+## NEXT SESSION — S060
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: HEAD on `main` is the S058 close docs commit (TBD on push). 4 new migrations applied this session (0056, 0057, 0058, 0059). Live DB now at 58.
-- All 4 carried-over GitHub issues closed in S058: #21 #22 #23 #25. Issue #18 still open (3 complex sub-asks pending mockup; not new — deferred from S056).
+- Expected tip: HEAD on `main` is `e960df2` (S059 close docs commit will follow). 3 new migrations applied in S059 (0061, 0062, 0063) + retroactively recorded 0060 `seasons_games_seeded`. **Live DB now at 63.**
+- **Apr 30 follow-up:** user must hit Edit → Save once in AdminRosterSetup so slot_index gets refreshed from current array order (S059 backfill assigned arbitrary slot_index because all 14 rows shared transaction-start created_at). Future matches inherit correct ordering automatically.
+- Issue #18 still open (3 complex sub-asks pending mockup; not new — deferred from S056).
 
-**S059 agenda — Phase 3 payment tracker, finally:**
+**S060 agenda — Phase 3 payment tracker (carried from S059 cold-start, not started):**
 
 1. **Phase 3 payment tracker** (V3.0:147 — long-deferred):
    - [ ] Build HTML mockup at `mockups/payment-tracker.html` for the 3-screen flow (overview → admin drilldown → player ledger). Use Option B compact card layout + Option C inline status icons (✓ green / ⏳ amber / ✗ red — user explicitly rejected outline pills as "ugly").
@@ -15,7 +16,11 @@
    - [ ] Migration adding the 3 tables (`match_fees`, `match_payments`, `payment_ledger_view`) per spec. (Note: S056 mig 0055 already added some payment infra — verify what's there before duplicating.)
    - [ ] Frontend pages — `/payments` overview + admin drilldown sheet + player ledger sheet (S056 already shipped a skeleton in `Payments.tsx` and `PaymentLedgerSheet.tsx`; S058 restored the deleted CSS).
 
-2. **S058 live verification** — admin/auth-gated paths unreachable from preview, only confirmable on a real Thursday matchday:
+2. **S058–S059 live verification** — admin/auth-gated paths unreachable from preview, only confirmable on a real Thursday matchday:
+   - [ ] **S059 ref-link mint** — Apr 30 cleared up; admin generates ref link, ref opens `/ref/<token>`, KICK OFF console runs live timer + goal/card capture, SUBMIT → admin gets push, admin reviews → approves → leaderboard updates.
+   - [ ] **S059 slot_index ordering** — re-save Apr 30 once; Poll team list order matches Roster Setup exactly; new matches saved post-S059 inherit correct order automatically.
+   - [ ] **S059 captain pill** — when admin sets a captain via CaptainHelper, Poll renders gold filled "C" badge before the name (was inline gold "(C)" text before).
+   - [ ] **S059 topbar Delete** — Roster Setup 🗑 button reachable from Pool/Teams/Saved phases; type-DELETE confirm; admin_delete_matchday cascades through unapproved drafts.
    - [ ] **#22 layout** — bottom-nav doesn't bob during Leaderboard/Matches load · dynamic island doesn't bleed on Settings/Rules · back buttons work on AdminMatches/AdminPlayers · AdminSeasons rows align cleanly · Payments page renders with proper styling (regression fix).
    - [ ] **#25 PNG hero** — open Profile → tap recent match → PNG hero loads at top of MatchDetailSheet · loading shimmer renders · failure path (no PNG yet) hides hero gracefully.
    - [ ] **#25 friendlies in Matches tab** — confirm friendly matches now appear in Matches tab with yellow `FRIENDLY` chip · leaderboard standings unaffected.
@@ -39,14 +44,38 @@
 
 4. **Optional / follow-up:**
    - [ ] **Tap-to-increment Scorer Picker sheet** (mockup tile B from S058) — only if user finds per-row goals input tedious for high-scoring matches.
+   - [ ] **Manual slot reorder UI** in AdminRosterSetup (drag/swap on locked rosters) — S059 added the slot_index column but no UI to reorder once saved; only re-save replaces.
    - [ ] **Issue #18 remaining 3 complex sub-asks** — HTML mockup of: lock-before-team-select gate, player return-to-origin on slot remove, dirty-nav guard. Mockup-first per Rule #1.
 
 **Backburner:**
 - **Awards backfill RPC** — admin-triggered `backfill_season_awards()` to populate `season_awards` for ended seasons predating mig 0047.
 - **Awards push notification** — when `seasons.ended_at` flips, push admins + winners ("Season N awards are in!").
 - **Resend custom sender domain** — verify a domain in Resend, set `NOTIFY_FROM` env on `notify-signup-outcome` EF.
-- **Phase 3 backlog (post-S058):** ~~payment tracker~~ (S059 active) · multi-season comparison stats · player analytics · H2H comparison · player badges / achievements · injury / unavailable list. Mockups in `mockups/` first per Rule #1.
+- **Phase 3 backlog (post-S059):** ~~payment tracker~~ (S060 active) · multi-season comparison stats · player analytics · H2H comparison · player badges / achievements · injury / unavailable list. Mockups in `mockups/` first per Rule #1.
 - **Player analytics + H2H** (V3.0:145–146) — first attempt rejected in S053; re-attempt with different style direction if user wants.
+
+## Completed in S059 (30/APR/2026, Work PC)
+
+### Live ref access flow + Poll team-split fix + matchday delete + slot_index
+
+**3 commits, 3 migrations applied (0061, 0062, 0063) + retroactively recorded 0060. Live DB: 58 → 63. Final HEAD: `e960df2`.**
+
+See `sessions/S059/session-log.md` for full per-phase narrative.
+
+- [x] **Phase B `2c10cb7` — delete-matchday RPC + UI + relaxed delete-match gate.** Migration 0061 `admin_delete_matchday(p_matchday_id)` SECURITY DEFINER (is_admin guard, audit BEFORE delete, cascades through poll_votes/ref_tokens/pending_match_entries/draft_sessions+draft_picks/formations/match_guests; refuses if matches row exists per RESTRICT FK). AdminRosterSetup gains Delete button on Saved-state footer next to Edit + type-DELETE confirm sheet. AdminMatches Delete-match button gate relaxed from `{approved && md.match}` to `{md.match}` (was approved-only — RPC supported any match row but UI gate was wrong). CSS `.rs-btn--danger` + `.rs-sheet-btn--danger`. Migration filename collision (stray `0060_seasons_games_seeded.sql` already on remote from `bb13127` games_seeded polish but not in local history) resolved via `npx supabase migration repair --status applied 0060 --linked` then renaming new file to `0061`.
+- [x] **Phase C `2a955ac` — Poll team-split scrambled fix + admin_delete_matchday v2.** Issue: Apr 30 Poll showed WHITE 6 / BLACK 8 with players on completely different teams vs Roster Setup's 7/7. Root cause: `Poll.tsx:274-277` match_players query missing `.eq('match_id', …)` — returning every row across every match each player had been in, then `mpMap.set(profile_id, …)` overwrote randomly. Same bug guest-side. Fix: scoped both queries + defensive skip if no draft match. Migration 0062 updates `admin_delete_matchday` body via CREATE OR REPLACE — now cascades through UNAPPROVED draft matches (saving roster via create_match_draft inserts an unapproved match row; original 0061 refused unconditionally → user's "Delete" silently errored on May 7); only refuses if `approved_at IS NOT NULL`.
+- [x] **Phase D `e960df2` — slot_index column + Poll polish + topbar Delete.** First slot-order fix attempted client-side sort by `created_at, id` — failed because `create_match_draft` does FOREACH … INSERT in single transaction (every row shares transaction-start `now()`; uuid `id` tiebreaker random). Migration 0063 adds `match_players.slot_index integer` (per-team 1-based) + backfills via `ROW_NUMBER() OVER (PARTITION BY match_id, team ORDER BY created_at, id)` + new index `(match_id, team, slot_index)` + CREATE OR REPLACE updates to `create_match_draft` / `admin_update_match_draft` (FOREACH counters) / `admin_edit_match_roster` (WITH ORDINALITY + window function for jsonb-array path). Frontend: Poll.tsx reads slot_index, sorts whiteList/blackList by new comparator, hides rank chip when locked. Captain marker restyled as gold filled pill (was tiny inline gold text). AdminRosterSetup.loadRoster orders by `(team, slot_index)`. New `.rs-topbar-delete` 🗑 button reachable from Pool/Teams/Saved phases.
+- [x] **Verification:** `tsc -b` EXIT 0 across all 3 phases. Preview server confirmed: Poll WHITE 7 / BLACK 7 with player names in slot order, ranks hidden (0 `.po-rank` elements), captain pill style applied; AdminRosterSetup topbar 🗑 renders correctly; no console errors.
+
+### S059 patterns / lessons (additive)
+
+- **For per-row order in PG, never rely on `created_at` to disambiguate within a transaction.** All FOREACH INSERTs in one transaction share `now()` (transaction start). If you need stable insertion order, add an explicit `slot_index integer` column written by the RPC at insert time. Tried client-side sort first; failed; came back and added the column. Generalises beyond match_players — anywhere bulk INSERT order matters for display.
+- **For destructive admin RPCs, ask "what does the user expect this to delete" not "what does the FK graph let me delete".** Default to cascade-through-children for non-load-bearing children (drafts, votes, tokens). Only refuse on children that represent committed history (approved matches, payment records). Original 0061 refused on any matches row — wrong mental model — fixed in 0062.
+- **Always grep for sibling usages when fixing a Supabase query bug.** When fixing the missing `match_id` filter in Poll.tsx, ran `grep -rn "from('match_players')"` and confirmed FormationPlanner / MatchDetailSheet / AdminMatches / AdminRosterSetup / CaptainHelper / Profile already scoped correctly. Confirms the bug is local rather than systemic.
+- **`migration repair --status applied <version>` to record a remote migration applied without local tracking.** `db push` errored on duplicate version key; repair recorded it without re-running. Less destructive than dropping/re-applying.
+- **`CREATE OR REPLACE FUNCTION` to re-issue an RPC body in a follow-up migration.** Args unchanged → no DROP needed → keeps upgrade path linear without breaking GRANT EXECUTE state. Used 4× this session (0062 + 3× in 0063).
+- **`WITH ORDINALITY` + `ROW_NUMBER() OVER (PARTITION BY ... ORDER BY ord)` for slot_index in jsonb-array RPCs.** Single-statement insert, no procedural counter. Clean SQL idiom matching how FOREACH counters work in plpgsql peers.
+- **Verify hypothesis with DOM eval before coding the fix.** Phase A debug: tapped Review/approve in user's screenshot → opened EditResultSheet not MatchEntryReview → that 1 fact reframed the entire diagnosis (it's a `matches` row, not a `pending_match_entries` row). UI-state evidence trumps schema reading.
 
 ## Completed in S058 (30/APR/2026, Work PC)
 
