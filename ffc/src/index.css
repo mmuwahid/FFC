@@ -5907,3 +5907,40 @@ body.is-leaderboard-landscape .lb-table-grid {
   margin: 16px 16px 0;
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+/* Roster Setup — cap / waitlist additions */
+
+.rs-count-cap--full { color: #4fbf93; font-weight: 600; }
+.rs-count-cap--over { color: var(--danger, #e63349); font-weight: 700; }
+
+.rs-zone--full { opacity: 0.85; }
+.rs-zone-full-badge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background: rgba(79,191,147,0.2);
+  color: #4fbf93;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 4px;
+  text-transform: uppercase;
+}
+
+.rs-waitlist {
+  margin: 4px 16px 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(245,158,11,0.06);
+  border: 1px solid rgba(245,158,11,0.2);
+}
+.rs-waitlist-hint {
+  font-size: 11px;
+  color: #f59e0b;
+  opacity: 0.8;
+  margin: 0 0 8px;
+}
+.rs-chip--waitlist {
+  background: rgba(245,158,11,0.1);
+  color: #f59e0b;
+  border: 1px solid rgba(245,158,11,0.25);
+}

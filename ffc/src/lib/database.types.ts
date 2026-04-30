@@ -442,6 +442,75 @@ export type Database = {
           },
         ]
       }
+      match_payment_records: {
+        Row: {
+          amount_aed: number
+          created_at: string
+          guest_id: string | null
+          id: string
+          marked_paid_by: string | null
+          match_id: string
+          paid_at: string | null
+          profile_id: string | null
+        }
+        Insert: {
+          amount_aed?: number
+          created_at?: string
+          guest_id?: string | null
+          id?: string
+          marked_paid_by?: string | null
+          match_id: string
+          paid_at?: string | null
+          profile_id?: string | null
+        }
+        Update: {
+          amount_aed?: number
+          created_at?: string
+          guest_id?: string | null
+          id?: string
+          marked_paid_by?: string | null
+          match_id?: string
+          paid_at?: string | null
+          profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_payment_records_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "match_guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_payment_records_marked_paid_by_fkey"
+            columns: ["marked_paid_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_payment_records_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_payment_records_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "v_player_last5"
+            referencedColumns: ["match_id"]
+          },
+          {
+            foreignKeyName: "match_payment_records_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_players: {
         Row: {
           created_at: string
@@ -453,6 +522,7 @@ export type Database = {
           match_id: string
           profile_id: string | null
           red_cards: number
+          slot_index: number | null
           substituted_in_by: string | null
           team: Database["public"]["Enums"]["team_color"]
           updated_at: string
@@ -469,6 +539,7 @@ export type Database = {
           match_id: string
           profile_id?: string | null
           red_cards?: number
+          slot_index?: number | null
           substituted_in_by?: string | null
           team: Database["public"]["Enums"]["team_color"]
           updated_at?: string
@@ -485,6 +556,7 @@ export type Database = {
           match_id?: string
           profile_id?: string | null
           red_cards?: number
+          slot_index?: number | null
           substituted_in_by?: string | null
           team?: Database["public"]["Enums"]["team_color"]
           updated_at?: string
@@ -752,6 +824,55 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_windows: {
+        Row: {
+          auto_closed: boolean
+          closed_at: string | null
+          closed_by: string | null
+          id: string
+          match_id: string
+          opened_at: string
+        }
+        Insert: {
+          auto_closed?: boolean
+          closed_at?: string | null
+          closed_by?: string | null
+          id?: string
+          match_id: string
+          opened_at?: string
+        }
+        Update: {
+          auto_closed?: boolean
+          closed_at?: string | null
+          closed_by?: string | null
+          id?: string
+          match_id?: string
+          opened_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_windows_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_windows_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: true
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_windows_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: true
+            referencedRelation: "v_player_last5"
+            referencedColumns: ["match_id"]
           },
         ]
       }
@@ -1100,6 +1221,45 @@ export type Database = {
           },
         ]
       }
+      player_rank_snapshots: {
+        Row: {
+          points: number
+          profile_id: string
+          rank: number
+          season_id: string
+          snapshot_at: string
+        }
+        Insert: {
+          points: number
+          profile_id: string
+          rank: number
+          season_id: string
+          snapshot_at?: string
+        }
+        Update: {
+          points?: number
+          profile_id?: string
+          rank?: number
+          season_id?: string
+          snapshot_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_rank_snapshots_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_rank_snapshots_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       poll_votes: {
         Row: {
           cancelled_at: string | null
@@ -1405,6 +1565,64 @@ export type Database = {
           },
         ]
       }
+      season_awards: {
+        Row: {
+          award_kind: string
+          frozen_at: string
+          id: string
+          meta: Json
+          metric_value: number
+          runner_up_metric: number | null
+          runner_up_profile_id: string | null
+          season_id: string
+          winner_profile_id: string
+        }
+        Insert: {
+          award_kind: string
+          frozen_at?: string
+          id?: string
+          meta?: Json
+          metric_value: number
+          runner_up_metric?: number | null
+          runner_up_profile_id?: string | null
+          season_id: string
+          winner_profile_id: string
+        }
+        Update: {
+          award_kind?: string
+          frozen_at?: string
+          id?: string
+          meta?: Json
+          metric_value?: number
+          runner_up_metric?: number | null
+          runner_up_profile_id?: string | null
+          season_id?: string
+          winner_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "season_awards_runner_up_profile_id_fkey"
+            columns: ["runner_up_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "season_awards_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "season_awards_winner_profile_id_fkey"
+            columns: ["winner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       season_seed_stats: {
         Row: {
           created_at: string
@@ -1478,6 +1696,7 @@ export type Database = {
           ended_at: string | null
           ended_by: string | null
           ends_on: string | null
+          games_seeded: number
           id: string
           name: string
           planned_games: number | null
@@ -1493,6 +1712,7 @@ export type Database = {
           ended_at?: string | null
           ended_by?: string | null
           ends_on?: string | null
+          games_seeded?: number
           id?: string
           name: string
           planned_games?: number | null
@@ -1508,6 +1728,7 @@ export type Database = {
           ended_at?: string | null
           ended_by?: string | null
           ends_on?: string | null
+          games_seeded?: number
           id?: string
           name?: string
           planned_games?: number | null
@@ -1596,6 +1817,18 @@ export type Database = {
           },
         ]
       }
+      v_season_award_winners_live: {
+        Row: {
+          award_kind: string | null
+          meta: Json | null
+          metric_value: number | null
+          runner_up_metric: number | null
+          runner_up_profile_id: string | null
+          season_id: string | null
+          winner_profile_id: string | null
+        }
+        Relationships: []
+      }
       v_season_standings: {
         Row: {
           display_name: string | null
@@ -1617,6 +1850,24 @@ export type Database = {
     }
     Functions: {
       accept_substitute: { Args: { p_matchday_id: string }; Returns: undefined }
+      admin_add_commitment: {
+        Args: { p_matchday_id: string; p_profile_id: string }
+        Returns: undefined
+      }
+      admin_add_guest: {
+        Args: { p_display_name: string; p_matchday_id: string }
+        Returns: string
+      }
+      admin_cancel_commitment: {
+        Args: { p_matchday_id: string; p_profile_id: string }
+        Returns: undefined
+      }
+      admin_cancel_guest: { Args: { p_guest_id: string }; Returns: undefined }
+      admin_delete_match: { Args: { p_match_id: string }; Returns: undefined }
+      admin_delete_matchday: {
+        Args: { p_matchday_id: string }
+        Returns: undefined
+      }
       admin_delete_player: {
         Args: { p_profile_id: string }
         Returns: undefined
@@ -1633,6 +1884,10 @@ export type Database = {
         Args: { p_event_id: string }
         Returns: undefined
       }
+      admin_edit_match_roster: {
+        Args: { p_match_id: string; p_players: Json }
+        Returns: undefined
+      }
       admin_submit_match_result: {
         Args: {
           p_approve?: boolean
@@ -1645,6 +1900,16 @@ export type Database = {
           p_score_white: number
         }
         Returns: string
+      }
+      admin_update_match_draft: {
+        Args: {
+          p_black_guests: string[]
+          p_black_roster: string[]
+          p_match_id: string
+          p_white_guests: string[]
+          p_white_roster: string[]
+        }
+        Returns: undefined
       }
       approve_match_entry: {
         Args: { p_edits?: Json; p_pending_id: string }
@@ -1671,6 +1936,7 @@ export type Database = {
         Args: { p_choice: string; p_matchday_id: string }
         Returns: Json
       }
+      close_payment_window: { Args: { p_match_id: string }; Returns: undefined }
       confirm_friendly_matchday: {
         Args: { p_matchday_id: string }
         Returns: undefined
@@ -1762,7 +2028,37 @@ export type Database = {
         Args: { p_reminder_id: string }
         Returns: undefined
       }
+      get_match_card_payload: { Args: { p_match_id: string }; Returns: Json }
+      get_player_payment_ledger: {
+        Args: {
+          p_guest_id?: string
+          p_profile_id?: string
+          p_season_id?: string
+        }
+        Returns: {
+          amount_aed: number
+          kickoff_at: string
+          match_id: string
+          match_number: number
+          paid_at: string
+          window_open: boolean
+        }[]
+      }
       get_ref_matchday: { Args: { p_token: string }; Returns: Json }
+      get_season_payment_summary: {
+        Args: { p_season_id: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          guest_id: string
+          matches_paid: number
+          matches_played: number
+          outstanding_aed: number
+          profile_id: string
+          total_owed_aed: number
+          total_paid_aed: number
+        }[]
+      }
       invite_guest: {
         Args: {
           p_accuracy: Database["public"]["Enums"]["guest_trait"]
@@ -1787,6 +2083,18 @@ export type Database = {
           p_target_entity: string
           p_target_id: string
         }
+        Returns: undefined
+      }
+      mark_guest_payment_paid: {
+        Args: { p_guest_id: string; p_match_id: string }
+        Returns: undefined
+      }
+      mark_payment_paid: {
+        Args: { p_match_id: string; p_profile_id: string }
+        Returns: undefined
+      }
+      open_match_payment_window: {
+        Args: { p_match_id: string }
         Returns: undefined
       }
       pick_captains_random: {
@@ -1817,6 +2125,10 @@ export type Database = {
         Args: { p_pending_id: string; p_reason: string }
         Returns: undefined
       }
+      reopen_payment_window: {
+        Args: { p_match_id: string }
+        Returns: undefined
+      }
       request_reroll: { Args: { p_matchday_id: string }; Returns: string }
       roster_cap: {
         Args: { p_format: Database["public"]["Enums"]["match_format"] }
@@ -1835,6 +2147,10 @@ export type Database = {
         }[]
       }
       share_formation: { Args: { p_formation_id: string }; Returns: undefined }
+      snapshot_and_diff_ranks: {
+        Args: { p_season_id: string }
+        Returns: number
+      }
       submit_draft_pick: {
         Args: {
           p_draft_session_id: string
@@ -1870,6 +2186,7 @@ export type Database = {
         }[]
       }
       unban_player: { Args: { p_profile_id: string }; Returns: undefined }
+      unlock_roster: { Args: { p_matchday_id: string }; Returns: undefined }
       update_guest_stats: {
         Args: {
           p_accuracy: Database["public"]["Enums"]["guest_trait"]
@@ -2003,6 +2320,8 @@ export type Database = {
         | "captain_assigned"
         | "you_are_in"
         | "vote_reminder"
+        | "matchday_created"
+        | "ranking_changed"
       pending_match_status: "pending" | "approved" | "rejected"
       player_position: "GK" | "DEF" | "CDM" | "W" | "ST"
       poll_choice: "yes" | "no" | "maybe"
@@ -2190,6 +2509,8 @@ export const Constants = {
         "captain_assigned",
         "you_are_in",
         "vote_reminder",
+        "matchday_created",
+        "ranking_changed",
       ],
       pending_match_status: ["pending", "approved", "rejected"],
       player_position: ["GK", "DEF", "CDM", "W", "ST"],

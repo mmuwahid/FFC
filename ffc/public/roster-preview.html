@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roster Setup — Feature Preview</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0e1826; color: #f2ead6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+  /* Nav tabs */
+  .tabs { display: flex; background: #0a1120; border-bottom: 1px solid rgba(255,255,255,0.08); overflow-x: auto; }
+  .tab { padding: 12px 20px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: none; color: #9ca3af; white-space: nowrap; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .tab.active { color: #e5ba5b; border-bottom-color: #e5ba5b; }
+  .tab:hover { color: #f2ead6; }
+
+  /* Screen wrapper */
+  .screen { display: none; max-width: 420px; margin: 0 auto; padding: 16px; }
+  .screen.active { display: block; }
+
+  /* Common */
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 4px 0 16px; }
+  .back { background: none; border: none; color: #9ca3af; font-size: 14px; cursor: pointer; padding: 4px 0; }
+  h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+  .section-label { font-size: 11px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: #9ca3af; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+
+  /* Admin hub cards */
+  .hub-cards { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .hub-card { background: rgba(255,255,255,0.06); border-radius: 14px; padding: 16px 18px; display: flex; align-items: center; gap: 14px; border: none; color: #f2ead6; text-align: left; cursor: pointer; transition: background 0.15s; }
+  .hub-card:hover { background: rgba(255,255,255,0.09); }
+  .hub-card-ico { font-size: 24px; width: 36px; text-align: center; }
+  .hub-card-body { flex: 1; }
+  .hub-card-title { font-size: 15px; font-weight: 600; display: block; }
+  .hub-card-help { font-size: 12px; color: #9ca3af; display: block; margin-top: 2px; }
+  .hub-card-chev { color: #9ca3af; font-size: 18px; }
+  .hub-card.new-card { border: 1px solid rgba(229,186,91,0.3); background: rgba(229,186,91,0.06); }
+
+  /* Roster list */
+  .rs-list { display: flex; flex-direction: column; gap: 10px; }
+  .rs-card { background: rgba(255,255,255,0.06); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .rs-card-head { display: flex; justify-content: space-between; align-items: center; }
+  .rs-card-dow { font-weight: 700; font-size: 13px; letter-spacing: 0.04em; }
+  .rs-card-date { font-size: 13px; color: #9ca3af; }
+  .rs-badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; }
+  .rs-badge-accent { background: rgba(127,160,232,0.18); color: #7fa0e8; }
+  .rs-badge-warn   { background: rgba(245,158,11,0.15); color: #f59e0b; }
+  .rs-badge-success{ background: rgba(34,197,94,0.15); color: #22c55e; }
+  .rs-badge-muted  { background: rgba(156,163,175,0.15); color: #9ca3af; }
+  .fmt-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px; background: rgba(127,160,232,0.2); color: #9fb7e8; letter-spacing: 0.05em; }
+  .rs-btn { padding: 6px 14px; font-size: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); color: #f2ead6; cursor: pointer; align-self: flex-start; font-weight: 500; }
+  .rs-btn:hover { background: rgba(255,255,255,0.1); }
+
+  /* Editor toolbar */
+  .rs-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 4px 0 8px; }
+  .rs-counts { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; }
+  .c-white { color: #f0ede6; }
+  .c-black { color: #9ca3af; }
+  .c-sep { color: #6b7280; font-weight: 400; }
+  .c-cap { font-size: 11.5px; color: #9ca3af; font-weight: 400; margin-left: 2px; }
+  .auto-btn { padding: 6px 14px; border-radius: 8px; background: rgba(229,186,91,0.15); color: #e5ba5b; border: 1px solid rgba(229,186,91,0.3); font-size: 12px; font-weight: 600; cursor: pointer; }
+
+  /* Teams grid */
+  .rs-teams { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .rs-zone { border-radius: 12px; padding: 10px; min-height: 220px; background: rgba(255,255,255,0.04); }
+  .rs-zone-white { border-left: 3px solid rgba(255,255,255,0.3); }
+  .rs-zone-black { border-left: 3px solid rgba(100,100,100,0.5); }
+  .rs-zone-label { font-size: 11px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: #9ca3af; margin-bottom: 8px; }
+  .rs-zone-count { font-weight: 400; letter-spacing: 0; text-transform: none; }
+  .rs-zone-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+
+  /* Chips */
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px 5px 8px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: grab; }
+  .chip-white { background: rgba(255,255,255,0.1); color: #f0ede6; border: 1px solid rgba(255,255,255,0.18); width: 100%; }
+  .chip-black { background: rgba(0,0,0,0.3); color: #ccc; border: 1px solid rgba(100,100,100,0.35); width: 100%; }
+  .chip-pool  { background: rgba(127,160,232,0.12); color: #9fb7e8; border: 1px solid rgba(127,160,232,0.25); }
+  .chip-removed { background: rgba(156,163,175,0.08); color: #6b7280; border: 1px solid rgba(156,163,175,0.12); cursor: default; }
+  .chip-pos { font-size: 9px; font-weight: 700; background: rgba(255,255,255,0.1); border-radius: 3px; padding: 1px 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .chip-handle { font-size: 11px; color: #9ca3af; opacity: 0.5; margin-left: auto; }
+
+  /* Pool */
+  .rs-pool { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .rs-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+
+  /* Removed */
+  .rs-removed { background: rgba(255,255,255,0.02); border-radius: 12px; padding: 10px 12px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 10px; }
+  .rs-section-count { font-weight: 400; background: rgba(255,255,255,0.08); border-radius: 10px; padding: 1px 6px; font-size: 10.5px; letter-spacing: 0; text-transform: none; }
+
+  /* Locked gate */
+  .locked-gate { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 48px 24px; text-align: center; }
+  .locked-icon { font-size: 40px; }
+  .locked-msg { font-size: 14px; }
+  .locked-hint { font-size: 12px; color: #9ca3af; max-width: 260px; }
+  .btn-row { display: flex; gap: 10px; justify-content: center; }
+  .btn-cancel { padding: 10px 20px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); color: #f2ead6; cursor: pointer; font-size: 14px; font-weight: 500; }
+  .btn-primary { padding: 10px 20px; border-radius: 10px; border: none; background: rgba(79,191,147,0.85); color: #0e1826; cursor: pointer; font-size: 14px; font-weight: 700; }
+
+  /* Save row */
+  .save-row { display: flex; gap: 10px; margin-top: 12px; }
+  .save-row .btn-cancel { flex: 1; }
+  .save-row .btn-primary { flex: 2; }
+
+  /* Ghost demo */
+  .ghost-demo { position: fixed; top: 200px; left: 50%; transform: translateX(-50%) rotate(-2deg); pointer-events: none; padding: 5px 14px; border-radius: 8px; background: #e5ba5b; color: #0e1826; font-size: 12px; font-weight: 700; box-shadow: 0 4px 16px rgba(0,0,0,0.4); display: none; }
+  .ghost-demo.visible { display: block; }
+
+  /* Step label */
+  .step-label { background: rgba(229,186,91,0.12); border: 1px solid rgba(229,186,91,0.25); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #e5ba5b; margin-bottom: 14px; font-weight: 500; }
+  .step-num { font-weight: 800; }
+</style>
+</head>
+<body>
+
+<!-- Navigation tabs -->
+<div class="tabs">
+  <button class="tab active" onclick="show('screen-hub')">1 · Admin Hub</button>
+  <button class="tab" onclick="show('screen-list')">2 · Roster List</button>
+  <button class="tab" onclick="show('screen-locked')">3 · Locked Gate</button>
+  <button class="tab" onclick="show('screen-editor')">4 · Editor</button>
+  <button class="tab" onclick="show('screen-drag')">5 · Drag in action</button>
+</div>
+
+<!-- Screen 1: Admin Hub -->
+<div class="screen active" id="screen-hub">
+  <div class="topbar">
+    <button class="back">‹ Back</button>
+    <h1>Admin platform</h1>
+    <div style="width:48px"></div>
+  </div>
+  <div class="step-label"><span class="step-num">Step 1</span> — New "Roster Setup" card appears in the Admin hub</div>
+  <div class="hub-cards">
+    <div class="hub-card">
+      <span class="hub-card-ico">🏆</span>
+      <span class="hub-card-body">
+        <span class="hub-card-title">Season management</span>
+        <span class="hub-card-help">Create · edit · end · delete seasons</span>
+      </span>
+      <span class="hub-card-chev">›</span>
+    </div>
+    <div class="hub-card">
+      <span class="hub-card-ico">👥</span>
+      <span class="hub-card-body">
+        <span class="hub-card-title">Player management</span>
+        <span class="hub-card-help">Approve signups · ban · edit · reinstate</span>
+      </span>
+      <span class="hub-card-chev">›</span>
+    </div>
+    <div class="hub-card">
+      <span class="hub-card-ico">📅</span>
+      <span class="hub-card-body">
+        <span class="hub-card-title">Matches management</span>
+        <span class="hub-card-help">Create matchdays · lock roster · enter results</span>
+      </span>
+      <span class="hub-card-chev">›</span>
+    </div>
+    <div class="hub-card new-card" onclick="show('screen-list')">
+      <span class="hub-card-ico">🎽</span>
+      <span class="hub-card-body">
+        <span class="hub-card-title">Roster Setup</span>
+        <span class="hub-card-help">Assign players to teams · drag-and-drop editor</span>
+      </span>
+      <span class="hub-card-chev" style="color:#e5ba5b">›</span>
+    </div>
+  </div>
+</div>
+
+<!-- Screen 2: Roster list -->
+<div class="screen" id="screen-list">
+  <div class="topbar">
+    <button class="back" onclick="show('screen-hub')">‹ Back</button>
+    <h1>Roster Setup</h1>
+    <div style="width:48px"></div>
+  </div>
+  <div class="step-label"><span class="step-num">Step 2</span> — All matchdays listed with roster status</div>
+  <div class="rs-list">
+    <div class="rs-card">
+      <div class="rs-card-head">
+        <div><span class="rs-card-dow">THU</span><span class="rs-card-date"> · 01 MAY 2026</span></div>
+        <span class="fmt-badge">7v7</span>
+      </div>
+      <span class="rs-badge rs-badge-success">Final · 14/14 assigned</span>
+      <button class="rs-btn" onclick="show('screen-locked')">✎ Edit roster</button>
+    </div>
+    <div class="rs-card">
+      <div class="rs-card-head">
+        <div><span class="rs-card-dow">THU</span><span class="rs-card-date"> · 08 MAY 2026</span></div>
+        <span class="fmt-badge">7v7</span>
+      </div>
+      <span class="rs-badge rs-badge-accent">12/14 locked</span>
+      <button class="rs-btn" onclick="show('screen-locked')">✎ Edit roster</button>
+    </div>
+    <div class="rs-card">
+      <div class="rs-card-head">
+        <div><span class="rs-card-dow">THU</span><span class="rs-card-date"> · 15 MAY 2026</span></div>
+        <span class="fmt-badge">7v7</span>
+      </div>
+      <span class="rs-badge rs-badge-warn">9 yes-votes · no roster yet</span>
+      <button class="rs-btn" onclick="show('screen-editor')">+ Set up roster</button>
+    </div>
+    <div class="rs-card">
+      <div class="rs-card-head">
+        <div><span class="rs-card-dow">THU</span><span class="rs-card-date"> · 22 MAY 2026</span></div>
+        <span class="fmt-badge">7v7</span>
+      </div>
+      <span class="rs-badge rs-badge-muted">No votes yet</span>
+    </div>
+  </div>
+</div>
+
+<!-- Screen 3: Locked gate -->
+<div class="screen" id="screen-locked">
+  <div class="topbar">
+    <button class="back" onclick="show('screen-list')">‹ Back</button>
+    <div>
+      <span style="font-weight:700;font-size:14px">THU</span>
+      <span style="font-size:13px;color:#9ca3af"> 08 MAY 2026</span>
+    </div>
+    <span class="fmt-badge">7v7</span>
+  </div>
+  <div class="step-label"><span class="step-num">Step 3</span> — Locked roster shows gate. One tap unlocks and opens the editor.</div>
+  <div class="locked-gate">
+    <div class="locked-icon">🔒</div>
+    <p class="locked-msg">Roster is locked. Unlock it to edit team assignments.</p>
+    <p class="locked-hint">Note: any pending ref entry must be rejected first.</p>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="show('screen-list')">Cancel</button>
+      <button class="btn-primary" onclick="show('screen-editor')">🔓 Unlock &amp; edit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Screen 4: Editor -->
+<div class="screen" id="screen-editor">
+  <div class="topbar">
+    <button class="back" onclick="show('screen-list')">‹ Back</button>
+    <div>
+      <span style="font-weight:700;font-size:14px">THU</span>
+      <span style="font-size:13px;color:#9ca3af"> 08 MAY 2026</span>
+    </div>
+    <span class="fmt-badge">7v7</span>
+  </div>
+  <div class="step-label"><span class="step-num">Step 4</span> — Full roster editor: both teams, unassigned pool, removed players. Drag chips between zones.</div>
+
+  <div class="rs-toolbar">
+    <div class="rs-counts">
+      <span class="c-white">⚪ 6</span>
+      <span class="c-sep">/</span>
+      <span class="c-black">⚫ 6</span>
+      <span class="c-cap">of 14</span>
+    </div>
+    <button class="auto-btn" onclick="show('screen-drag')">⚡ Auto-assign (3)</button>
+  </div>
+
+  <div class="rs-teams">
+    <div class="rs-zone rs-zone-white">
+      <div class="rs-zone-label">⚪ WHITE <span class="rs-zone-count">(6)</span></div>
+      <ul class="rs-zone-list">
+        <li><div class="chip chip-white"><span class="chip-pos">GK</span> Ahmed K.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-white"><span class="chip-pos">CB</span> Omar F.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-white"><span class="chip-pos">CM</span> Hassan M.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-white"><span class="chip-pos">ST</span> Khalid R.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-white">Yusuf A.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-white">Tariq S.<span class="chip-handle">⠿</span></div></li>
+      </ul>
+    </div>
+    <div class="rs-zone rs-zone-black">
+      <div class="rs-zone-label">⚫ BLACK <span class="rs-zone-count">(6)</span></div>
+      <ul class="rs-zone-list">
+        <li><div class="chip chip-black"><span class="chip-pos">GK</span> Bilal N.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-black"><span class="chip-pos">CB</span> Samir H.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-black"><span class="chip-pos">CM</span> Faris L.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-black"><span class="chip-pos">ST</span> Nabil Q.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-black">Ziad B.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-black">Rami D.<span class="chip-handle">⠿</span></div></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="rs-pool">
+    <div class="section-label">Unassigned · Pool <span class="rs-section-count">3</span></div>
+    <div class="rs-chips">
+      <div class="chip chip-pool"><span class="chip-pos">WG</span> Mazen O.<span class="chip-handle">⠿</span></div>
+      <div class="chip chip-pool">Jaber W.<span class="chip-handle">⠿</span></div>
+      <div class="chip chip-pool"><span class="chip-pos">CB</span> Sami T.<span class="chip-handle">⠿</span></div>
+    </div>
+  </div>
+
+  <div class="rs-removed">
+    <div class="section-label">Removed / No-show / Maybe <span class="rs-section-count">2</span></div>
+    <div class="rs-chips">
+      <div class="chip chip-removed">Khalil A.</div>
+      <div class="chip chip-removed">Wael H.</div>
+    </div>
+  </div>
+
+  <div class="save-row">
+    <button class="btn-cancel" onclick="show('screen-list')">Cancel</button>
+    <button class="btn-primary">Save roster</button>
+  </div>
+</div>
+
+<!-- Screen 5: Drag in action -->
+<div class="screen" id="screen-drag">
+  <div class="topbar">
+    <button class="back" onclick="show('screen-editor')">‹ Back</button>
+    <div>
+      <span style="font-weight:700;font-size:14px">THU</span>
+      <span style="font-size:13px;color:#9ca3af"> 08 MAY 2026</span>
+    </div>
+    <span class="fmt-badge">7v7</span>
+  </div>
+  <div class="step-label"><span class="step-num">Step 5</span> — Dragging "Mazen O." from pool to BLACK team. Drop zone highlights in gold.</div>
+
+  <div class="rs-toolbar">
+    <div class="rs-counts">
+      <span class="c-white">⚪ 6</span>
+      <span class="c-sep">/</span>
+      <span class="c-black">⚫ 6</span>
+      <span class="c-cap">of 14</span>
+    </div>
+    <button class="auto-btn">⚡ Auto-assign (2)</button>
+  </div>
+
+  <div class="rs-teams">
+    <div class="rs-zone rs-zone-white">
+      <div class="rs-zone-label">⚪ WHITE <span class="rs-zone-count">(6)</span></div>
+      <ul class="rs-zone-list">
+        <li><div class="chip chip-white"><span class="chip-pos">GK</span> Ahmed K.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-white"><span class="chip-pos">CB</span> Omar F.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-white"><span class="chip-pos">CM</span> Hassan M.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-white"><span class="chip-pos">ST</span> Khalid R.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-white">Yusuf A.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-white">Tariq S.<span class="chip-handle">⠿</span></div></li>
+      </ul>
+    </div>
+    <!-- BLACK zone highlighted as drop target -->
+    <div class="rs-zone rs-zone-black" style="border:2px dashed #e5ba5b;background:rgba(229,186,91,0.07)">
+      <div class="rs-zone-label" style="color:#e5ba5b">⚫ BLACK <span class="rs-zone-count">(6)</span></div>
+      <ul class="rs-zone-list">
+        <li><div class="chip chip-black"><span class="chip-pos">GK</span> Bilal N.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-black"><span class="chip-pos">CB</span> Samir H.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-black"><span class="chip-pos">CM</span> Faris L.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-black"><span class="chip-pos">ST</span> Nabil Q.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-black">Ziad B.<span class="chip-handle">⠿</span></div></li>
+        <li><div class="chip chip-black">Rami D.<span class="chip-handle">⠿</span></div></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="rs-pool">
+    <div class="section-label">Unassigned · Pool <span class="rs-section-count">3</span></div>
+    <div class="rs-chips">
+      <!-- Mazen is being dragged — shown faded -->
+      <div class="chip chip-pool" style="opacity:0.3"><span class="chip-pos">WG</span> Mazen O.<span class="chip-handle">⠿</span></div>
+      <div class="chip chip-pool">Jaber W.<span class="chip-handle">⠿</span></div>
+      <div class="chip chip-pool"><span class="chip-pos">CB</span> Sami T.<span class="chip-handle">⠿</span></div>
+    </div>
+  </div>
+
+  <div class="rs-removed">
+    <div class="section-label">Removed / No-show / Maybe <span class="rs-section-count">2</span></div>
+    <div class="rs-chips">
+      <div class="chip chip-removed">Khalil A.</div>
+      <div class="chip chip-removed">Wael H.</div>
+    </div>
+  </div>
+
+  <!-- Ghost chip following the drag -->
+  <div style="position:fixed;top:195px;left:55%;transform:rotate(-2deg);pointer-events:none;padding:5px 14px;border-radius:8px;background:#e5ba5b;color:#0e1826;font-size:12px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,0.4);z-index:99">
+    WG &nbsp;Mazen O.
+  </div>
+
+  <div class="save-row">
+    <button class="btn-cancel" onclick="show('screen-list')">Cancel</button>
+    <button class="btn-primary">Save roster</button>
+  </div>
+</div>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'))
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+  document.getElementById(id).classList.add('active')
+  const idx = ['screen-hub','screen-list','screen-locked','screen-editor','screen-drag'].indexOf(id)
+  document.querySelectorAll('.tab')[idx]?.classList.add('active')
+  window.scrollTo(0, 0)
+}
+</script>
+</body>
+</html>

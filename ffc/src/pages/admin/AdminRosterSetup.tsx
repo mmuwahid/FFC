@@ -49,11 +49,12 @@ interface RosterPlayer {
 interface RosterState {
   white: RosterPlayer[]
   black: RosterPlayer[]
-  pool: RosterPlayer[]   // yes-voters not yet in teams (draggable)
-  removed: RosterPlayer[] // cancelled / no / maybe (read-only display)
+  pool: RosterPlayer[]      // confirmed yes-voters (within cap) not yet in teams
+  waitlist: RosterPlayer[]  // yes-voters beyond the roster cap (by committed_at order)
+  removed: RosterPlayer[]   // cancelled / no / maybe (read-only display)
 }
 
-type Zone = 'white' | 'black' | 'pool'
+type Zone = 'white' | 'black' | 'pool' | 'waitlist'
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -263,7 +264,7 @@ function RosterEditor({
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [unlocked, setUnlocked] = useState(!md.roster_locked_at)
-  const [roster, setRoster] = useState<RosterState>({ white: [], black: [], pool: [], removed: [] })
+  const [roster, setRoster] = useState<RosterState>({ white: [], black: [], pool: [], waitlist: [], removed: [] })
   const [toast, setToast] = useState<string | null>(null)
 
   // Drag state
@@ -318,29 +319,39 @@ function RosterEditor({
     const black = mpRows.filter((r) => r.team === 'black' && r.profile_id).map((r) => toPlayer(r.profile_id!))
     const inTeamIds = new Set(mpRows.map((r) => r.profile_id).filter(Boolean))
 
-    // Players from poll votes
     const votes = votesRes.data ?? []
+    const cap = capFor(md.effective_format)
+
+    // Sort all yes-voters by committed_at to determine cap positions.
+    // Positions 0..cap-1 = "confirmed" (pool). Positions cap..N = "waitlist".
+    const yesVotersByTime = votes
+      .filter((v) => v.profile_id && !v.cancelled_at && (v.choice as PollChoice) === 'yes')
+      .sort((a, b) => new Date(a.committed_at).getTime() - new Date(b.committed_at).getTime())
+
     const pool: RosterPlayer[] = []
+    const waitlist: RosterPlayer[] = []
     const removed: RosterPlayer[] = []
 
+    yesVotersByTime.forEach((v, idx) => {
+      if (inTeamIds.has(v.profile_id!)) return // already in a team
+      if (idx < cap) {
+        pool.push(toPlayer(v.profile_id!))       // within cap → confirmed pool
+      } else {
+        waitlist.push(toPlayer(v.profile_id!))   // over cap → waitlist
+      }
+    })
+
+    // Cancelled / no / maybe votes → removed (read-only)
     for (const v of votes) {
       if (!v.profile_id) continue
-      if (inTeamIds.has(v.profile_id)) continue // already in a team
-      if (v.cancelled_at) {
-        removed.push(toPlayer(v.profile_id))
-      } else if ((v.choice as PollChoice) === 'yes') {
-        pool.push(toPlayer(v.profile_id))
-      } else {
-        // no / maybe — show in removed (declined / tentative)
+      if (inTeamIds.has(v.profile_id)) continue
+      if (v.cancelled_at || (v.choice as PollChoice) !== 'yes') {
         removed.push(toPlayer(v.profile_id))
       }
     }
-
-    // Sort pool by name for consistency
-    pool.sort((a, b) => a.name.localeCompare(b.name))
     removed.sort((a, b) => a.name.localeCompare(b.name))
 
-    setRoster({ white, black, pool, removed })
+    setRoster({ white, black, pool, waitlist, removed })
     setLoading(false)
   }, [md.id, md.match_id])
 
@@ -363,17 +374,28 @@ function RosterEditor({
       if (drag && target) {
         const dragId = drag.id
         setRoster((prev) => {
+          // Find which zone holds this player (search all draggable zones)
           let player: RosterPlayer | undefined
           let sourceZone: Zone | undefined
-          for (const z of ['white', 'black', 'pool'] as Zone[]) {
+          for (const z of ['white', 'black', 'pool', 'waitlist'] as Zone[]) {
             const found = prev[z].find((p) => p.id === dragId)
             if (found) { player = found; sourceZone = z; break }
           }
           if (!player || !sourceZone || sourceZone === target) return prev
+
+          // Cap enforcement: cannot drop into white or black if teams are already full
+          if ((target === 'white' || target === 'black') && sourceZone !== 'white' && sourceZone !== 'black') {
+            const cap = capFor(md.effective_format)
+            if (prev.white.length + prev.black.length >= cap) return prev // silently block
+          }
+
+          // When dragging FROM a team back out, always land in pool (not waitlist)
+          const effectiveTarget = (target === 'waitlist') ? 'pool' : target
+
           return {
             ...prev,
             [sourceZone]: prev[sourceZone].filter((p) => p.id !== dragId),
-            [target]: [...prev[target], player],
+            [effectiveTarget]: [...prev[effectiveTarget], player],
           }
         })
       }
@@ -395,26 +417,33 @@ function RosterEditor({
   }
 
   // ── Auto-assign ────────────────────────────────────────────────────────
+  // Only distributes pool players (confirmed, within cap). Stops at cap.
+  // Waitlist players are never auto-assigned.
   const autoAssign = () => {
+    const cap = capFor(md.effective_format)
     setRoster((prev) => {
       if (prev.pool.length === 0) return prev
       const newWhite = [...prev.white]
       const newBlack = [...prev.black]
-      // Continue alternating from current counts: if white has more, next goes black
+      const remaining = [...prev.pool]
+      const leftover: RosterPlayer[] = []
+
+      // Continue alternating from current imbalance
       const startWithBlack = newWhite.length > newBlack.length
-      prev.pool.forEach((p, i) => {
+      remaining.forEach((p, i) => {
+        const total = newWhite.length + newBlack.length
+        if (total >= cap) { leftover.push(p); return } // stop at cap
         const goBlack = startWithBlack ? i % 2 === 0 : i % 2 === 1
         if (goBlack) newBlack.push(p)
         else newWhite.push(p)
       })
-      return { ...prev, white: newWhite, black: newBlack, pool: [] }
+      return { ...prev, white: newWhite, black: newBlack, pool: leftover }
     })
   }
 
   // ── Unlock ─────────────────────────────────────────────────────────────
   const handleUnlock = async () => {
     setBusy(true)
-    // @ts-expect-error -- unlock_roster added by migration 0047; regen types after db push
     const { error } = await supabase.rpc('unlock_roster', { p_matchday_id: md.id })
     setBusy(false)
     if (error) { onError(error.message); return }
@@ -423,6 +452,12 @@ function RosterEditor({
 
   // ── Save ───────────────────────────────────────────────────────────────
   const handleSave = async () => {
+    const cap = capFor(md.effective_format)
+    const total = roster.white.length + roster.black.length
+    if (total > cap) {
+      onError(`Teams have ${total} players but the cap is ${cap} (${md.effective_format}). Move ${total - cap} player${total - cap === 1 ? '' : 's'} back to the pool before saving.`)
+      return
+    }
     setBusy(true)
     const whiteIds = roster.white.map((p) => p.id)
     const blackIds = roster.black.map((p) => p.id)
@@ -491,19 +526,28 @@ function RosterEditor({
       ) : (
         /* ── Editor ── */
         <>
-          <div className="rs-toolbar">
-            <div className="rs-toolbar-counts">
-              <span className="rs-count rs-count--white">⚪ {roster.white.length}</span>
-              <span className="rs-count-sep">/</span>
-              <span className="rs-count rs-count--black">⚫ {roster.black.length}</span>
-              <span className="rs-count-cap">of {cap}</span>
-            </div>
-            {roster.pool.length > 0 && (
-              <button type="button" className="rs-auto-btn" onClick={autoAssign} disabled={busy}>
-                ⚡ Auto-assign ({roster.pool.length})
-              </button>
-            )}
-          </div>
+          {(() => {
+            const total = roster.white.length + roster.black.length
+            const overCap = total > cap
+            const atCap = total === cap
+            return (
+              <div className="rs-toolbar">
+                <div className="rs-toolbar-counts">
+                  <span className="rs-count rs-count--white">⚪ {roster.white.length}</span>
+                  <span className="rs-count-sep">/</span>
+                  <span className="rs-count rs-count--black">⚫ {roster.black.length}</span>
+                  <span className={`rs-count-cap${overCap ? ' rs-count-cap--over' : atCap ? ' rs-count-cap--full' : ''}`}>
+                    {overCap ? `⚠ ${total - cap} over cap` : atCap ? `✓ Full (${cap})` : `of ${cap}`}
+                  </span>
+                </div>
+                {roster.pool.length > 0 && !atCap && !overCap && (
+                  <button type="button" className="rs-auto-btn" onClick={autoAssign} disabled={busy}>
+                    ⚡ Auto-assign ({roster.pool.length})
+                  </button>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Team columns */}
           <div className="rs-teams">
@@ -512,6 +556,7 @@ function RosterEditor({
               label="⚪ WHITE"
               players={roster.white}
               isOver={overZone === 'white'}
+              isFull={roster.white.length + roster.black.length >= cap}
               draggingId={drag?.id ?? null}
               onDragStart={startDrag}
             />
@@ -520,22 +565,27 @@ function RosterEditor({
               label="⚫ BLACK"
               players={roster.black}
               isOver={overZone === 'black'}
+              isFull={roster.white.length + roster.black.length >= cap}
               draggingId={drag?.id ?? null}
               onDragStart={startDrag}
             />
           </div>
 
-          {/* Pool */}
+          {/* Confirmed pool (within cap) */}
           <div
             className={`rs-pool${overZone === 'pool' ? ' rs-pool--over' : ''}`}
             data-drop-zone="pool"
           >
             <div className="rs-section-label">
-              Unassigned · Pool
+              Unassigned · Confirmed
               {roster.pool.length > 0 && <span className="rs-section-count">{roster.pool.length}</span>}
             </div>
             {roster.pool.length === 0 ? (
-              <p className="rs-section-empty">All yes-voters have been assigned to teams.</p>
+              <p className="rs-section-empty">
+                {roster.white.length + roster.black.length >= cap
+                  ? 'Teams are full — drag players here to swap them out.'
+                  : 'All confirmed yes-voters are assigned to teams.'}
+              </p>
             ) : (
               <div className="rs-chips">
                 {roster.pool.map((p) => (
@@ -550,6 +600,28 @@ function RosterEditor({
               </div>
             )}
           </div>
+
+          {/* Waitlist (over cap by committed_at order) */}
+          {roster.waitlist.length > 0 && (
+            <div className="rs-waitlist" data-drop-zone="waitlist">
+              <div className="rs-section-label">
+                Waitlist · Over cap
+                <span className="rs-section-count">{roster.waitlist.length}</span>
+              </div>
+              <p className="rs-waitlist-hint">Signed up after the {cap}-player cap was reached. Drag to a team to override.</p>
+              <div className="rs-chips">
+                {roster.waitlist.map((p) => (
+                  <PlayerChip
+                    key={p.id}
+                    player={p}
+                    zone="waitlist"
+                    isDragging={drag?.id === p.id}
+                    onDragStart={startDrag}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Removed (read-only) */}
           {roster.removed.length > 0 && (
@@ -602,6 +674,7 @@ function DropZone({
   label,
   players,
   isOver,
+  isFull,
   draggingId,
   onDragStart,
 }: {
@@ -609,17 +682,21 @@ function DropZone({
   label: string
   players: RosterPlayer[]
   isOver: boolean
+  isFull?: boolean
   draggingId: string | null
   onDragStart: (e: React.PointerEvent, player: RosterPlayer) => void
 }) {
   return (
     <div
-      className={`rs-zone rs-zone--${zone}${isOver ? ' rs-zone--over' : ''}`}
+      className={`rs-zone rs-zone--${zone}${isOver ? ' rs-zone--over' : ''}${isFull ? ' rs-zone--full' : ''}`}
       data-drop-zone={zone}
     >
-      <div className="rs-zone-label">{label} <span className="rs-zone-count">({players.length})</span></div>
+      <div className="rs-zone-label">
+        {label} <span className="rs-zone-count">({players.length})</span>
+        {isFull && players.length > 0 && <span className="rs-zone-full-badge">FULL</span>}
+      </div>
       {players.length === 0 ? (
-        <div className="rs-zone-empty">Drop players here</div>
+        <div className="rs-zone-empty">{isFull ? 'Drag here to swap' : 'Drop players here'}</div>
       ) : (
         <ul className="rs-zone-list">
           {players.map((p) => (
