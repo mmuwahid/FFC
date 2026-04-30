@@ -41,6 +41,10 @@ const DEFAULT_DEEPLINK: Record<string, string> = {
   captain_auto_picked: '/matchday',
   captain_assigned: '/matchday',
   you_are_in: '/poll',
+  // S058 #23
+  matchday_created: '/admin/matches',
+  ranking_changed: '/leaderboard',
+  match_entry_approved: '/matches',
 }
 
 function deeplinkFor(data: PushPayload): string {

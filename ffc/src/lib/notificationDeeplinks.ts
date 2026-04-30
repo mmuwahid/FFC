@@ -34,6 +34,10 @@ const DEFAULT_BY_KIND: Partial<Record<NotificationKind, string>> = {
   you_are_in: '/poll',
   formation_reminder: '/poll',
   formation_shared: '/poll',
+  // S058 #23
+  matchday_created: '/admin/matches',
+  ranking_changed: '/leaderboard',
+  dropout_after_lock: '/poll', // listed for completeness; payload override below
 }
 
 export function deeplinkForNotification(kind: NotificationKind, payload: Json): string {

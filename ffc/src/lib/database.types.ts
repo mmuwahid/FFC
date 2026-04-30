@@ -1218,6 +1218,45 @@ export type Database = {
           },
         ]
       }
+      player_rank_snapshots: {
+        Row: {
+          points: number
+          profile_id: string
+          rank: number
+          season_id: string
+          snapshot_at: string
+        }
+        Insert: {
+          points: number
+          profile_id: string
+          rank: number
+          season_id: string
+          snapshot_at?: string
+        }
+        Update: {
+          points?: number
+          profile_id?: string
+          rank?: number
+          season_id?: string
+          snapshot_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_rank_snapshots_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_rank_snapshots_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       poll_votes: {
         Row: {
           cancelled_at: string | null
@@ -2093,6 +2132,10 @@ export type Database = {
         }[]
       }
       share_formation: { Args: { p_formation_id: string }; Returns: undefined }
+      snapshot_and_diff_ranks: {
+        Args: { p_season_id: string }
+        Returns: number
+      }
       submit_draft_pick: {
         Args: {
           p_draft_session_id: string
@@ -2262,6 +2305,8 @@ export type Database = {
         | "captain_assigned"
         | "you_are_in"
         | "vote_reminder"
+        | "matchday_created"
+        | "ranking_changed"
       pending_match_status: "pending" | "approved" | "rejected"
       player_position: "GK" | "DEF" | "CDM" | "W" | "ST"
       poll_choice: "yes" | "no" | "maybe"
@@ -2449,6 +2494,8 @@ export const Constants = {
         "captain_assigned",
         "you_are_in",
         "vote_reminder",
+        "matchday_created",
+        "ranking_changed",
       ],
       pending_match_status: ["pending", "approved", "rejected"],
       player_position: ["GK", "DEF", "CDM", "W", "ST"],

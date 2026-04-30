@@ -193,6 +193,11 @@ function iconForKind(kind: NotificationKind): string {
     case 'formation_reminder':
     case 'formation_shared':
       return '📋'
+    // S058 #23
+    case 'matchday_created':
+      return '📅'
+    case 'ranking_changed':
+      return '📈'
     default:
       return '🔔'
   }
