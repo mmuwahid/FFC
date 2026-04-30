@@ -3154,6 +3154,46 @@ textarea.auth-input {
 }
 .admin-roster-remove:hover { color: var(--danger, #e53935); border-color: var(--danger, #e53935); }
 
+/* S058 follow-up — captain assignment in EditRosterPostSheet.
+ * First slot of each team is auto-captain; admins can tap ☆ on any other
+ * row to promote that player. The captain row gets a gold left border + a
+ * "👑 CAPTAIN" badge so the assignment is unambiguous. */
+.admin-roster-team-block { margin-top: 10px; }
+.admin-roster-team-block + .admin-roster-team-block { margin-top: 14px; }
+.admin-roster-team-label {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--text-muted);
+  margin: 0 0 6px;
+}
+.admin-roster-row--captain {
+  border-left-width: 3px;
+  border-left-color: var(--accent, #e5ba5b);
+  box-shadow: inset 4px 0 0 -1px rgba(229, 186, 91, 0.4);
+}
+.admin-roster-captain-badge {
+  background: rgba(229, 186, 91, 0.16);
+  color: var(--accent, #e5ba5b);
+  border: 1px solid rgba(229, 186, 91, 0.32);
+  font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+  padding: 2px 6px; border-radius: 4px;
+}
+.admin-roster-row-actions {
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.admin-roster-make-captain {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.admin-roster-make-captain:hover {
+  color: var(--accent, #e5ba5b);
+  border-color: var(--accent, #e5ba5b);
+  background: rgba(229, 186, 91, 0.08);
+}
+
 .c-yel { color: #eab308; }
 .c-red { color: #ef4444; }
 

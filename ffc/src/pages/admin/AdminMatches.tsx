@@ -1770,6 +1770,32 @@ interface PostRosterRow {
   is_no_show: boolean
 }
 
+// S058 follow-up: ensures each team has exactly ONE captain. If a team has
+// zero captains (e.g., the previous captain was just removed), the first row
+// in that team is auto-promoted. If a team has multiple captains (shouldn't
+// happen but defensive), only the first one is kept.
+function normalizeCaptains(rows: PostRosterRow[]): PostRosterRow[] {
+  let whiteSeenCaptain = false
+  let blackSeenCaptain = false
+  // First pass: keep only the first captain per team.
+  const dedup = rows.map((r) => {
+    if (r.team === 'white') {
+      if (r.is_captain && !whiteSeenCaptain) { whiteSeenCaptain = true; return r }
+      return { ...r, is_captain: false }
+    } else {
+      if (r.is_captain && !blackSeenCaptain) { blackSeenCaptain = true; return r }
+      return { ...r, is_captain: false }
+    }
+  })
+  // Second pass: if a team has no captain, promote its first row.
+  return dedup.map((r, i) => {
+    const teamHasCaptain = r.team === 'white' ? whiteSeenCaptain : blackSeenCaptain
+    if (teamHasCaptain) return r
+    const isFirstInTeam = dedup.findIndex((x) => x.team === r.team) === i
+    return isFirstInTeam ? { ...r, is_captain: true } : r
+  })
+}
+
 function EditRosterPostSheet({
   md, match, busy, setBusy, onDone, onError, onCancel,
 }: BaseSheetProps & { md: MatchdayWithMatch; match: MatchRow }) {
@@ -1819,7 +1845,7 @@ function EditRosterPostSheet({
           red_cards: r.red_cards,
           is_no_show: r.is_no_show,
         }))
-      setRows(loaded)
+      setRows(normalizeCaptains(loaded))
       setAvailablePlayers((ap ?? []) as ProfileLite[])
       setLoading(false)
     })()
@@ -1834,20 +1860,35 @@ function EditRosterPostSheet({
 
   const addRow = (p: ProfileLite, team: TeamColor) => {
     if (rows.some((r) => r.profile_id === p.id)) return
-    setRows([...rows, {
+    setRows(normalizeCaptains([...rows, {
       profile_id: p.id,
       display_name: p.display_name,
       team,
-      is_captain: false,
+      is_captain: false,  // normalizeCaptains will auto-set to true if team is empty
       goals: 0,
       yellow_cards: 0,
       red_cards: 0,
       is_no_show: false,
-    }])
+    }]))
     setShowPicker(false)
     setPickerSearch('')
   }
-  const removeRow = (idx: number) => setRows(rows.filter((_, i) => i !== idx))
+  // S058 follow-up: removeRow runs through normalizeCaptains so the captain
+  // auto-promotes from the next row when the captain was the one removed.
+  const removeRow = (idx: number) => setRows(normalizeCaptains(rows.filter((_, i) => i !== idx)))
+
+  // S058 follow-up: promote a non-captain row to captain. Demotes the previous
+  // captain in the same team. The user picked "first-slot auto-captain +
+  // tap-to-promote" UX.
+  const promoteCaptain = (idx: number) => {
+    const target = rows[idx]
+    if (!target || target.is_captain) return
+    setRows(rows.map((r) => {
+      if (r.team !== target.team) return r
+      if (r.profile_id === target.profile_id) return { ...r, is_captain: true }
+      return { ...r, is_captain: false }
+    }))
+  }
 
   const submit = async () => {
     if (rows.length === 0) { onError('Roster cannot be empty'); return }
@@ -1931,18 +1972,54 @@ function EditRosterPostSheet({
           )
         })()}
 
-        <ul className="admin-roster-list">
-          {rows.map((r, i) => (
-            <li key={r.profile_id} className={`admin-roster-row admin-roster-row--${r.team}`}>
-              <div className="admin-roster-name">
-                <span className={`admin-roster-team admin-roster-team--${r.team}`}>{r.team === 'white' ? 'W' : 'B'}</span>
-                <span>{r.display_name}</span>
-                {r.is_captain && <span className="chip chip-role">C</span>}
-              </div>
-              <button type="button" className="admin-roster-remove" onClick={() => removeRow(i)} title="Remove from roster">✕</button>
-            </li>
-          ))}
-        </ul>
+        {/* S058 follow-up: render WHITE then BLACK as separate sections, each
+         * with captain pinned at the top so "first slot = captain" is visible.
+         * The flat `rows` array still drives the data model (RPC payload). */}
+        {(['white', 'black'] as TeamColor[]).map((team) => {
+          const teamRows = rows
+            .map((r, idx) => ({ row: r, idx }))
+            .filter(({ row }) => row.team === team)
+            .sort((a, b) => Number(b.row.is_captain) - Number(a.row.is_captain))
+          if (teamRows.length === 0) return null
+          return (
+            <div key={team} className={`admin-roster-team-block admin-roster-team-block--${team}`}>
+              <h5 className="admin-roster-team-label">
+                {team === 'white' ? '⚪ WHITE' : '⚫ BLACK'} · {teamRows.length}/{cap}
+              </h5>
+              <ul className="admin-roster-list">
+                {teamRows.map(({ row: r, idx: i }) => (
+                  <li
+                    key={r.profile_id}
+                    className={`admin-roster-row admin-roster-row--${r.team}${r.is_captain ? ' admin-roster-row--captain' : ''}`}
+                  >
+                    <div className="admin-roster-name">
+                      <span className={`admin-roster-team admin-roster-team--${r.team}`}>{r.team === 'white' ? 'W' : 'B'}</span>
+                      <span>{r.display_name}</span>
+                      {r.is_captain && <span className="chip chip-role admin-roster-captain-badge">👑 CAPTAIN</span>}
+                    </div>
+                    <div className="admin-roster-row-actions">
+                      {!r.is_captain && (
+                        <button
+                          type="button"
+                          className="admin-roster-make-captain"
+                          onClick={() => promoteCaptain(i)}
+                          title="Make captain"
+                          aria-label="Make captain"
+                        >☆</button>
+                      )}
+                      <button
+                        type="button"
+                        className="admin-roster-remove"
+                        onClick={() => removeRow(i)}
+                        title="Remove from roster"
+                      >✕</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        })}
       </div>
 
       <div className="sheet-actions">
