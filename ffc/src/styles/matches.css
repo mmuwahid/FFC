@@ -9,7 +9,10 @@
   margin-bottom: 14px;
   position: relative;
   width: 100%;
-  max-width: 440px;
+  /* Issue #37 — was capped at max-width: 440px, which made the cards
+   * narrower than the page header (season selector) on wider viewports.
+   * Drop the cap so cards fill the parent container's width and align
+   * flush right with the header. */
   cursor: pointer;
   text-align: left;
 }

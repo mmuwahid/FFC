@@ -140,8 +140,9 @@ function bannerLabel(matchdayNumber: number, total: number | null): string {
 }
 
 // Issue #33 — single row that combines goals + cards + injury markers for
-// one player. Examples: `⚽ ⭐ Latif ×2 HAT`, `🟨 Saz`, `⚽ Karim ×1 🟥`,
-// `🤕 Moe Hamdan` (no-show / injury).
+// one player. Examples: `⚽ ⭐ Latif ×2`, `🟨 Saz`, `⚽ Karim ×1 🟥`,
+// `🤕 Moe Hamdan` (no-show / injury). HAT pill removed per follow-up
+// feedback ("just adds clutter" — the ×N suffix already conveys it).
 function ParticipantBadge({ row }: { row: GroupedParticipant }) {
   const scored = row.goals > 0
   return (
@@ -151,7 +152,6 @@ function ParticipantBadge({ row }: { row: GroupedParticipant }) {
       {!scored && row.is_no_show && <span className="mt-stat-icon" aria-label="Injury / no-show" title="Injury / no-show">🤕</span>}
       {row.name}
       {scored && <> ×{row.goals}</>}
-      {scored && row.goals >= 3 && <span className="mt-hat-badge">HAT</span>}
       {row.yellow_cards > 0 && (
         <span className="mt-stat-icon mt-stat-icon--yellow" aria-label={`${row.yellow_cards} yellow card${row.yellow_cards > 1 ? 's' : ''}`} title="Yellow card">
           🟨{row.yellow_cards > 1 ? `×${row.yellow_cards}` : ''}
@@ -371,7 +371,9 @@ export function Matches() {
             {matches.map(m => {
               const whiteRows = groupParticipants(m.participants, 'white', m.motm_user_id, m.motm_guest_id)
               const blackRows = groupParticipants(m.participants, 'black', m.motm_user_id, m.motm_guest_id)
-              const motmName = m.motm_member?.display_name ?? m.motm_guest?.display_name ?? null
+              // Issue #37 follow-up — MOTM footer banner removed; the
+              // scorer list already shows MOTM inline (gold ⭐ + name in
+              // gold), so the footer was duplicating information.
               const isDraw = m.result === 'draw'
               const whiteWon = m.result === 'win_white'
               const blackWon = m.result === 'win_black'
@@ -437,10 +439,6 @@ export function Matches() {
                       ))}
                     </div>
                   </div>
-
-                  {motmName && (
-                    <div className="mt-motm-strip">⭐ MOTM · {motmName}</div>
-                  )}
                 </button>
               )
             })}

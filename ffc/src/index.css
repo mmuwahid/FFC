@@ -2648,7 +2648,10 @@ textarea.auth-input {
   text-transform: uppercase; color: var(--text-muted);
   padding: 14px 20px 8px;
 }
-.mt-list { display: flex; flex-direction: column; gap: 8px; padding: 0 14px; }
+/* Issue #37 — was `padding: 0 14px` which inset the cards 14px from the
+ * .mt-screen edge while the page header (season selector) sat flush. Drop
+ * the horizontal padding so cards align with the header on both edges. */
+.mt-list { display: flex; flex-direction: column; gap: 8px; padding: 0; }
 .mt-row {
   display: grid;
   grid-template-columns: auto 1fr auto;
