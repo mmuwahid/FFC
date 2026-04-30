@@ -271,19 +271,32 @@ export function Poll() {
         .eq('matchday_id', m.id)
         .maybeSingle()
       setMatchId(matchRow?.id ?? null)
-      const { data: mps } = await supabase
-        .from('match_players')
-        .select('profile_id, guest_id, team, is_captain')
-        .in('profile_id', memberIds.length ? memberIds : ['00000000-0000-0000-0000-000000000000'])
-      // Also load guest-side:
-      const guestIds = guestMdRows.map((g) => g.id)
-      let allMps = mps ?? []
-      if (guestIds.length) {
-        const { data: mpsG } = await supabase
+      // BUG FIX: scope match_players queries to THIS match's id, not just
+      // the participant ids. Without the .eq('match_id', …) filter the
+      // queries returned a player's rows across ALL matches they've ever
+      // been in, then mpMap.set(profile_id, …) kept whichever row
+      // PostgREST returned last — randomising team assignments. If the
+      // matchday is locked but the draft match doesn't exist yet (edge
+      // case), skip the team lookup entirely.
+      const matchIdForRoster = matchRow?.id ?? null
+      let allMps: { profile_id: string | null; guest_id: string | null; team: TeamColor | null; is_captain: boolean | null }[] = []
+      if (matchIdForRoster) {
+        const { data: mps } = await supabase
           .from('match_players')
           .select('profile_id, guest_id, team, is_captain')
-          .in('guest_id', guestIds)
-        allMps = [...allMps, ...(mpsG ?? [])]
+          .eq('match_id', matchIdForRoster)
+          .in('profile_id', memberIds.length ? memberIds : ['00000000-0000-0000-0000-000000000000'])
+        // Also load guest-side:
+        const guestIds = guestMdRows.map((g) => g.id)
+        allMps = mps ?? []
+        if (guestIds.length) {
+          const { data: mpsG } = await supabase
+            .from('match_players')
+            .select('profile_id, guest_id, team, is_captain')
+            .eq('match_id', matchIdForRoster)
+            .in('guest_id', guestIds)
+          allMps = [...allMps, ...(mpsG ?? [])]
+        }
       }
       const mpMap = new Map<string, { team: TeamColor | null; is_captain: boolean | null }>()
       for (const r of allMps) {
