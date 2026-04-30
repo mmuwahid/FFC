@@ -578,6 +578,7 @@ function MatchdayCard({
   const approved = !!md.match?.approved_at
   const locked = !!md.roster_locked_at
   const isFriendly = md.is_friendly
+  const isPast = new Date(md.kickoff_at).getTime() < Date.now()
 
   return (
     <li className={`admin-md-card${approved ? ' admin-md-card--final' : ''}`}>
@@ -645,9 +646,11 @@ function MatchdayCard({
                 🔓 Unlock roster
               </button>
             )}
-            <button type="button" className="auth-btn auth-btn--approve admin-md-btn" onClick={onEnterResult}>
-              Enter result
-            </button>
+            {isPast && (
+              <button type="button" className="auth-btn auth-btn--approve admin-md-btn" onClick={onEnterResult}>
+                Enter result
+              </button>
+            )}
           </>
         )}
         {hasResult && (

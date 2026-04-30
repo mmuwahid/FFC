@@ -1699,7 +1699,7 @@ textarea.auth-input {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px 4px;
+  padding: calc(var(--safe-top, 0px) + 10px) 16px 4px;
 }
 .pf-nav-btn {
   width: 36px; height: 36px; border-radius: 10px;
@@ -1750,7 +1750,7 @@ textarea.auth-input {
   border-radius: 22px;
   line-height: 0;
 }
-.pf-avatar-wrap .pf-avatar { display: block; }
+.pf-avatar-wrap img.pf-avatar { display: block; }
 .pf-avatar-cam {
   position: absolute;
   bottom: -3px;
@@ -5799,6 +5799,8 @@ body.is-leaderboard-landscape .lb-table-grid {
   cursor: pointer;
   text-align: left;
   display: block;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .aw-hero-name:disabled { cursor: default; color: var(--text-muted); }
 .aw-hero-meta {
