@@ -19,13 +19,16 @@ interface SeasonRow {
   archived_at: string | null
   created_at: string
   planned_games: number | null
+  // S058 follow-up — number of games already played before the season was
+  // tracked in this app. Default 0 for app-native seasons.
+  games_seeded: number | null
 }
 
 interface ScorerRow {
   team: 'white' | 'black'
   goals: number
-  profile: { display_name: string } | null
-  guest: { display_name: string } | null
+  profile: { id: string; display_name: string } | null
+  guest: { id: string; display_name: string } | null
 }
 
 interface MatchRow {
@@ -35,6 +38,9 @@ interface MatchRow {
   score_black: number
   approved_at: string
   matchday_id: string
+  // S058 follow-up — needed to highlight MOTM in the scorer list with gold + ⭐.
+  motm_user_id: string | null
+  motm_guest_id: string | null
   matchday: {
     id: string
     kickoff_at: string
@@ -48,6 +54,7 @@ interface MatchRow {
 interface GroupedScorer {
   name: string
   goals: number
+  isMotm: boolean
 }
 
 function formatDate(iso: string): string {
@@ -57,15 +64,38 @@ function formatDate(iso: string): string {
   return `${day}/${months[d.getMonth()]}/${d.getFullYear()}`
 }
 
-function groupScorers(scorers: ScorerRow[], team: 'white' | 'black'): GroupedScorer[] {
-  const byName = new Map<string, number>()
+// S058 follow-up: groupScorers now tracks per-row IDs so we can mark the
+// scorer as MOTM (gold + ⭐) when the match's MOTM also scored. ID-based
+// match is more robust than name-based since two players could share a name.
+function groupScorers(
+  scorers: ScorerRow[],
+  team: 'white' | 'black',
+  motmUserId: string | null,
+  motmGuestId: string | null,
+): GroupedScorer[] {
+  type Acc = { goals: number; profileId: string | null; guestId: string | null }
+  const byName = new Map<string, Acc>()
   for (const s of scorers) {
     if (s.team !== team || s.goals <= 0) continue
     const name = s.profile?.display_name ?? s.guest?.display_name ?? '—'
-    byName.set(name, (byName.get(name) ?? 0) + s.goals)
+    const existing = byName.get(name)
+    if (existing) {
+      existing.goals += s.goals
+    } else {
+      byName.set(name, {
+        goals: s.goals,
+        profileId: s.profile?.id ?? null,
+        guestId: s.guest?.id ?? null,
+      })
+    }
   }
   return Array.from(byName.entries())
-    .map(([name, goals]) => ({ name, goals }))
+    .map(([name, acc]) => ({
+      name,
+      goals: acc.goals,
+      isMotm: (motmUserId !== null && acc.profileId === motmUserId)
+            || (motmGuestId !== null && acc.guestId === motmGuestId),
+    }))
     .sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name))
 }
 
@@ -87,7 +117,7 @@ export function Matches() {
   useEffect(() => {
     supabase
       .from('seasons')
-      .select('id, name, ended_at, archived_at, created_at, planned_games')
+      .select('id, name, ended_at, archived_at, created_at, planned_games, games_seeded')
       .order('created_at', { ascending: false })
       .then(({ data }) => {
         const rows = data ?? []
@@ -109,10 +139,11 @@ export function Matches() {
         .from('matches')
         .select(`
           id, result, score_white, score_black, approved_at, matchday_id,
+          motm_user_id, motm_guest_id,
           matchday:matchdays!inner(id, kickoff_at, is_friendly),
           motm_member:profiles!matches_motm_user_id_fkey(display_name),
           motm_guest:match_guests!matches_motm_guest_id_fkey(display_name),
-          scorers:match_players(team, goals, profile:profiles!match_players_profile_id_fkey(display_name), guest:match_guests(display_name))
+          scorers:match_players(team, goals, profile:profiles!match_players_profile_id_fkey(id, display_name), guest:match_guests(id, display_name))
         `)
         .eq('season_id', seasonId)
         .not('approved_at', 'is', null)
@@ -131,8 +162,14 @@ export function Matches() {
         .order('kickoff_at', { ascending: true }),
     ])
 
+    // S058 follow-up: matchday numbering starts from games_seeded + 1.
+    // Season 11 was seeded with 30 prior games, so the first app-tracked
+    // matchday displays as "GAME 31 / 40" not "GAME 1 / 40". Default 0 for
+    // app-native seasons.
+    const seasonRow = seasons.find((s) => s.id === seasonId)
+    const seedOffset = seasonRow?.games_seeded ?? 0
     const numMap: Record<string, number> = {}
-    ;(mdRes.data ?? []).forEach((row, i) => { numMap[row.id] = i + 1 })
+    ;(mdRes.data ?? []).forEach((row, i) => { numMap[row.id] = seedOffset + i + 1 })
     setMatchdayNumber(numMap)
 
     // S058 (post-close fix): if the matches query errored, log it so future
@@ -151,7 +188,7 @@ export function Matches() {
       .filter(m => m.matchday)
     setMatches(rows)
     setLoading(false)
-  }, [])
+  }, [seasons])
 
   // Initial + season-switch load
   useEffect(() => {
@@ -268,8 +305,8 @@ export function Matches() {
           </div>
           <div className="mt-list">
             {matches.map(m => {
-              const whiteScorers = groupScorers(m.scorers, 'white')
-              const blackScorers = groupScorers(m.scorers, 'black')
+              const whiteScorers = groupScorers(m.scorers, 'white', m.motm_user_id, m.motm_guest_id)
+              const blackScorers = groupScorers(m.scorers, 'black', m.motm_user_id, m.motm_guest_id)
               const motmName = m.motm_member?.display_name ?? m.motm_guest?.display_name ?? null
               const isDraw = m.result === 'draw'
               const whiteWon = m.result === 'win_white'
@@ -325,9 +362,12 @@ export function Matches() {
                       {whiteScorers.length === 0 ? (
                         <span className="mt-scorer-row">no goals</span>
                       ) : whiteScorers.map(s => (
-                        <span key={`w-${s.name}`} className="mt-scorer-row">
+                        <span key={`w-${s.name}`} className={`mt-scorer-row${s.isMotm ? ' mt-scorer-row--motm' : ''}`}>
                           <span className="mt-scorer-ball">⚽</span>
-                          {s.goals > 1 ? `${s.name} ×${s.goals}` : s.name}
+                          {/* S058 follow-up — always show ×N (even ×1) + MOTM
+                            * scorer in gold with ⭐ next to their name. */}
+                          {s.isMotm && <span className="mt-scorer-star">⭐</span>}
+                          {s.name} ×{s.goals}
                           {s.goals >= 3 && <span className="mt-hat-badge">HAT</span>}
                         </span>
                       ))}
@@ -336,9 +376,10 @@ export function Matches() {
                       {blackScorers.length === 0 ? (
                         <span className="mt-scorer-row">no goals</span>
                       ) : blackScorers.map(s => (
-                        <span key={`b-${s.name}`} className="mt-scorer-row">
+                        <span key={`b-${s.name}`} className={`mt-scorer-row${s.isMotm ? ' mt-scorer-row--motm' : ''}`}>
                           <span className="mt-scorer-ball">⚽</span>
-                          {s.goals > 1 ? `${s.name} ×${s.goals}` : s.name}
+                          {s.isMotm && <span className="mt-scorer-star">⭐</span>}
+                          {s.name} ×{s.goals}
                           {s.goals >= 3 && <span className="mt-hat-badge">HAT</span>}
                         </span>
                       ))}

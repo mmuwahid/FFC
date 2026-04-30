@@ -109,6 +109,18 @@
 .mt-scorer-row { font-size: 11px; line-height: 1.35; color: #c7d0df; display: inline-flex; align-items: center; gap: 5px; }
 .mt-scorer-ball { opacity: 0.6; font-size: 10px; }
 .splitc-footer-half.empty .mt-scorer-row { opacity: 0.4; font-style: italic; }
+
+/* S058 follow-up — MOTM scorer in gold with ⭐. Highlights when the match
+ * MOTM also scored. The bottom mt-motm-strip still shows the formal MOTM
+ * line; this just makes the connection visible in the scorer list. */
+.mt-scorer-row--motm {
+  color: #e5ba5b;
+  font-weight: 700;
+}
+.mt-scorer-star {
+  color: #e5ba5b;
+  font-size: 10px;
+}
 .mt-hat-badge { display: inline-block; margin-left: 3px; padding: 1px 5px; border-radius: 999px; background: rgba(236,72,153,0.2); color: #f472b6; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; }
 
 /* MOTM strip */

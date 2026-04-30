@@ -1693,6 +1693,7 @@ export type Database = {
           ended_at: string | null
           ended_by: string | null
           ends_on: string | null
+          games_seeded: number
           id: string
           name: string
           planned_games: number | null
@@ -1708,6 +1709,7 @@ export type Database = {
           ended_at?: string | null
           ended_by?: string | null
           ends_on?: string | null
+          games_seeded?: number
           id?: string
           name: string
           planned_games?: number | null
@@ -1723,6 +1725,7 @@ export type Database = {
           ended_at?: string | null
           ended_by?: string | null
           ends_on?: string | null
+          games_seeded?: number
           id?: string
           name?: string
           planned_games?: number | null
