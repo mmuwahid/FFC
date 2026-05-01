@@ -95,6 +95,20 @@ button:active:not(:disabled) {
   opacity: 0.7;
 }
 
+/* S062 polish — subtle card press feedback (scale-down) on the major
+ * tappable card surfaces. Combined with the global opacity dip this gives a
+ * tactile "press" feel. .py-card has its own bg highlight; we don't override it. */
+.mt-card,
+.aw-hero,
+.aw-wall-cell--link {
+  transition: transform 100ms ease, opacity 100ms ease;
+}
+.mt-card:active:not(:disabled),
+.aw-hero:active:not(:disabled),
+.aw-wall-cell--link:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
 html,
 body,
 #root {
@@ -803,6 +817,8 @@ textarea.auth-input {
   background: transparent;
   cursor: pointer;
   font-family: inherit;
+  /* S062 polish — smooth segmented control transitions */
+  transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease;
 }
 .admin-seg--active {
   background: var(--bg);
