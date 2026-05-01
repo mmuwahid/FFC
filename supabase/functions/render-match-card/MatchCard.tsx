@@ -2,6 +2,13 @@
 type Scorer = { name: string; goals: number; own_goals: number };
 type Motm = { name: string; is_guest: boolean } | null;
 
+// Resolve the MOTM-name once for the scorer-line gold highlight. Names from
+// payload are unique per match in practice (FFC roster size), so a string
+// match is sufficient. Falls through to "" when motm is null.
+function motmName(motm: Motm): string {
+  return motm?.name ?? '';
+}
+
 type Props = {
   season_name: string;
   match_number: number;
@@ -23,7 +30,7 @@ const COLORS = {
   footer: '#6e6450',
 };
 
-function ScorerColumn({ list }: { list: Scorer[] }) {
+function ScorerColumn({ list, motm }: { list: Scorer[]; motm: string }) {
   return (
     <div style={{
       flex: 1, display: 'flex', flexDirection: 'column',
@@ -32,9 +39,21 @@ function ScorerColumn({ list }: { list: Scorer[] }) {
     }}>
       {list.length === 0
         ? <div style={{ display: 'flex', color: COLORS.footer }}>—</div>
-        : list.map((s, idx) => (
-            <div key={idx} style={{ display: 'flex' }}>{scorerLine(s)}</div>
-          ))}
+        : list.map((s, idx) => {
+            const isMotm = motm !== '' && s.name === motm;
+            return (
+              <div
+                key={idx}
+                style={{
+                  display: 'flex',
+                  color: isMotm ? COLORS.accent : COLORS.text,
+                  fontWeight: isMotm ? 700 : 400,
+                }}
+              >
+                {isMotm ? '⭐ ' : ''}{scorerLine(s)}
+              </div>
+            );
+          })}
     </div>
   );
 }
@@ -53,7 +72,8 @@ function scorerLine(s: Scorer): string {
 }
 
 export function MatchCard(props: Props) {
-  const meta = `Match ${props.match_number} of ${props.total_matches} · ${props.kickoff_label}`;
+  const meta = `Game ${props.match_number} of ${props.total_matches} · ${props.kickoff_label}`;
+  const motm = motmName(props.motm);
 
   return (
     <div style={{
@@ -134,23 +154,14 @@ export function MatchCard(props: Props) {
         marginTop: 48, display: 'flex', flexDirection: 'row',
         alignItems: 'flex-start', gap: 64, width: '100%', maxWidth: 880,
       }}>
-        <ScorerColumn list={props.white_scorers} />
+        <ScorerColumn list={props.white_scorers} motm={motm} />
         <div style={{ width: 2 }} />
-        <ScorerColumn list={props.black_scorers} />
+        <ScorerColumn list={props.black_scorers} motm={motm} />
       </div>
 
-      {/* MOTM gold pill — omitted entirely if no MOTM. No footer. */}
-      {props.motm && (
-        <div style={{
-          marginTop: 'auto', alignSelf: 'center',
-          padding: '12px 28px', border: `1px solid ${COLORS.accent}`, borderRadius: 999,
-          fontSize: 24, fontWeight: 600, color: COLORS.accent,
-          textTransform: 'uppercase', letterSpacing: 3.8,
-          display: 'flex',
-        }}>
-          ✨ MOTM · {props.motm.name}
-        </div>
-      )}
+      {/* MOTM is now highlighted inline in the scorer column (gold + ⭐).
+       * The bottom pill was removed per S063 user feedback — duplicate
+       * information given the inline highlight. */}
     </div>
   );
 }

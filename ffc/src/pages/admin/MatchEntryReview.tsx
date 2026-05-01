@@ -366,7 +366,13 @@ export function MatchEntryReview() {
           onClick={async () => {
             setShareBusy(true)
             setShareError(null)
-            const result = await shareMatchCard(approvedMatchId)
+            // force: true bypasses the storage cache so the share-PNG always
+            // reflects the just-approved match. Admin's sole entry-point for
+            // share is right after approval, so the cache hit is never useful
+            // here. Cheap per-share regeneration (~1.5s) trades for "what I
+            // see is what I share". The MatchDetailSheet hero (other use of
+            // shareMatchCard) keeps the cached path via getMatchCardUrl.
+            const result = await shareMatchCard(approvedMatchId, { force: true })
             setShareBusy(false)
             if (result.kind === 'error') setShareError(result.message)
           }}
