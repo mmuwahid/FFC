@@ -1,17 +1,15 @@
 # FFC Todo
 
-## NEXT SESSION — S061
+## NEXT SESSION — S062
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected tip: HEAD on `main` is `fb0b542` (S060 re-log docs commit will follow). 1 new migration applied in S060 (0064 — matches.ref_name + pending_match_entries.ref_name + pending_match_entry_players.is_no_show; submit_ref_entry + approve_match_entry rewritten via CREATE OR REPLACE to carry both through the pipeline). **Live DB now at 64.**
-- **Open GitHub: 1 PR (#39) awaiting atomosh response on the triage comment; 1 issue (#40 player-name standardization, deferred to S061).** Issue #41 closed via S060 commit `b962291` (REF pill + 🩹 bandage). Issue #38 CRITICAL closed via `fb0b542` (topbar HIG fix).
-- **Apr 30 follow-up still pending:** user must hit Edit → Save once in AdminRosterSetup so slot_index gets refreshed from current array order (S059 backfill assigned arbitrary slot_index because all 14 rows shared transaction-start created_at). Future matches inherit correct ordering automatically.
-- **Mockup rule sharpened in S060** — for screens that already exist live, `grep -rn "\.<root-class>" ffc/src/styles/ ffc/src/index.css` FIRST and copy the matching rule set verbatim into the mockup `<style>`. New CSS only for actual diffs. See lessons.md Critical Rule #6 + S060 patterns + auto-memory `feedback_mockup_no_redesign.md`.
+- Expected HEAD: `main` at `b65da7a`. Live DB: 65 migrations. 0 open PRs / 0 open issues.
+- **S062 started (01/MAY/2026):** FIFA player table shipped (#41). Design-system commits: focus-visible ring + radius tokens + Awards shimmer skeleton.
 
-**S061 agenda — Issue #40 + #38 HIGH + carryover live-verification:**
+**S062 agenda — #38 remaining HIGH + remaining skeleton screens + live-verification:**
 
-1. ~~**Phase 3 payment tracker** (V3.0:147)~~ — **VERIFIED SHIPPED in S060** (skeleton state). Inventory found backend complete in S056 mig 0055 (10 RPCs + 2 triggers + realtime publication) and frontend complete in S056+S058 (`Payments.tsx`, `PaymentLedgerSheet.tsx`, CSS restored verbatim). All 5 overview sections + 4 ledger sections from spec §8 implemented and live-verified at `/payments`: header / season pill / summary strip / banner-hidden / empty-state / RPC `get_season_payment_summary` returns 200. Empty because the only approved Season 11 match (Game 31) was approved before mig 0055 — `on_match_approved_trigger` only fires on `NULL→NOT NULL` transitions; spec §11 explicitly accepts this as a non-goal. Mockup-first rule did not apply (skeleton was pre-existing; spec was the design doc). Full pipeline (banner / cards / ledger / mark-paid / close-window / override) requires next match approval to verify — moved to live-verification block #6 below.
+1. ~~**Phase 3 payment tracker** (V3.0:147)~~ — **VERIFIED SHIPPED in S060** (skeleton state). Full pipeline live-verification deferred to Thursday matchday (item 2).
 
 2. **S058–S059–S060 live verification** — admin/auth-gated paths unreachable from preview, only confirmable on a real Thursday matchday:
    - [ ] **S060 payment tracker pipeline (mig 0055)** — admin approves next match → `payment_windows` row appears + 14 `match_payment_records` created · `/payments` shows summary strip + cards sorted by `outstanding_aed DESC` + open banner · tap player → ledger sheet opens · admin "Mark paid ✓" works · marking all paid auto-closes window · manual `🔒 Close M# window` works · `↩ Override — reopen window` works · realtime updates propagate to other open clients.
@@ -41,11 +39,12 @@
    - [ ] Admin opens review screen, taps APPROVE → leaderboard updates without manual entry.
 
 4. **#38 audit follow-ups** (recommended split into discrete issues vs. single design-system pass):
-   - [ ] **CRITICAL** — Topbar touch targets `.app-topbar-bell` + `.app-topbar-avatar` are 36×36; bump to ≥ 44×44 per Apple HIG.
-   - [ ] **HIGH** — Border-radius scale: define `--radius-sm: 6px / --radius-md: 10px / --radius-lg: 14px` tokens, replace numeric `10px / 12px / 0px` mix.
-   - [ ] **HIGH** — Global `:focus-visible` ring rule (`outline: 2px solid var(--accent); outline-offset: 2px`) so keyboard nav has consistent affordance.
-   - [ ] **HIGH** — Skeleton-row coverage: extend Leaderboard/Matches pattern to Poll, Profile, Settings, Admin* landings.
-   - [ ] **POLISH** (single design-system sprint): state-flip transitions (Poll voting → locked → revealed; tab switches; season picker), hover/active feedback on cards (`transform: scale(0.98)` on `:active`), typography scale tokens (10/11/13/15/18/22), brand-colour tokenisation (some `.po-row--team-white` etc still hardcode), padding-top unification across screens that suppress AppTopBar, 4pt spacing grid enforcement (kill `14px`, `6px 12px` patterns).
+   - [x] **CRITICAL** — Topbar touch targets bumped to 44×44 (S060 `fb0b542`).
+   - [x] **HIGH** — Border-radius tokens `--radius-sm/md/lg/pill` defined in `:root` (S062 `b65da7a`). No bulk replacement — new CSS uses tokens going forward.
+   - [x] **HIGH** — Global `:focus-visible` ring shipped (S062 `b65da7a`).
+   - [x] **HIGH** — Awards screen shimmer skeleton replacing plain loading text (S062 `b65da7a`).
+   - [ ] **HIGH** — Skeleton-row coverage remaining: Settings, AdminPlayers, AdminMatches, AdminSeasons, Payments (Awards done S062). Poll + Profile + Leaderboard + Matches already have skeletons.
+   - [ ] **POLISH** (single design-system sprint): state-flip transitions (Poll voting → locked → revealed; tab switches; season picker), hover/active feedback on cards (`transform: scale(0.98)` on `:active`), typography scale tokens (10/11/13/15/18/22), brand-colour tokenisation (some `.po-row--team-white` etc still hardcode), padding-top unification across screens that suppress AppTopBar, 4pt spacing grid enforcement.
 
 5. **Optional / follow-up:**
    - [ ] **Tap-to-increment Scorer Picker sheet** (mockup tile B from S058) — only if user finds per-row goals input tedious for high-scoring matches.
