@@ -5576,7 +5576,20 @@ textarea.auth-input {
 .lb-cell--last5 .lb-last5-pill--D { background: #8a8e96; color: #0e1826; }
 .lb-last5-empty { color: var(--text-muted, rgba(242, 234, 214, 0.4)); font-size: 14px; }
 
-/* Sticky columns — first two cells stay anchored on horizontal scroll. */
+/* Issue #45 — colour-code the W / D / L count cells in the season totals
+ * row. Mirrors the Last-5 pill palette: green wins, grey draws, red losses.
+ * Bumped to bold so the colour reads at small font-size. */
+.lb-cell--w { color: #4fbf93; font-weight: 700; }
+.lb-cell--d { color: #8a8e96; font-weight: 700; }
+.lb-cell--l { color: #e63349; font-weight: 700; }
+
+/* Sticky columns — first two cells stay anchored on horizontal scroll.
+ * Issue #47 — header cells were ALSO sticky-classed but the non-sticky
+ * header siblings (Pts/MP/W/D/L/...) were rendering on top of them when
+ * scrolled because both had the same default stacking context. Bumped
+ * the header sticky cells to z-index 5 (above the body's z-index 2)
+ * and gave them an explicit opaque background so the moving cells
+ * disappear underneath as expected. */
 .lb-cell--sticky-1 {
   position: sticky;
   left: 0;
@@ -5587,6 +5600,11 @@ textarea.auth-input {
   position: sticky;
   left: 36px; /* matches rank-column width */
   z-index: 2;
+  background: var(--bg, #0e1826);
+}
+.lb-table-grid--header .lb-cell--sticky-1,
+.lb-table-grid--header .lb-cell--sticky-2 {
+  z-index: 5;
   background: var(--bg, #0e1826);
 }
 .lb-table-grid--row .lb-cell--sticky-1,
@@ -7531,3 +7549,61 @@ body.is-leaderboard-landscape .lb-table-grid {
   display: inline-flex; align-items: center; gap: 4px;
 }
 .admin-back:hover { color: var(--text); }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Issue #44 — Loading splash screen sizing
+ *
+ * Was: bare <img> rendering at intrinsic file size (huge, top-left).
+ * Now: full-viewport flex-centered, crest constrained to a sensible size
+ * with a subtle pulse so a slow connection doesn't read as "frozen".
+ * ───────────────────────────────────────────────────────────────────────── */
+.app-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg, #0e1826);
+  z-index: 9999;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+}
+.app-splash__crest {
+  width: clamp(96px, 28vw, 160px);
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.35));
+  animation: app-splash-pulse 2s ease-in-out infinite;
+}
+@keyframes app-splash-pulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-splash__crest { animation: none; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Issue #46 — Bottom nav anchored, no perceived bobbing on route change
+ *
+ * Forces a GPU compositing layer on the fixed nav so subpixel jitter from
+ * iOS toolbar show/hide and keyboard transitions doesn't look like the bar
+ * is moving relative to content. Also locks an explicit min-height so the
+ * nav has a stable footprint regardless of font-size hydration.
+ *
+ * Header twin: AppTopBar gets the same compositing hint and explicit
+ * min-height so the dynamic-island gutter doesn't shift between routes.
+ * ───────────────────────────────────────────────────────────────────────── */
+.app-bottom-nav {
+  transform: translateZ(0);
+  will-change: transform;
+  /* Lock floor: padding-bottom carries safe-area, content height is the
+   * 56px min set on .app-bottom-nav-inner. Total ≈ 56 + safe-area. */
+}
+.app-topbar {
+  transform: translateZ(0);
+  will-change: transform;
+}
+.app-topbar-inner {
+  /* Stable header footprint regardless of avatar/bell loading state. */
+  min-height: 48px;
+}
