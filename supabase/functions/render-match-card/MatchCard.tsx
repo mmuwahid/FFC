@@ -1,13 +1,12 @@
 /** @jsxImportSource react */
-type Scorer = { name: string; goals: number; own_goals: number };
+type Scorer = {
+  name: string;
+  goals: number;
+  own_goals: number;
+  yellow_cards: number;
+  red_cards: number;
+};
 type Motm = { name: string; is_guest: boolean } | null;
-
-// Resolve the MOTM-name once for the scorer-line gold highlight. Names from
-// payload are unique per match in practice (FFC roster size), so a string
-// match is sufficient. Falls through to "" when motm is null.
-function motmName(motm: Motm): string {
-  return motm?.name ?? '';
-}
 
 type Props = {
   season_name: string;
@@ -28,52 +27,92 @@ const COLORS = {
   accent: '#e5ba5b',
   muted:  '#c9b88a',
   footer: '#6e6450',
+  divider: '#e5ba5b',
 };
 
-function ScorerColumn({ list, motm }: { list: Scorer[]; motm: string }) {
+function motmName(motm: Motm): string {
+  return motm?.name ?? '';
+}
+
+// Build the goal badge string. Combines normal goals + own_goals into a
+// single label that fits beside the player's name.
+function goalLabel(s: Scorer): string | null {
+  if (s.goals > 0 && s.own_goals > 0) return `\u26BD\u00D7${s.goals} (OG\u00D7${s.own_goals})`;
+  if (s.goals > 0)                    return s.goals === 1 ? '\u26BD' : `\u26BD\u00D7${s.goals}`;
+  if (s.own_goals > 0)                return `(OG\u00D7${s.own_goals})`;
+  return null;
+}
+
+// Card cluster — one square per yellow/red. Twemoji-mapped graphemes
+// render as inline images via Satori's graphemeImages.
+function cardCluster(s: Scorer): string | null {
+  if (s.yellow_cards === 0 && s.red_cards === 0) return null;
+  return '\uD83D\uDFE8'.repeat(s.yellow_cards) + '\uD83D\uDFE5'.repeat(s.red_cards);
+}
+
+function ScorerRow({ s, side, isMotm }: { s: Scorer; side: 'white' | 'black'; isMotm: boolean }) {
+  const goal  = goalLabel(s);
+  const cards = cardCluster(s);
+  const star  = isMotm ? '\u2B50' : null;
+
+  const color = isMotm ? COLORS.accent : COLORS.text;
+  const fontWeight = isMotm ? 700 : 600;
+
+  // Item order — visual reading on white side: [⚽×N] [Name] [🟨🟥] [⭐]
+  // Black side uses flexDirection row-reverse so it visually mirrors:
+  //   [⭐] [🟨🟥] [Name] [⚽×N]
+  const items: { key: string; node: JSX.Element }[] = [];
+  if (goal)
+    items.push({
+      key: 'goal',
+      node: <span style={{ display: 'flex', color: isMotm ? COLORS.accent : COLORS.muted }}>{goal}</span>,
+    });
+  items.push({
+    key: 'name',
+    node: <span style={{ display: 'flex', fontWeight, color }}>{s.name}</span>,
+  });
+  if (cards) items.push({ key: 'cards', node: <span style={{ display: 'flex' }}>{cards}</span> });
+  if (star)  items.push({ key: 'star',  node: <span style={{ display: 'flex' }}>{star}</span> });
+
   return (
     <div style={{
-      flex: 1, display: 'flex', flexDirection: 'column',
-      alignItems: 'center', gap: 8,
-      fontSize: 28, color: COLORS.text,
+      display: 'flex',
+      flexDirection: side === 'white' ? 'row' : 'row-reverse',
+      alignItems: 'center',
+      gap: 12,
+      fontSize: 30,
+      lineHeight: 1.2,
     }}>
-      {list.length === 0
-        ? <div style={{ display: 'flex', color: COLORS.footer }}>—</div>
-        : list.map((s, idx) => {
-            const isMotm = motm !== '' && s.name === motm;
-            return (
-              <div
-                key={idx}
-                style={{
-                  display: 'flex',
-                  color: isMotm ? COLORS.accent : COLORS.text,
-                  fontWeight: isMotm ? 700 : 400,
-                }}
-              >
-                {isMotm ? '⭐ ' : ''}{scorerLine(s)}
-              </div>
-            );
-          })}
+      {items.map((i) => <span key={i.key} style={{ display: 'flex' }}>{i.node}</span>)}
     </div>
   );
 }
 
-function scorerLine(s: Scorer): string {
-  // A row appears once per (player, team). Show "Name × N" for normal goals,
-  // "Name (OG)" for an own-goal-only row, or "Name × N (OG)" if the same
-  // player has both (rare but possible). Keep it on a single line.
-  const segments: string[] = [];
-  if (s.goals > 0) segments.push(s.goals === 1 ? s.name : `${s.name} × ${s.goals}`);
-  if (s.own_goals > 0) {
-    if (s.goals > 0) segments.push('(OG)');
-    else             segments.push(`${s.name} (OG)`);
-  }
-  return segments.join(' ');
+function ScorerColumn({ list, motm, side }: { list: Scorer[]; motm: string; side: 'white' | 'black' }) {
+  return (
+    <div style={{
+      flex: 1, display: 'flex', flexDirection: 'column',
+      alignItems: side === 'white' ? 'flex-start' : 'flex-end',
+      gap: 12,
+      color: COLORS.text,
+    }}>
+      {list.length === 0
+        ? <div style={{ display: 'flex', color: COLORS.footer, fontSize: 28 }}>—</div>
+        : list.map((s, idx) => (
+            <ScorerRow
+              key={idx}
+              s={s}
+              side={side}
+              isMotm={motm !== '' && s.name === motm}
+            />
+          ))}
+    </div>
+  );
 }
 
 export function MatchCard(props: Props) {
-  const meta = `Game ${props.match_number} of ${props.total_matches} · ${props.kickoff_label}`;
   const motm = motmName(props.motm);
+  const title = `${props.season_name} \u2014 Game ${props.match_number} of ${props.total_matches}`;
 
   return (
     <div style={{
@@ -82,32 +121,28 @@ export function MatchCard(props: Props) {
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       fontFamily: 'Inter',
     }}>
-      <img src={props.crestDataUri} width={120} height={120} style={{ marginBottom: 12 }} />
+      <img src={props.crestDataUri} width={200} height={200} style={{ marginBottom: 20 }} />
 
-      {/* Serif title + meta — explicit display:flex on every text-bearing
-       * div per Satori v0.10 enforcement. */}
+      {/* Title — single line "Season 11 — Game 32 of 40" */}
       <div style={{
         display: 'flex',
-        fontFamily: 'Playfair Display', fontSize: 64, fontWeight: 700,
-        color: COLORS.accent, letterSpacing: 1.3,
+        fontFamily: 'Playfair Display', fontSize: 56, fontWeight: 700,
+        color: COLORS.accent, letterSpacing: 1.0, textAlign: 'center',
       }}>
-        {props.season_name}
+        {title}
       </div>
+      {/* Date line */}
       <div style={{
         display: 'flex',
-        fontFamily: 'Playfair Display', fontSize: 28,
-        color: COLORS.muted, marginTop: 6,
+        fontFamily: 'Playfair Display', fontSize: 30,
+        color: COLORS.muted, marginTop: 8,
       }}>
-        {meta}
+        {props.kickoff_label}
       </div>
 
-      {/* Scoreboard — split with vertical gold-gradient divider.
-       * Children rendered as explicit siblings; Satori's React renderer
-       * can't unwrap <></> Fragments inside a .map (silently rewraps them
-       * as a <div> with no `display`, which then trips Satori v0.10's
-       * "explicit display: flex / none" check). S063 fix. */}
+      {/* Scoreboard */}
       <div style={{
-        marginTop: 56, display: 'flex', flexDirection: 'row',
+        marginTop: 48, display: 'flex', flexDirection: 'row',
         alignItems: 'center', justifyContent: 'center',
         gap: 64, width: '100%', maxWidth: 880,
       }}>
@@ -122,7 +157,7 @@ export function MatchCard(props: Props) {
           }}>WHITE</div>
           <div style={{
             display: 'flex',
-            fontSize: 200, fontWeight: 600, lineHeight: 1, color: COLORS.text,
+            fontSize: 200, fontWeight: 700, lineHeight: 1, color: COLORS.text,
           }}>
             {props.score_white}
           </div>
@@ -142,26 +177,22 @@ export function MatchCard(props: Props) {
           }}>BLACK</div>
           <div style={{
             display: 'flex',
-            fontSize: 200, fontWeight: 600, lineHeight: 1, color: COLORS.text,
+            fontSize: 200, fontWeight: 700, lineHeight: 1, color: COLORS.text,
           }}>
             {props.score_black}
           </div>
         </div>
       </div>
 
-      {/* Scorer grid — same column rhythm as the scoreboard */}
+      {/* Scorer grid — side-aligned per team */}
       <div style={{
         marginTop: 48, display: 'flex', flexDirection: 'row',
         alignItems: 'flex-start', gap: 64, width: '100%', maxWidth: 880,
       }}>
-        <ScorerColumn list={props.white_scorers} motm={motm} />
+        <ScorerColumn list={props.white_scorers} motm={motm} side="white" />
         <div style={{ width: 2 }} />
-        <ScorerColumn list={props.black_scorers} motm={motm} />
+        <ScorerColumn list={props.black_scorers} motm={motm} side="black" />
       </div>
-
-      {/* MOTM is now highlighted inline in the scorer column (gold + ⭐).
-       * The bottom pill was removed per S063 user feedback — duplicate
-       * information given the inline highlight. */}
     </div>
   );
 }
