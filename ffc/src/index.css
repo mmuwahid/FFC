@@ -3184,12 +3184,6 @@ textarea.auth-input {
 .admin-md-result { display: flex; align-items: center; gap: 10px; margin-top: 2px; }
 .admin-md-score { font-family: var(--mono, ui-monospace); font-size: 14px; font-weight: 700; letter-spacing: 0.02em; }
 .admin-md-score-sep { color: var(--text-muted); margin: 0 6px; }
-.admin-md-result-chip { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
-  padding: 2px 8px; border-radius: 6px; }
-.admin-md-result-chip--win_white { background: rgba(255,255,255,0.1); color: #eee; }
-.admin-md-result-chip--win_black { background: rgba(0,0,0,0.3); color: #aaa; }
-.admin-md-result-chip--draw { background: rgba(156,163,175,0.2); color: #9ca3af; }
-
 .admin-md-poll-meta { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
 .admin-md-lock { color: #f59e0b; margin-left: 4px; }
 

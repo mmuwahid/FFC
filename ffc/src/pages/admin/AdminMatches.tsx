@@ -20,7 +20,6 @@ import type { Database, Json } from '../../lib/database.types'
 
 type MatchFormat = Database['public']['Enums']['match_format']
 type TeamColor = Database['public']['Enums']['team_color']
-type MatchResult = Database['public']['Enums']['match_result']
 
 type MatchdayRow = Database['public']['Tables']['matchdays']['Row']
 type MatchRow = Pick<
@@ -104,7 +103,15 @@ function bucketize(md: MatchdayWithMatch): Segment {
 }
 
 function phaseLabel(md: MatchdayWithMatch): { text: string; tone: 'muted' | 'warn' | 'accent' | 'success' } {
-  if (md.match?.approved_at) return { text: 'Final', tone: 'success' }
+  if (md.match?.approved_at) {
+    const r = md.match.result
+    const winnerText =
+      r === 'win_white' ? ' · White Team Wins'
+      : r === 'win_black' ? ' · Black Team Wins'
+      : r === 'draw' ? ' · Draw'
+      : ''
+    return { text: `Final${winnerText}`, tone: 'success' }
+  }
   if (md.match) return { text: 'Result pending approval', tone: 'warn' }
   if (md.draft?.status === 'in_progress') return { text: 'Phase 5.5 · Draft in progress', tone: 'warn' }
   if (md.roster_locked_at) return { text: 'Roster locked · enter result', tone: 'accent' }
@@ -637,7 +644,6 @@ function MatchdayCard({
             <span className="admin-md-score-sep">–</span>
             <span className="admin-md-score-black">{md.match.score_black} BLACK ⚫</span>
           </div>
-          {md.match.result && <span className={`admin-md-result-chip admin-md-result-chip--${md.match.result}`}>{resultLabel(md.match.result)}</span>}
         </div>
       )}
 
@@ -827,12 +833,6 @@ function RefLinkSheet({
     </div>,
     document.body
   )
-}
-
-function resultLabel(r: MatchResult): string {
-  if (r === 'win_white') return 'W wins'
-  if (r === 'win_black') return 'B wins'
-  return 'Draw'
 }
 
 // ─── Phase 5.5 · Draft in progress (S026) ─────────────────────────
