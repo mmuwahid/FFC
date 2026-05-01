@@ -1,13 +1,13 @@
 # FFC Todo
 
-## NEXT SESSION — S064
+## NEXT SESSION — S065
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected HEAD: `main` at `36b2963`. Live DB: 68 migrations. 0 open PRs · 1 open issue (#43 dark-mode, deferred).
-- **S063 close (01/MAY/2026):** First real match-day diagnostics — RefEntry submit cast bug + MatchEntryReview Approve cascade (hidden-by-nav → "[object Object]" toast → real PG enum-cast bug → mig 0066) + share PNG overhaul (Game-N, side-aligned scorers, twemoji emojis, RENDER_VERSION cache invalidation, mig 0067 + 0068) + 4 GH issue sweep (#44 #45 #46 #47).
+- Expected HEAD: `main` at `29c4986`. Live DB: 69 migrations. 0 open PRs · 0 open issues.
+- **S064 close (01/MAY/2026):** PR #49 merged — #43 light/dark mode all 15 screens + #48 awards view friendly/noshows fix (mig 0069). Both issues now closed.
 
-**S064 agenda — net-new features + live verification:**
+**S065 agenda — net-new features + live verification:**
 
 1. **Execute NumberInput plan (#3 from S063 backlog)** — spec + plan ready at:
    - [docs/superpowers/specs/2026-05-01-number-input-component-design.md](docs/superpowers/specs/2026-05-01-number-input-component-design.md)
@@ -20,8 +20,7 @@
    - [ ] **AdminRosterSetup manual slot reorder UI** (#2 in S063 backlog) — S059 added `slot_index` column; UI for drag/swap on Saved-state team lists.
    - [ ] **RefEntry scorer-picker redesign** (#4 in S063 backlog) — current 7-name 2-column list reads as 2 teams; user wants a dropdown of the existing team + Goal/Own-Goal toggle.
 
-3. **GH issues open at S063 close:**
-   - [ ] **#43 (dark/light mode)** — DEFERRED. Needs design work to invert all 15 per-screen scope overrides (.po-screen / .lb-screen / .mt-screen / .pf-screen / .lr-screen / .st-screen / .aw-screen / .mer-screen / .rs-screen / .py-screen / .ch-root / .admin-players / .admin-matches / .as-root / .ah-root). Comment posted on issue.
+3. **GH issues: 0 open.**
 
 4. **Live verification owed Thursday matchday** — most S063 changes admin/auth-gated, only confirmable on a real Thursday matchday:
    - [ ] **S063 RefEntry submit pipeline** — ref types name → KICK OFF → goals/cards → END MATCH → SUBMIT → admin gets push (no enum cast error) → ref sees "Submitted ✓".
