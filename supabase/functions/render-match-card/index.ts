@@ -87,8 +87,15 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Invalid match_id' }, 422)
   }
 
-  // 3. Cache check (skip if force=true)
-  const cacheKey = `${matchId}.png`
+  // 3. Cache check (skip if force=true).
+  //
+  // RENDER_VERSION is bumped any time the MatchCard layout / RPC payload
+  // shape changes — bumping invalidates every cached PNG without needing
+  // a manual storage wipe. Keep the cache key in `<matchId>-v<N>.png`
+  // form. Old `<matchId>.png` (v0) and lower-version files are left as
+  // orphans on the bucket; they are harmless and storage-cheap.
+  const RENDER_VERSION = 2
+  const cacheKey = `${matchId}-v${RENDER_VERSION}.png`
   if (!force) {
     const { data: existing } = await SERVICE_CLIENT.storage
       .from('match-cards').list('', { search: cacheKey, limit: 1 })
