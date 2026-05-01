@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useApp } from '../../lib/AppContext'
 import type { Database } from '../../lib/database.types'
+import { NumberInput } from '../../components/NumberInput'
 
 /* §3.17 Admin Players — full Depth-B (S025 slice).
  *
@@ -832,13 +833,12 @@ function BanSheet({
               {d} Days
             </button>
           ))}
-          <input
-            type="number"
+          <NumberInput
             className="admin-days-input"
             value={days}
             min={1}
             max={365}
-            onChange={(e) => setDays(Math.max(1, Math.min(365, Number(e.target.value) || 1)))}
+            onChange={setDays}
           />
           <span className="auth-hint" style={{ marginLeft: 4 }}>days</span>
         </div>

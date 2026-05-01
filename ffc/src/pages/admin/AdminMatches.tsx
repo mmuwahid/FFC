@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import type { Database, Json } from '../../lib/database.types'
+import { NumberInput } from '../../components/NumberInput'
 
 /* §3.18 Admin Matches — full Depth-B (S025 slice).
  *
@@ -1235,12 +1236,12 @@ function ResultEntrySheet({
       <div className="admin-score-row">
         <label className="admin-score-field">
           <span>WHITE</span>
-          <input type="number" min={0} className="auth-input" value={scoreWhite} onChange={(e) => setScoreWhite(Math.max(0, Number(e.target.value) || 0))} />
+          <NumberInput min={0} className="auth-input" value={scoreWhite} onChange={setScoreWhite} />
         </label>
         <span className="admin-score-sep">–</span>
         <label className="admin-score-field">
           <span>BLACK</span>
-          <input type="number" min={0} className="auth-input" value={scoreBlack} onChange={(e) => setScoreBlack(Math.max(0, Number(e.target.value) || 0))} />
+          <NumberInput min={0} className="auth-input" value={scoreBlack} onChange={setScoreBlack} />
         </label>
       </div>
 
@@ -1308,9 +1309,9 @@ function ResultEntrySheet({
                 {r.is_captain && <span className="chip chip-role">C</span>}
               </div>
               <div className="admin-roster-stats">
-                <label title="Goals">⚽<input type="number" min={0} value={r.goals} onChange={(e) => updateRow(i, { goals: Math.max(0, Number(e.target.value) || 0) })} /></label>
-                <label title="Yellow"><span className="c-yel">🟨</span><input type="number" min={0} max={2} value={r.yellow_cards} onChange={(e) => updateRow(i, { yellow_cards: Math.max(0, Math.min(2, Number(e.target.value) || 0)) })} /></label>
-                <label title="Red"><span className="c-red">🟥</span><input type="number" min={0} max={1} value={r.red_cards} onChange={(e) => updateRow(i, { red_cards: Math.max(0, Math.min(1, Number(e.target.value) || 0)) })} /></label>
+                <label title="Goals">⚽<NumberInput min={0} value={r.goals} onChange={(n) => updateRow(i, { goals: n })} /></label>
+                <label title="Yellow"><span className="c-yel">🟨</span><NumberInput min={0} max={2} value={r.yellow_cards} onChange={(n) => updateRow(i, { yellow_cards: n })} /></label>
+                <label title="Red"><span className="c-red">🟥</span><NumberInput min={0} max={1} value={r.red_cards} onChange={(n) => updateRow(i, { red_cards: n })} /></label>
                 <button type="button" className={`admin-chip admin-chip--sm${r.is_captain ? ' admin-chip--on' : ''}`} onClick={() => updateRow(i, { is_captain: !r.is_captain })} title="Captain">(C)</button>
                 <button type="button" className={`admin-chip admin-chip--sm${r.is_no_show ? ' admin-chip--on' : ''}`} onClick={() => updateRow(i, { is_no_show: !r.is_no_show })} title="No-show">NS</button>
                 <button type="button" className="admin-roster-remove" onClick={() => removeRow(i)}>✕</button>
@@ -1504,11 +1505,11 @@ function ResultEditSheet({
 
       <div className="admin-score-row">
         <label className="admin-score-field"><span>⚪ WHITE</span>
-          <input type="number" min={0} className="auth-input" value={scoreWhite} onChange={(e) => setScoreWhite(Math.max(0, Number(e.target.value) || 0))} />
+          <NumberInput min={0} className="auth-input" value={scoreWhite} onChange={setScoreWhite} />
         </label>
         <span className="admin-score-sep">–</span>
         <label className="admin-score-field"><span>BLACK ⚫</span>
-          <input type="number" min={0} className="auth-input" value={scoreBlack} onChange={(e) => setScoreBlack(Math.max(0, Number(e.target.value) || 0))} />
+          <NumberInput min={0} className="auth-input" value={scoreBlack} onChange={setScoreBlack} />
         </label>
       </div>
 
@@ -1630,34 +1631,31 @@ function RosterColumn({
                 <div className="admin-mp-edit">
                   <label className="admin-mp-edit-field">
                     <span>⚽</span>
-                    <input
-                      type="number"
+                    <NumberInput
                       min={0}
                       className="admin-mp-edit-num"
                       value={p.goals ?? 0}
-                      onChange={(e) => onPatch(p.id, { goals: Math.max(0, Number(e.target.value) || 0) })}
+                      onChange={(n) => onPatch(p.id, { goals: n })}
                     />
                   </label>
                   <label className="admin-mp-edit-field">
                     <span className="c-yel">🟨</span>
-                    <input
-                      type="number"
+                    <NumberInput
                       min={0}
                       max={2}
                       className="admin-mp-edit-num"
                       value={p.yellow_cards ?? 0}
-                      onChange={(e) => onPatch(p.id, { yellow_cards: Math.max(0, Math.min(2, Number(e.target.value) || 0)) })}
+                      onChange={(n) => onPatch(p.id, { yellow_cards: n })}
                     />
                   </label>
                   <label className="admin-mp-edit-field">
                     <span className="c-red">🟥</span>
-                    <input
-                      type="number"
+                    <NumberInput
                       min={0}
                       max={1}
                       className="admin-mp-edit-num"
                       value={p.red_cards ?? 0}
-                      onChange={(e) => onPatch(p.id, { red_cards: Math.max(0, Math.min(1, Number(e.target.value) || 0)) })}
+                      onChange={(n) => onPatch(p.id, { red_cards: n })}
                     />
                   </label>
                   <button

@@ -24,6 +24,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import type { Database, Json } from '../../lib/database.types'
 import { shareMatchCard } from '../../lib/shareMatchCard'
+import { NumberInput } from '../../components/NumberInput'
 import '../../styles/match-entry-review.css'
 
 type TeamColor = Database['public']['Enums']['team_color']
@@ -457,29 +458,21 @@ export function MatchEntryReview() {
         <div className="mer-score-row">
           <div className={`mer-score-side${winningSide === 'white' ? ' mer-score-side--winner' : ''}`}>
             <span className="mer-score-team">WHITE</span>
-            <input
-              type="number"
+            <NumberInput
               min={0}
               className="mer-score-input"
               value={effectiveScoreWhite}
-              onChange={(e) => {
-                const v = parseInt(e.target.value || '0', 10)
-                setEditScoreWhite(Number.isFinite(v) ? Math.max(0, v) : 0)
-              }}
+              onChange={setEditScoreWhite}
             />
           </div>
           <span className="mer-score-dash">–</span>
           <div className={`mer-score-side${winningSide === 'black' ? ' mer-score-side--winner' : ''}`}>
             <span className="mer-score-team">BLACK</span>
-            <input
-              type="number"
+            <NumberInput
               min={0}
               className="mer-score-input"
               value={effectiveScoreBlack}
-              onChange={(e) => {
-                const v = parseInt(e.target.value || '0', 10)
-                setEditScoreBlack(Number.isFinite(v) ? Math.max(0, v) : 0)
-              }}
+              onChange={setEditScoreBlack}
             />
           </div>
         </div>
