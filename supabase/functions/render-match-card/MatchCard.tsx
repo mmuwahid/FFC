@@ -23,6 +23,22 @@ const COLORS = {
   footer: '#6e6450',
 };
 
+function ScorerColumn({ list }: { list: Scorer[] }) {
+  return (
+    <div style={{
+      flex: 1, display: 'flex', flexDirection: 'column',
+      alignItems: 'center', gap: 8,
+      fontSize: 28, color: COLORS.text,
+    }}>
+      {list.length === 0
+        ? <div style={{ display: 'flex', color: COLORS.footer }}>—</div>
+        : list.map((s, idx) => (
+            <div key={idx} style={{ display: 'flex' }}>{scorerLine(s)}</div>
+          ))}
+    </div>
+  );
+}
+
 function scorerLine(s: Scorer): string {
   // A row appears once per (player, team). Show "Name × N" for normal goals,
   // "Name (OG)" for an own-goal-only row, or "Name × N (OG)" if the same
@@ -48,50 +64,69 @@ export function MatchCard(props: Props) {
     }}>
       <img src={props.crestDataUri} width={120} height={120} style={{ marginBottom: 12 }} />
 
-      {/* Serif title + meta */}
+      {/* Serif title + meta — explicit display:flex on every text-bearing
+       * div per Satori v0.10 enforcement. */}
       <div style={{
+        display: 'flex',
         fontFamily: 'Playfair Display', fontSize: 64, fontWeight: 700,
         color: COLORS.accent, letterSpacing: 1.3,
       }}>
         {props.season_name}
       </div>
       <div style={{
+        display: 'flex',
         fontFamily: 'Playfair Display', fontSize: 28,
         color: COLORS.muted, marginTop: 6,
       }}>
         {meta}
       </div>
 
-      {/* Scoreboard — split with vertical gold-gradient divider */}
+      {/* Scoreboard — split with vertical gold-gradient divider.
+       * Children rendered as explicit siblings; Satori's React renderer
+       * can't unwrap <></> Fragments inside a .map (silently rewraps them
+       * as a <div> with no `display`, which then trips Satori v0.10's
+       * "explicit display: flex / none" check). S063 fix. */}
       <div style={{
         marginTop: 56, display: 'flex', flexDirection: 'row',
         alignItems: 'center', justifyContent: 'center',
         gap: 64, width: '100%', maxWidth: 880,
       }}>
-        {(['white', 'black'] as const).map((side, i) => (
-          <>
-            {i === 1 && (
-              <div style={{
-                width: 2, height: 220,
-                background: 'linear-gradient(to bottom, transparent, #e5ba5b, transparent)',
-              }} />
-            )}
-            <div key={side} style={{
-              flex: 1, display: 'flex', flexDirection: 'column',
-              alignItems: 'center', gap: 12,
-            }}>
-              <div style={{
-                fontSize: 28, fontWeight: 600, textTransform: 'uppercase',
-                letterSpacing: 6.7, color: COLORS.text,
-              }}>{side}</div>
-              <div style={{
-                fontSize: 200, fontWeight: 600, lineHeight: 1, color: COLORS.text,
-              }}>
-                {side === 'white' ? props.score_white : props.score_black}
-              </div>
-            </div>
-          </>
-        ))}
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', gap: 12,
+        }}>
+          <div style={{
+            display: 'flex',
+            fontSize: 28, fontWeight: 600, textTransform: 'uppercase',
+            letterSpacing: 6.7, color: COLORS.text,
+          }}>WHITE</div>
+          <div style={{
+            display: 'flex',
+            fontSize: 200, fontWeight: 600, lineHeight: 1, color: COLORS.text,
+          }}>
+            {props.score_white}
+          </div>
+        </div>
+        <div style={{
+          width: 2, height: 220,
+          background: 'linear-gradient(to bottom, transparent, #e5ba5b, transparent)',
+        }} />
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', gap: 12,
+        }}>
+          <div style={{
+            display: 'flex',
+            fontSize: 28, fontWeight: 600, textTransform: 'uppercase',
+            letterSpacing: 6.7, color: COLORS.text,
+          }}>BLACK</div>
+          <div style={{
+            display: 'flex',
+            fontSize: 200, fontWeight: 600, lineHeight: 1, color: COLORS.text,
+          }}>
+            {props.score_black}
+          </div>
+        </div>
       </div>
 
       {/* Scorer grid — same column rhythm as the scoreboard */}
@@ -99,23 +134,9 @@ export function MatchCard(props: Props) {
         marginTop: 48, display: 'flex', flexDirection: 'row',
         alignItems: 'flex-start', gap: 64, width: '100%', maxWidth: 880,
       }}>
-        {(['white', 'black'] as const).map((side, i) => {
-          const list = side === 'white' ? props.white_scorers : props.black_scorers;
-          return (
-            <>
-              {i === 1 && <div style={{ width: 2 }} />}
-              <div key={side} style={{
-                flex: 1, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', gap: 8,
-                fontSize: 28, color: COLORS.text,
-              }}>
-                {list.length === 0
-                  ? <div style={{ color: COLORS.footer }}>—</div>
-                  : list.map((s, idx) => <div key={idx}>{scorerLine(s)}</div>)}
-              </div>
-            </>
-          );
-        })}
+        <ScorerColumn list={props.white_scorers} />
+        <div style={{ width: 2 }} />
+        <ScorerColumn list={props.black_scorers} />
       </div>
 
       {/* MOTM gold pill — omitted entirely if no MOTM. No footer. */}

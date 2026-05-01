@@ -412,7 +412,7 @@ export function Matches() {
                         <p className="mt-player-empty">—</p>
                       ) : whiteRows.map(r => (
                         <div key={`w-${r.name}`} className={`mt-player-row${r.goals === 0 ? ' mt-player-row--no-goal' : ''}`}>
-                          <span className={`mt-ps-goals${r.isMotm && r.goals > 0 ? ' mt-ps-goals--motm' : ''}`}>×{r.goals}</span>
+                          <span className={`mt-ps-goals${r.isMotm && r.goals > 0 ? ' mt-ps-goals--motm' : ''}`}><span className="mt-ps-goals-ball" aria-hidden>⚽</span>×{r.goals}</span>
                           <div className="mt-player-name-wrap">
                             <span className={`mt-player-name${r.isMotm ? ' mt-player-name--motm' : ''}`}>{r.name}</span>
                           </div>
@@ -431,7 +431,7 @@ export function Matches() {
                         <p className="mt-player-empty" style={{ textAlign: 'right' }}>—</p>
                       ) : blackRows.map(r => (
                         <div key={`b-${r.name}`} className={`mt-player-row right${r.goals === 0 ? ' mt-player-row--no-goal' : ''}`}>
-                          <span className={`mt-ps-goals${r.isMotm && r.goals > 0 ? ' mt-ps-goals--motm' : ''}`}>×{r.goals}</span>
+                          <span className={`mt-ps-goals${r.isMotm && r.goals > 0 ? ' mt-ps-goals--motm' : ''}`}><span className="mt-ps-goals-ball" aria-hidden>⚽</span>×{r.goals}</span>
                           <div className="mt-player-name-wrap">
                             <span className={`mt-player-name${r.isMotm ? ' mt-player-name--motm' : ''}`}>{r.name}</span>
                           </div>
