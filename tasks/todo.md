@@ -44,7 +44,16 @@
    - [x] **HIGH** — Global `:focus-visible` ring shipped (S062 `b65da7a`).
    - [x] **HIGH** — Awards screen shimmer skeleton replacing plain loading text (S062 `b65da7a`).
    - [x] **HIGH** — Skeleton-row coverage complete (S062 `229d5e8`): Settings, Payments, AdminPlayers, AdminMatches, AdminSeasons all shipped with shared `.app-skel-block` shimmer base. Poll + Profile + Leaderboard + Matches + Awards already had screen-specific skeletons. AdminHome / Rules / Auth screens don't load data.
-   - [ ] **POLISH** (single design-system sprint): state-flip transitions (Poll voting → locked → revealed; tab switches; season picker), hover/active feedback on cards (`transform: scale(0.98)` on `:active`), typography scale tokens (10/11/13/15/18/22), brand-colour tokenisation (some `.po-row--team-white` etc still hardcode), padding-top unification across screens that suppress AppTopBar, 4pt spacing grid enforcement.
+   - [x] **POLISH** (S062 closeout — 7 commits b65da7a..abbffa0):
+     - [x] Typography scale tokens `--text-xs/sm/md/lg/xl/2xl` (10/11/13/15/18/22) in `:root`.
+     - [x] Border-radius scale tokens `--radius-sm/md/lg/pill` in `:root`.
+     - [x] 4pt spacing grid tokens `--space-1` through `--space-10` in `:root`. (Tokens defined; bulk replacement of existing hardcoded values intentionally skipped — visual regression risk vs no UX benefit. New CSS uses tokens going forward.)
+     - [x] Brand-colour tokens `--team-white-accent` / `--team-black-accent`; `.po-row--team-*` migrated.
+     - [x] Hover/active feedback on cards: global `button:active` opacity dip + `:active scale(0.985)` on `.mt-card`, `.aw-hero`, `.aw-wall-cell--link`.
+     - [x] State-flip transitions: `app-state-fadein` (220ms) on `.po-status` (Poll vote-state remounts) + season-picker list containers (`.lb-list`, `.mt-list`, `.py-list`, `.as-list`, `.admin-md-list`, `.aw-heroes`).
+     - [x] Tab-switch transitions: `.admin-seg` 150ms transitions on background/color/box-shadow.
+     - [x] Padding-top unification: Settings 18px → 16px to match Rules pattern (both suppress AppTopBar, both now on 4pt grid).
+     - [x] `prefers-reduced-motion: reduce` global safeguard collapses all animation/transition durations.
 
 5. **Optional / follow-up:**
    - [ ] **Tap-to-increment Scorer Picker sheet** (mockup tile B from S058) — only if user finds per-row goals input tedious for high-scoring matches.
