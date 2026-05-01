@@ -197,7 +197,11 @@
   align-items: center;
   gap: 12px;
 }
-.mer-motm-name { font-weight: 600; }
+/* MOTM filled state — gold name + star icon to match the brand
+ * convention used everywhere else (.mt-player-name--motm in matches.css,
+ * .aw-hero in awards). Empty state stays muted italic. */
+.mer-motm-name { font-weight: 700; color: var(--accent); display: inline-flex; align-items: center; gap: 6px; }
+.mer-motm-star { color: var(--accent); font-size: 14px; line-height: 1; }
 .mer-motm-empty { color: var(--text-muted); font-style: italic; }
 .mer-motm-change {
   background: var(--surface-2);

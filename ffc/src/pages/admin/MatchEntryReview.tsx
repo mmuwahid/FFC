@@ -497,7 +497,12 @@ export function MatchEntryReview() {
         <h2 className="mer-section-label">Man of the Match</h2>
         <div className="mer-motm-row">
           {effectiveMotmName
-            ? <span className="mer-motm-name">{effectiveMotmName}</span>
+            ? (
+              <span className="mer-motm-name">
+                <span className="mer-motm-star" aria-hidden>⭐</span>
+                {effectiveMotmName}
+              </span>
+            )
             : <span className="mer-motm-empty">— none —</span>}
           <button
             type="button"
