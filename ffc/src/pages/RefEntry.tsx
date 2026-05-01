@@ -252,7 +252,7 @@ function LiveConsole({ payload, clock, onEndMatch }: LiveConsoleProps) {
         <div className="ref-live">
           <HalftimeView clock={clock} />
           <ScoreReadOnly clock={clock} />
-          <EventStrip events={clock.state.events} format={payload.matchday.effective_format} />
+          <EventStrip events={clock.state.events} format={payload.matchday.effective_format} payload={payload} />
         </div>
       </section>
     )
@@ -360,7 +360,7 @@ function LiveConsole({ payload, clock, onEndMatch }: LiveConsoleProps) {
             <span className="ref-action-btn-ico">🏁</span> END MATCH
           </button>
         </div>
-        <EventStrip events={clock.state.events} format={payload.matchday.effective_format} />
+        <EventStrip events={clock.state.events} format={payload.matchday.effective_format} payload={payload} />
       </div>
       {scorerTeam && (
         <ScorerPicker
@@ -516,7 +516,7 @@ function HalftimeView({ clock }: { clock: ClockHook }) {
   )
 }
 
-function EventStrip({ events, format }: { events: MatchEvent[]; format: '7v7' | '5v5' }) {
+function EventStrip({ events, format, payload }: { events: MatchEvent[]; format: '7v7' | '5v5'; payload: RefMatchdayPayload }) {
   if (events.length === 0) {
     return (
       <div className="ref-event-strip">
@@ -536,7 +536,7 @@ function EventStrip({ events, format }: { events: MatchEvent[]; format: '7v7' | 
         >
           <span className="ref-event-min">{formatEventMinute(e, halfMinutes)}</span>
           <span className="ref-event-ico">{eventIcon(e.event_type)}</span>
-          <span className="ref-event-desc">{eventDescription(e)}</span>
+          <span className="ref-event-desc">{eventDescription(e)}{describeParticipant(e, payload)}</span>
         </div>
       ))}
     </div>
