@@ -35,6 +35,17 @@
   --team-white-accent: rgba(255, 255, 255, 0.85);
   --team-black-accent: #0e1826;
 
+  /* 4pt spacing grid — use these going forward; existing hardcoded values
+   * are intentionally left as-is to avoid visual regressions on stable screens. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
   /* Dark palette — default per S009 */
   --bg: #0e1826;
   --surface: #14223a;
@@ -2400,8 +2411,8 @@ textarea.auth-input {
 
   /* S058 #22: clear dynamic island. .st-screen suppresses AppTopBar
    * (RoleLayout `/settings`/`/settings/*` rule), so the screen pads top
-   * itself. */
-  padding: calc(var(--safe-top, 0px) + 18px) 18px 32px;
+   * itself. S062: top padding unified to safe-top + 16px to match Rules. */
+  padding: calc(var(--safe-top, 0px) + 16px) 18px 32px;
   background: var(--bg);
   color: var(--text);
 }
