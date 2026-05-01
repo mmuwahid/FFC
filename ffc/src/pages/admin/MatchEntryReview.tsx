@@ -30,6 +30,20 @@ type TeamColor = Database['public']['Enums']['team_color']
 type MatchEventType = Database['public']['Enums']['match_event_type']
 type MatchResult = Database['public']['Enums']['match_result']
 
+/* Supabase PostgrestError objects aren't instances of Error but expose a
+ * `.message` field. `String(e)` on a plain object renders "[object Object]",
+ * which is what the admin saw when approve_match_entry returned a PG error.
+ * Surface the real message instead. */
+function extractErrMessage(e: unknown): string {
+  if (e instanceof Error) return e.message
+  if (typeof e === 'object' && e !== null) {
+    const m = (e as { message?: unknown }).message
+    if (typeof m === 'string' && m.length > 0) return m
+  }
+  if (typeof e === 'string' && e.length > 0) return e
+  return 'Action failed. Please try again.'
+}
+
 type PendingEntryRow = Database['public']['Tables']['pending_match_entries']['Row']
 type PendingPlayerRow = Database['public']['Tables']['pending_match_entry_players']['Row']
 type PendingEventRow = Database['public']['Tables']['pending_match_events']['Row']
@@ -276,7 +290,7 @@ export function MatchEntryReview() {
       setApprovedScore({ white: finalWhite, black: finalBlack })
       setApprovedMatchId(matchId as string)
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : String(e))
+      setActionError(extractErrMessage(e))
     } finally {
       setSheetBusy(false)
     }
@@ -299,7 +313,7 @@ export function MatchEntryReview() {
       openSheet(null)
       navigate('/admin/matches')
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : String(e))
+      setActionError(extractErrMessage(e))
     } finally {
       setSheetBusy(false)
     }
@@ -317,7 +331,7 @@ export function MatchEntryReview() {
       openSheet(null)
       await loadAll(id)  // refresh event log
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : String(e))
+      setActionError(extractErrMessage(e))
     } finally {
       setSheetBusy(false)
     }
