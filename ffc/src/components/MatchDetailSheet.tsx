@@ -158,16 +158,28 @@ export function MatchDetailSheet({ matchId, profileId, onClose }: Props) {
       setMain(mainData)
       setRoster(((rosterRes.data ?? []) as unknown as RosterRow[]).filter(r => !r.is_no_show))
 
-      // matchday number — fetch all in season and index
+      // Game number — non-friendly matchday rank in the season + season's
+      // games_seeded offset (Season 11 has 30 historic games before app
+      // tracking started). Mirrors Matches.tsx and the share-PNG (mig
+      // 0067), so all three surfaces label the same match identically.
       if (mainData.matchday?.season_id) {
-        const { data: mds } = await supabase
-          .from('matchdays')
-          .select('id, kickoff_at')
-          .eq('season_id', mainData.matchday.season_id)
-          .order('kickoff_at', { ascending: true })
+        const [{ data: mds }, { data: seasonRow }] = await Promise.all([
+          supabase
+            .from('matchdays')
+            .select('id, kickoff_at, is_friendly')
+            .eq('season_id', mainData.matchday.season_id)
+            .eq('is_friendly', false)
+            .order('kickoff_at', { ascending: true }),
+          supabase
+            .from('seasons')
+            .select('games_seeded')
+            .eq('id', mainData.matchday.season_id)
+            .maybeSingle(),
+        ])
         if (!cancelled) {
           const idx = (mds ?? []).findIndex(md => md.id === mainData.matchday?.id)
-          setMatchdayNumber(idx >= 0 ? idx + 1 : null)
+          const seedOffset = seasonRow?.games_seeded ?? 0
+          setMatchdayNumber(idx >= 0 ? seedOffset + idx + 1 : null)
         }
       }
       setLoading(false)
@@ -287,7 +299,7 @@ export function MatchDetailSheet({ matchId, profileId, onClose }: Props) {
                   {main.matchday.venue ? ` · ${main.matchday.venue}` : ''}
                 </div>
                 <div>
-                  {matchdayNumber ? `Matchday ${matchdayNumber}` : ''}{matchdayNumber && main.season ? ' · ' : ''}{main.season?.name ?? ''}
+                  {matchdayNumber ? `Game ${matchdayNumber}` : ''}{matchdayNumber && main.season ? ' · ' : ''}{main.season?.name ?? ''}
                 </div>
               </div>
             )}
