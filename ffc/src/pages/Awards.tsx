@@ -292,7 +292,31 @@ export default function Awards() {
           )}
         </div>
       )}
-      {loading && <div className="aw-loading">Loading awards…</div>}
+      {loading && (
+        <div className="aw-skel" aria-label="Loading awards">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="aw-skel-hero">
+              <div className="aw-skel-trophy aw-skel-block" />
+              <div className="aw-skel-body">
+                <div className="aw-skel-label aw-skel-block" />
+                <div className="aw-skel-name aw-skel-block" />
+                <div className="aw-skel-meta aw-skel-block" />
+              </div>
+              <div className="aw-skel-avatar aw-skel-block" />
+            </div>
+          ))}
+          <div className="aw-skel-wall">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="aw-skel-wall-row">
+                <div className="aw-skel-block" />
+                <div className="aw-skel-block" />
+                <div className="aw-skel-block" />
+                <div className="aw-skel-block" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {!loading && season && winners.length === 0 && (
         <div className="aw-empty">
           <div className="aw-empty-trophy">🏆</div>
