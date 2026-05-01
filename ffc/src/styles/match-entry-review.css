@@ -347,3 +347,38 @@
   border-color: var(--accent);
   font-weight: 600;
 }
+
+/* Light-mode token override — Issue #43 */
+:root.theme-light .mer-screen {
+  --bg: #fdfbf5;
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-2: #f4f1e7;
+  --border: #e3dfd2;
+  --text: #0e1826;
+  --text-muted: #6b7280;
+  --accent: #c99a30;
+  --success: #1d8a60;
+  --warn: #9a6e20;
+  --warning: #9a6e20;
+  --danger: #c41c30;
+  --skel-a: rgba(14, 24, 38, 0.06);
+  --skel-b: rgba(14, 24, 38, 0.10);
+}
+
+@media (prefers-color-scheme: light) {
+  :root.theme-auto .mer-screen {
+    --bg: #fdfbf5;
+    --surface: rgba(255, 255, 255, 0.92);
+    --surface-2: #f4f1e7;
+    --border: #e3dfd2;
+    --text: #0e1826;
+    --text-muted: #6b7280;
+    --accent: #c99a30;
+    --success: #1d8a60;
+    --warn: #9a6e20;
+    --warning: #9a6e20;
+    --danger: #c41c30;
+    --skel-a: rgba(14, 24, 38, 0.06);
+    --skel-b: rgba(14, 24, 38, 0.10);
+  }
+}

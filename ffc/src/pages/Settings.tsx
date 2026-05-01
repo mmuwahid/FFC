@@ -10,6 +10,7 @@ import {
 } from '../lib/pushSubscribe'
 import { IosInstallPrompt } from '../components/IosInstallPrompt'
 import type { Database } from '../lib/database.types'
+import { applyThemeClass } from '../lib/theme'
 
 /* §3.16 Settings — Phase 1 Depth-B (S024 slice 4).
  * Five rows: Theme · Push · Positions · Display name · Account.
@@ -73,13 +74,6 @@ const PUSH_EVENTS: { key: keyof PushPrefs; label: string }[] = [
   { key: 'dropout_after_lock', label: 'Dropout after lock' },
 ]
 
-function applyThemeClass(theme: ThemePreference) {
-  const root = document.documentElement
-  root.classList.remove('theme-light', 'theme-dark', 'theme-auto')
-  if (theme === 'light') root.classList.add('theme-light')
-  else if (theme === 'dark') root.classList.add('theme-dark')
-  else root.classList.add('theme-auto')
-}
 
 function normalisePushPrefs(raw: unknown): PushPrefs {
   if (raw && typeof raw === 'object') {

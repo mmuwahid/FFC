@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
+import { applyThemeClass } from './theme'
 
 /* Plain-object Context per CLAUDE.md Rule #8 — no useMemo cascade.
  *
@@ -90,7 +91,7 @@ export function AppProvider({ children }: AppProviderProps) {
     setProfileLoading(true)
     supabase
       .from('profiles')
-      .select('id, role, reject_reason')
+      .select('id, role, reject_reason, theme_preference')
       .eq('auth_user_id', userId)
       .maybeSingle()
       .then(({ data, error }) => {
@@ -118,6 +119,7 @@ export function AppProvider({ children }: AppProviderProps) {
         } else if (data) {
           setProfileId(data.id)
           setRole(data.role as UserRole)
+          applyThemeClass(data.theme_preference ?? 'dark')
         } else {
           setProfileId(null)
           setRole(null)

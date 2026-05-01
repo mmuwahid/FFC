@@ -7607,3 +7607,109 @@ body.is-leaderboard-landscape .lb-table-grid {
   /* Stable header footprint regardless of avatar/bell loading state. */
   min-height: 48px;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Light-mode overrides — Issue #43
+ *
+ * All per-screen brand blocks hardcode dark CSS tokens so they win over
+ * :root.theme-light. These counterpart rules restore light values whenever
+ * html carries .theme-light. Same block also nested inside the theme-auto
+ * media query so System preference works identically.
+ *
+ * ch-root uses --ch-* prefix tokens and gets its own block below.
+ * mer-screen lives in match-entry-review.css and is overridden there.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+/* Standard screens (14 total) */
+:root.theme-light .po-screen,
+:root.theme-light .lb-screen,
+:root.theme-light .pf-screen,
+:root.theme-light .mt-screen,
+:root.theme-light .lr-screen,
+:root.theme-light .st-screen,
+:root.theme-light .aw-screen,
+:root.theme-light .rs-screen,
+:root.theme-light .py-screen,
+:root.theme-light .admin-players,
+:root.theme-light .admin-matches,
+:root.theme-light .as-root,
+:root.theme-light .ah-root {
+  --bg: #fdfbf5;
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-2: #f4f1e7;
+  --border: #e3dfd2;
+  --text: #0e1826;
+  --text-muted: #6b7280;
+  --accent: #c99a30;
+  --success: #1d8a60;
+  --warn: #9a6e20;
+  --warning: #9a6e20;
+  --danger: #c41c30;
+  --skel-a: rgba(14, 24, 38, 0.04);
+  --skel-b: rgba(14, 24, 38, 0.10);
+}
+
+/* CaptainHelper — uses --ch-* prefix */
+:root.theme-light .ch-root {
+  --ch-paper: #fdfbf5;
+  --ch-surface: rgba(255, 255, 255, 0.92);
+  --ch-surface-soft: rgba(255, 255, 255, 0.70);
+  --ch-surface-deep: rgba(244, 241, 231, 0.85);
+  --ch-ink: #0e1826;
+  --ch-ink-soft: rgba(14, 24, 38, 0.82);
+  --ch-ink-mute: rgba(14, 24, 38, 0.62);
+  --ch-ink-faint: rgba(14, 24, 38, 0.42);
+  --ch-border: rgba(14, 24, 38, 0.14);
+  --ch-border-strong: rgba(14, 24, 38, 0.28);
+  --ch-divider: rgba(14, 24, 38, 0.16);
+  --ch-warn-weak: rgba(154, 110, 32, 0.12);
+  --ch-warn-line: rgba(154, 110, 32, 0.40);
+  --ch-success-weak: rgba(29, 138, 96, 0.12);
+}
+
+/* System / auto theme — re-apply screen overrides when OS prefers light */
+@media (prefers-color-scheme: light) {
+  :root.theme-auto .po-screen,
+  :root.theme-auto .lb-screen,
+  :root.theme-auto .pf-screen,
+  :root.theme-auto .mt-screen,
+  :root.theme-auto .lr-screen,
+  :root.theme-auto .st-screen,
+  :root.theme-auto .aw-screen,
+  :root.theme-auto .rs-screen,
+  :root.theme-auto .py-screen,
+  :root.theme-auto .admin-players,
+  :root.theme-auto .admin-matches,
+  :root.theme-auto .as-root,
+  :root.theme-auto .ah-root {
+    --bg: #fdfbf5;
+    --surface: rgba(255, 255, 255, 0.92);
+    --surface-2: #f4f1e7;
+    --border: #e3dfd2;
+    --text: #0e1826;
+    --text-muted: #6b7280;
+    --accent: #c99a30;
+    --success: #1d8a60;
+    --warn: #9a6e20;
+    --warning: #9a6e20;
+    --danger: #c41c30;
+    --skel-a: rgba(14, 24, 38, 0.04);
+    --skel-b: rgba(14, 24, 38, 0.10);
+  }
+  :root.theme-auto .ch-root {
+    --ch-paper: #fdfbf5;
+    --ch-surface: rgba(255, 255, 255, 0.92);
+    --ch-surface-soft: rgba(255, 255, 255, 0.70);
+    --ch-surface-deep: rgba(244, 241, 231, 0.85);
+    --ch-ink: #0e1826;
+    --ch-ink-soft: rgba(14, 24, 38, 0.82);
+    --ch-ink-mute: rgba(14, 24, 38, 0.62);
+    --ch-ink-faint: rgba(14, 24, 38, 0.42);
+    --ch-border: rgba(14, 24, 38, 0.14);
+    --ch-border-strong: rgba(14, 24, 38, 0.28);
+    --ch-divider: rgba(14, 24, 38, 0.16);
+    --ch-warn-weak: rgba(154, 110, 32, 0.12);
+    --ch-warn-line: rgba(154, 110, 32, 0.40);
+    --ch-success-weak: rgba(29, 138, 96, 0.12);
+  }
+}
