@@ -1,18 +1,15 @@
 # FFC Todo
 
-## NEXT SESSION — S065
+## NEXT SESSION — S066
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected HEAD: `main` at `29c4986`. Live DB: 69 migrations. 0 open PRs · 0 open issues.
-- **S064 close (01/MAY/2026):** PR #49 merged — #43 light/dark mode all 15 screens + #48 awards view friendly/noshows fix (mig 0069). Both issues now closed.
+- Expected HEAD: `main` at `b5046fe`. Live DB: 69 migrations. 0 open PRs · 0 open issues.
+- **S065 close (01/MAY/2026):** NumberInput component shipped — fixed backspace UX on 13 numeric inputs across AdminMatches, AdminPlayers, MatchEntryReview. 1 commit `b5046fe`. No migrations.
 
-**S065 agenda — net-new features + live verification:**
+**S066 agenda — net-new features + live verification:**
 
-1. **Execute NumberInput plan (#3 from S063 backlog)** — spec + plan ready at:
-   - [docs/superpowers/specs/2026-05-01-number-input-component-design.md](docs/superpowers/specs/2026-05-01-number-input-component-design.md)
-   - [docs/superpowers/plans/2026-05-01-number-input-component.md](docs/superpowers/plans/2026-05-01-number-input-component.md)
-   - 5 tasks, 13 mechanical migrations across `AdminMatches.tsx`, `AdminPlayers.tsx`, `MatchEntryReview.tsx`. Use subagent-driven-development.
+1. ✅ ~~Execute NumberInput plan~~ — **DONE in S065** (`b5046fe`).
 
 2. **Brainstorm + spec — net-new features (mockup-first per Rule #1):**
    - [ ] **RefEntry live event-strip per-team split** (#8 in S063 backlog) — Option A picked: white/black columns + full-width row for halftime/fulltime/pause/resume/own-goal. Mockup pending.
