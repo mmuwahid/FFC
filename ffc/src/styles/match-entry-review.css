@@ -223,18 +223,17 @@
   min-height: 72px;
 }
 
-/* Action row (sticky bottom) */
+/* Action row — inline at the end of the document so the global
+ * .app-bottom-nav (also position:fixed at bottom:0, z-index:10) doesn't
+ * paint over it. The screen flows top→bottom: scores → timing → MOTM →
+ * aggregates → events → notes → Approve/Reject, which matches the
+ * admin's natural review order. .app-main already pads the bottom by
+ * calc(safe-bottom + 72px) to clear the bottom nav. */
 .mer-actions {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--bg);
-  border-top: 1px solid var(--border);
-  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+  margin-top: 12px;
 }
 .mer-action-btn {
   height: 48px;
