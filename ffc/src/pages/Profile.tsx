@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useApp } from '../lib/AppContext'
 import { MatchDetailSheet } from '../components/MatchDetailSheet'
 import type { Database } from '../lib/database.types'
+import { applyThemeClass } from '../lib/theme'
 import { AvatarSheet, compressImage } from './ProfileAvatarSheet'
 
 /* §3.14 Player Profile — Phase 1 Depth-B slice (S023).
@@ -771,11 +772,7 @@ export function Profile() {
     setEditTheme(val)
     if (!selfProfileId) return
     await supabase.from('profiles').update({ theme_preference: val }).eq('id', selfProfileId)
-    const root = document.documentElement
-    root.classList.remove('theme-light', 'theme-dark', 'theme-auto')
-    if (val === 'light') root.classList.add('theme-light')
-    else if (val === 'dark') root.classList.add('theme-dark')
-    else root.classList.add('theme-auto')
+    applyThemeClass(val)
   }
 
   async function handleSortChange(val: SortKey) {

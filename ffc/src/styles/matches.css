@@ -168,3 +168,44 @@
 .mt-icon-motm    { font-size: 10px; line-height: 1; color: #e5ba5b; }
 .mt-player-row--no-goal .mt-ps-goals { visibility: hidden; }
 .mt-player-empty { font-size: 11px; color: #3d4f65; font-style: italic; padding: 6px 10px; }
+
+/* Light-mode overrides for hardcoded card colors — Issue #43 */
+:root.theme-light .mt-card {
+  background: #ffffff;
+  border-color: rgba(14, 24, 38, 0.12);
+  color: #0e1826;
+}
+:root.theme-light .mt-card-banner {
+  background: rgba(0, 80, 200, 0.06);
+  border-bottom-color: rgba(0, 80, 200, 0.14);
+}
+:root.theme-light .mt-card-banner-title { color: #1a5bbf; }
+:root.theme-light .mt-card-banner-date  { color: #5c6b7a; }
+:root.theme-light .mt-splitc-half--white { background: rgba(14, 24, 38, 0.04); }
+:root.theme-light .mt-splitc-half--black { background: rgba(14, 24, 38, 0.08); }
+:root.theme-light .mt-splitc-team        { color: #3d4f65; }
+:root.theme-light .mt-score-box          { background: rgba(14, 24, 38, 0.06); }
+:root.theme-light .mt-score-num          { color: #0e1826; }
+:root.theme-light .mt-player-empty       { color: #7a8fa5; }
+:root.theme-light .mt-icon-injury        { color: #b07040; }
+
+@media (prefers-color-scheme: light) {
+  :root.theme-auto .mt-card {
+    background: #ffffff;
+    border-color: rgba(14, 24, 38, 0.12);
+    color: #0e1826;
+  }
+  :root.theme-auto .mt-card-banner {
+    background: rgba(0, 80, 200, 0.06);
+    border-bottom-color: rgba(0, 80, 200, 0.14);
+  }
+  :root.theme-auto .mt-card-banner-title { color: #1a5bbf; }
+  :root.theme-auto .mt-card-banner-date  { color: #5c6b7a; }
+  :root.theme-auto .mt-splitc-half--white { background: rgba(14, 24, 38, 0.04); }
+  :root.theme-auto .mt-splitc-half--black { background: rgba(14, 24, 38, 0.08); }
+  :root.theme-auto .mt-splitc-team        { color: #3d4f65; }
+  :root.theme-auto .mt-score-box          { background: rgba(14, 24, 38, 0.06); }
+  :root.theme-auto .mt-score-num          { color: #0e1826; }
+  :root.theme-auto .mt-player-empty       { color: #7a8fa5; }
+  :root.theme-auto .mt-icon-injury        { color: #b07040; }
+}
