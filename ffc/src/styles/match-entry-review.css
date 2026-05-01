@@ -119,41 +119,48 @@
 .mer-timing-row dd { margin: 0; font-variant-numeric: tabular-nums; }
 
 /* Player grid (read-only in 2B-F) */
-.mer-team-block {
-  margin-bottom: 14px;
+/* Side-by-side WHITE | BLACK columns; vertical divider between them.
+ * Only stats with a non-zero value render — see PlayerRow JSX. */
+.mer-pa-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
+.mer-team-block { /* per-team column inside .mer-pa-grid */ }
+.mer-team-block + .mer-team-block { border-left: 1px solid var(--border); padding-left: 12px; }
 .mer-team-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   margin-bottom: 6px;
 }
 .mer-team-head--white .mer-team-name::before { content: 'WHITE · '; color: var(--text-muted); font-weight: 400; }
 .mer-team-head--black .mer-team-name::before { content: 'BLACK · '; color: var(--text-muted); font-weight: 400; }
 .mer-player-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto auto auto;
-  gap: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   padding: 6px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 14px;
-  align-items: center;
+  font-size: 13px;
+  min-height: 28px;
 }
 .mer-player-row:last-child { border-bottom: none; }
-.mer-player-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mer-player-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.mer-player-stats { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .mer-player-stat {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-size: 12px;
-  color: var(--text-muted);
+  gap: 2px;
+  font-size: 11px;
+  color: var(--text);
   font-variant-numeric: tabular-nums;
-  min-width: 28px;
-  justify-content: flex-end;
+  white-space: nowrap;
 }
-.mer-player-stat--motm { color: var(--accent); }
+.mer-player-stat--motm { color: var(--accent); font-size: 13px; }
 
 /* Event log */
 .mer-events-list {

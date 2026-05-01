@@ -518,17 +518,19 @@ export function MatchEntryReview() {
       {/* Per-player grid (read-only in 2B-F) */}
       <div className="mer-card">
         <h2 className="mer-section-label">Player aggregates</h2>
-        <div className="mer-team-block mer-team-head--white">
-          <div className="mer-team-head"><span className="mer-team-name">{whitePlayers.length} on roster</span></div>
-          {whitePlayers.map((p) => (
-            <PlayerRow key={p.id} row={p} profiles={profilesById} guests={guestsById} />
-          ))}
-        </div>
-        <div className="mer-team-block mer-team-head--black">
-          <div className="mer-team-head"><span className="mer-team-name">{blackPlayers.length} on roster</span></div>
-          {blackPlayers.map((p) => (
-            <PlayerRow key={p.id} row={p} profiles={profilesById} guests={guestsById} />
-          ))}
+        <div className="mer-pa-grid">
+          <div className="mer-team-block mer-team-head--white">
+            <div className="mer-team-head"><span className="mer-team-name">{whitePlayers.length} on roster</span></div>
+            {whitePlayers.map((p) => (
+              <PlayerRow key={p.id} row={p} profiles={profilesById} guests={guestsById} />
+            ))}
+          </div>
+          <div className="mer-team-block mer-team-head--black">
+            <div className="mer-team-head"><span className="mer-team-name">{blackPlayers.length} on roster</span></div>
+            {blackPlayers.map((p) => (
+              <PlayerRow key={p.id} row={p} profiles={profilesById} guests={guestsById} />
+            ))}
+          </div>
         </div>
       </div>
 
@@ -679,13 +681,27 @@ function PlayerRow({
   const name = row.profile_id
     ? (profiles.get(row.profile_id)?.display_name ?? '—')
     : (guests.get(row.guest_id ?? '')?.display_name ?? '—')
+  // Suppress zero-stat icons — only show what actually happened.
+  const hasGoals = row.goals > 0
+  const hasYellow = row.yellow_cards > 0
+  const hasRed = row.red_cards > 0
   return (
     <div className="mer-player-row">
       <span className="mer-player-name">{name}</span>
-      <span className="mer-player-stat" title="Goals">⚽ {row.goals}</span>
-      <span className="mer-player-stat" title="Yellows">🟨 {row.yellow_cards}</span>
-      <span className="mer-player-stat" title="Reds">🟥 {row.red_cards}</span>
-      <span className={`mer-player-stat${row.is_motm ? ' mer-player-stat--motm' : ''}`} title="MOTM">{row.is_motm ? '⭐' : ''}</span>
+      <span className="mer-player-stats">
+        {row.is_motm && (
+          <span className="mer-player-stat mer-player-stat--motm" title="MOTM">⭐</span>
+        )}
+        {hasGoals && (
+          <span className="mer-player-stat" title="Goals">⚽ {row.goals}</span>
+        )}
+        {hasYellow && (
+          <span className="mer-player-stat" title="Yellows">🟨 {row.yellow_cards}</span>
+        )}
+        {hasRed && (
+          <span className="mer-player-stat" title="Reds">🟥 {row.red_cards}</span>
+        )}
+      </span>
     </div>
   )
 }
