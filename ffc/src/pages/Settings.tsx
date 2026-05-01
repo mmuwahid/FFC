@@ -328,7 +328,34 @@ export function Settings() {
     navigate('/login', { replace: true })
   }
 
-  if (loading) return <div className="st-loading">Loading&hellip;</div>
+  if (loading) return (
+    <div className="st-screen">
+      <button type="button" className="st-back" aria-label="Back" disabled>‹ Back</button>
+      <h1 className="st-title">Settings</h1>
+      <div className="st-skel" aria-label="Loading settings">
+        <div className="st-skel-tile app-skel-block" />
+        <div className="st-skel-section">
+          <div className="st-skel-line-lg app-skel-block" />
+          <div className="st-skel-line-md app-skel-block" />
+          <div className="st-skel-line-sm app-skel-block" />
+        </div>
+        <div className="st-skel-section">
+          <div className="st-skel-row">
+            <div className="st-skel-line-md app-skel-block" />
+            <div className="st-skel-toggle app-skel-block" />
+          </div>
+          <div className="st-skel-row">
+            <div className="st-skel-line-md app-skel-block" />
+            <div className="st-skel-toggle app-skel-block" />
+          </div>
+          <div className="st-skel-row">
+            <div className="st-skel-line-md app-skel-block" />
+            <div className="st-skel-toggle app-skel-block" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
   if (error) return <div className="st-error">{error}</div>
   if (!profile) return <div className="st-error">No profile found.</div>
 

@@ -248,7 +248,11 @@ export function AdminSeasons() {
       )}
 
       {loading ? (
-        <div className="as-loading">Loading seasons…</div>
+        <div className="as-skel" aria-label="Loading seasons">
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} className="as-skel-row app-skel-block" />
+          ))}
+        </div>
       ) : sortedSeasons.length === 0 ? (
         <div className="as-empty">
           <h3>No seasons yet</h3>

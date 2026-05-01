@@ -198,7 +198,18 @@ export function AdminPlayers() {
       )}
 
       {loading ? (
-        <div className="app-loading">Loading…</div>
+        <div className="ap-skel" aria-label="Loading players">
+          {[0, 1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="ap-skel-row">
+              <div className="ap-skel-avatar app-skel-block" />
+              <div className="ap-skel-body">
+                <div className="ap-skel-name app-skel-block" />
+                <div className="ap-skel-meta app-skel-block" />
+              </div>
+              <div className="ap-skel-pill app-skel-block" />
+            </div>
+          ))}
+        </div>
       ) : tab === 'pending' ? (
         <PendingList
           rows={pending}

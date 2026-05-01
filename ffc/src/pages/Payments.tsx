@@ -172,7 +172,16 @@ export default function Payments() {
       )}
 
       {loading ? (
-        <div className="py-loading">Loading…</div>
+        <div className="py-skel" aria-label="Loading payments">
+          <div className="py-skel-summary">
+            <div className="py-skel-sbox app-skel-block" />
+            <div className="py-skel-sbox app-skel-block" />
+            <div className="py-skel-sbox app-skel-block" />
+          </div>
+          {[0, 1, 2, 3, 4].map(i => (
+            <div key={i} className="py-skel-card app-skel-block" />
+          ))}
+        </div>
       ) : (
         <>
           {/* Summary strip */}

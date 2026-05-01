@@ -5987,6 +5987,69 @@ body.is-leaderboard-landscape .lb-table-grid {
 
 .aw-heroes { padding: 0; }
 
+/* S062 — shared shimmer base for cross-screen skeletons. Per-screen classes
+ * declare dimensions only; this class supplies the animation + neutral tint. */
+.app-skel-block {
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.10) 50%,
+    rgba(255, 255, 255, 0.04) 100%);
+  background-size: 200% 100%;
+  animation: app-skel-shimmer 1.5s linear infinite;
+  border-radius: 4px;
+}
+@keyframes app-skel-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Settings skeleton */
+.st-skel { padding: 0 16px; display: flex; flex-direction: column; gap: 12px; }
+.st-skel-tile { height: 84px; border-radius: 12px; }
+.st-skel-section {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.st-skel-line-lg { height: 16px; width: 55%; }
+.st-skel-line-md { height: 13px; width: 75%; }
+.st-skel-line-sm { height: 11px; width: 40%; }
+.st-skel-toggle { height: 26px; width: 46px; border-radius: 13px; }
+.st-skel-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+
+/* Payments skeleton */
+.py-skel { padding: 0 16px; display: flex; flex-direction: column; gap: 10px; }
+.py-skel-summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.py-skel-sbox { height: 64px; border-radius: 10px; }
+.py-skel-card { height: 56px; border-radius: 12px; }
+
+/* AdminPlayers skeleton */
+.ap-skel { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+.ap-skel-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.ap-skel-avatar { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; }
+.ap-skel-body { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.ap-skel-name { height: 14px; width: 55%; }
+.ap-skel-meta { height: 11px; width: 75%; }
+.ap-skel-pill { width: 56px; height: 22px; border-radius: 11px; flex-shrink: 0; }
+
+/* AdminMatches skeleton */
+.am-skel { padding: 0 16px; display: flex; flex-direction: column; gap: 10px; }
+.am-skel-card { height: 88px; border-radius: 12px; }
+
+/* AdminSeasons skeleton */
+.as-skel { padding: 0 16px; display: flex; flex-direction: column; gap: 10px; }
+.as-skel-row { height: 96px; border-radius: 10px; }
+
 .aw-hero {
   margin: 0 16px 12px;
   background: linear-gradient(135deg, rgba(229, 186, 91, 0.16) 0%, rgba(229, 186, 91, 0.04) 50%, transparent 100%);

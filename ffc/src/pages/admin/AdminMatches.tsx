@@ -356,7 +356,11 @@ export function AdminMatches() {
       )}
 
       {loading ? (
-        <div className="app-loading">Loading…</div>
+        <div className="am-skel" aria-label="Loading matches">
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} className="am-skel-card app-skel-block" />
+          ))}
+        </div>
       ) : byBucket[seg].length === 0 ? (
         <div className="admin-empty">
           <div className="admin-empty-icon" aria-hidden>∅</div>
