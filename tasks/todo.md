@@ -43,7 +43,7 @@
    - [x] **HIGH** — Border-radius tokens `--radius-sm/md/lg/pill` defined in `:root` (S062 `b65da7a`). No bulk replacement — new CSS uses tokens going forward.
    - [x] **HIGH** — Global `:focus-visible` ring shipped (S062 `b65da7a`).
    - [x] **HIGH** — Awards screen shimmer skeleton replacing plain loading text (S062 `b65da7a`).
-   - [ ] **HIGH** — Skeleton-row coverage remaining: Settings, AdminPlayers, AdminMatches, AdminSeasons, Payments (Awards done S062). Poll + Profile + Leaderboard + Matches already have skeletons.
+   - [x] **HIGH** — Skeleton-row coverage complete (S062 `229d5e8`): Settings, Payments, AdminPlayers, AdminMatches, AdminSeasons all shipped with shared `.app-skel-block` shimmer base. Poll + Profile + Leaderboard + Matches + Awards already had screen-specific skeletons. AdminHome / Rules / Auth screens don't load data.
    - [ ] **POLISH** (single design-system sprint): state-flip transitions (Poll voting → locked → revealed; tab switches; season picker), hover/active feedback on cards (`transform: scale(0.98)` on `:active`), typography scale tokens (10/11/13/15/18/22), brand-colour tokenisation (some `.po-row--team-white` etc still hardcode), padding-top unification across screens that suppress AppTopBar, 4pt spacing grid enforcement.
 
 5. **Optional / follow-up:**
