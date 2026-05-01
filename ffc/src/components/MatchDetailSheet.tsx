@@ -273,10 +273,11 @@ export function MatchDetailSheet({ matchId, profileId, onClose }: Props) {
               </div>
             )}
 
-            {/* WHITE roster */}
-            <RosterSection team="white" rows={white} score={main.score_white} motmProfileId={main.motm_user_id} motmGuestId={main.motm_guest_id} />
-            {/* BLACK roster */}
-            <RosterSection team="black" rows={black} score={main.score_black} motmProfileId={main.motm_user_id} motmGuestId={main.motm_guest_id} />
+            {/* Roster — side-by-side WHITE | BLACK columns */}
+            <div className="md-rosters-grid">
+              <RosterSection team="white" rows={white} score={main.score_white} motmProfileId={main.motm_user_id} motmGuestId={main.motm_guest_id} />
+              <RosterSection team="black" rows={black} score={main.score_black} motmProfileId={main.motm_user_id} motmGuestId={main.motm_guest_id} />
+            </div>
 
             {/* Footer meta */}
             {main.matchday && (
@@ -358,9 +359,9 @@ function RosterSection({
   motmGuestId: string | null
 }) {
   return (
-    <div className="md-section">
+    <div className={`md-section md-section--${team}`}>
       <div className="md-section-head">
-        <span className={`md-section-title md-section-${team}`}>{team.toUpperCase()}</span>
+        <span className={`md-section-title md-section-${team}`}>{team.toUpperCase()} TEAM</span>
         <span className="md-section-score">{score}</span>
       </div>
       {rows.length === 0 ? (

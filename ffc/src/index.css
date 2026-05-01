@@ -2937,43 +2937,72 @@ textarea.auth-input {
   background: var(--surface-2); color: var(--text-muted);
 }
 
-/* Roster section */
-.md-section { padding: 6px 0 4px; }
+/* Roster — side-by-side WHITE | BLACK columns. Section heads read
+ * "WHITE TEAM 2" / "BLACK TEAM 5" with light/dark dot prefix; the
+ * vertical gap between columns gives clear visual separation. */
+.md-rosters-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 6px 0 4px;
+}
+.md-section {
+  min-width: 0; /* allow column to shrink so names ellipsis cleanly */
+}
+.md-section--white .md-section-head {
+  background: linear-gradient(180deg, rgba(244,237,226,0.10), rgba(244,237,226,0.02));
+  border-bottom: 1px solid rgba(244,237,226,0.18);
+}
+.md-section--black .md-section-head {
+  background: linear-gradient(180deg, rgba(11,18,32,0.45), rgba(11,18,32,0.10));
+  border-bottom: 1px solid rgba(133,146,159,0.22);
+}
 .md-section-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 20px 8px;
+  padding: 10px 12px;
+  margin-bottom: 4px;
 }
 .md-section-title {
-  font-size: 10px; font-weight: 800; letter-spacing: 0.14em;
-  color: var(--text-muted);
+  font-size: 10px; font-weight: 800; letter-spacing: 0.12em;
+  color: var(--text);
 }
+.md-section--white .md-section-title { color: #f4ede2; }
+.md-section--black .md-section-title { color: #c7d0df; }
 .md-section-white::before { content: '● '; color: #e7ddc1; }
 .md-section-black::before { content: '● '; color: #85929f; }
 .md-section-score {
   font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-weight: 700; font-size: 14px; color: var(--text);
+  font-weight: 800; font-size: 16px; color: var(--text);
 }
 .md-section-empty {
-  padding: 10px 20px; font-size: 12px; color: var(--text-muted); font-style: italic;
+  padding: 10px 12px; font-size: 11px; color: var(--text-muted); font-style: italic;
 }
 
+/* Side-by-side layout means each column is narrow (~50% sheet width).
+ * Switch row to flex with the avatar on the left, name + meta on a
+ * second row so positions + stats can sit on the same line as the
+ * name when there's room, or wrap below cleanly. */
 .md-row {
-  display: grid;
-  grid-template-columns: 36px 1fr auto auto;
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  padding: 8px 20px;
+  gap: 4px 6px;
+  padding: 6px 12px;
+}
+.md-row-body { flex: 1 1 auto; min-width: 0; }
+.md-row-positions, .md-row-stats {
+  flex: 0 0 auto;
 }
 .md-row-guest { opacity: 0.88; }
 .md-avatar {
-  width: 36px; height: 36px; border-radius: 10px;
+  width: 28px; height: 28px; border-radius: 8px;
   display: grid; place-items: center;
   background: var(--surface-2); color: var(--text);
-  font-size: 12px; font-weight: 700;
+  font-size: 11px; font-weight: 700;
+  flex-shrink: 0;
 }
 .md-avatar-guest { background: rgba(229, 186, 91, 0.25); color: #b8860b; }
-.md-row-body { min-width: 0; }
-.md-row-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.md-row-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .md-cap {
   font-size: 10px; font-weight: 800; letter-spacing: 0.05em;
   color: var(--accent); margin-right: 4px;
