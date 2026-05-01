@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import type { Json } from '../lib/database.types'
+import type { Database, Json } from '../lib/database.types'
 import { useMatchSession, type RefMatchdayPayload } from '../lib/useMatchSession'
 import { useMatchClock, type ClockState, type MatchEvent } from '../lib/useMatchClock'
 import { REGULATION_HALF_MINUTES, MAX_STOPPAGE_SOFT_LIMIT_SECONDS } from '../lib/refConsoleConstants'
@@ -658,7 +658,16 @@ function ReviewConsole({ payload, clock, token, sessionStorageKey, refName, inju
       }
       onSubmitted()
     } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : 'Submit failed. Tap SUBMIT again.')
+      // Supabase PostgrestError objects aren't instances of Error but expose
+      // a `.message` field. Surface it directly so the ref sees the real
+      // failure cause (e.g. enum cast errors) instead of the generic toast.
+      const msg =
+        e instanceof Error
+          ? e.message
+          : (typeof e === 'object' && e !== null && 'message' in e && typeof (e as { message: unknown }).message === 'string')
+            ? (e as { message: string }).message
+            : 'Submit failed. Tap SUBMIT again.'
+      setSubmitError(msg)
       setSubmitBusy(false)
     }
   }
@@ -893,8 +902,10 @@ interface SubmitEvent {
   ordinal: number
 }
 
+type MatchResultEnum = Database['public']['Enums']['match_result']
+
 interface SubmitPayload {
-  result: 'white' | 'black' | 'draw'
+  result: MatchResultEnum
   score_white: number
   score_black: number
   notes: string | null
@@ -984,8 +995,15 @@ function buildSubmitPayload(
   const trimmedNotes = notes.trim()
 
   const trimmedRef = refName.trim()
+  // RefEntry tracks the winner as a UI-friendly 'white' | 'black' | 'draw'
+  // (drives css class names + side highlight). The DB enum is win_white /
+  // win_black / draw, so translate at the boundary. Sending the bare
+  // 'white' / 'black' value caused submit_ref_entry to fail the
+  // `(p_payload->>'result')::match_result` cast (PG 22P02). S063 fix.
+  const result: MatchResultEnum =
+    winner === 'white' ? 'win_white' : winner === 'black' ? 'win_black' : 'draw'
   return {
-    result: winner,
+    result,
     score_white: state.score_white,
     score_black: state.score_black,
     notes: trimmedNotes === '' ? null : trimmedNotes,
