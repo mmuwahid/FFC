@@ -52,10 +52,7 @@ The original prose-heavy lessons (S008–S049) are archived at [`_archive/lesson
   - View projection: `pg_views.definition` or `information_schema.columns WHERE table_name='v_X'`
 - **Schema-drift check applies to enum VALUES** too — even when a sister enum makes the value space look "obvious." `match_result` is `'win_white'|'win_black'|'draw'` (S046).
 - **Generate migration DDL for REVOKE/GRANT programmatically from `pg_proc`**, not by hand-typing from prior migrations. Function signatures evolve (`ban_player` 2→3 arg, `admin_submit_match_result` arg-order change).
-- **`CREATE OR REPLACE FUNCTION` cannot change arg defaults or add parameters** — DROP + CREATE required (re-GRANT EXECUTE after).
-- **`CREATE OR REPLACE VIEW` requires identical column signature** — body can change freely (e.g. add `WHERE pr.deleted_at IS NULL` predicate) without rebuilding dependents.
 - **`log_admin_action` is 4-arg** `(target_entity, target_id, action, payload)` — admin derived internally via `current_profile_id()`. Don't pass admin id.
-- **Audit BEFORE destructive update / DELETE** — audit row needs to survive even if destructive path rolls back (S034 `delete_season`, S049 `delete_my_account`).
 - **`admin_audit_log` columns:** `target_entity`, `target_id`, `payload_jsonb` (NOT `target_table`). See `docs/admin-audit-sql.md`.
 - **`edit_match_result` is narrow** — score/result/MOTM/notes only, requires `approved_at IS NOT NULL`, no nested `players`. Use `edit_match_players` for per-player post-approval edits.
 - **`bans` live on `public.player_bans`** (`profile_id`, `starts_at`, `ends_at`, `revoked_at`) — NOT a column on profiles. `rejected` lives on `profiles.role`. `inactive` on `profiles.is_active=false`.
@@ -70,19 +67,13 @@ The original prose-heavy lessons (S008–S049) are archived at [`_archive/lesson
 
 ## TypeScript + Supabase RPC typing (S028, S045, S051)
 - **Vercel builds with `tsc -b` (project refs)** — stricter than local `tsc --noEmit`. Run `node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build` before pushing. Catches TS6133 unused vars + stricter generated RPC arg types.
-- **Optional RPC args: conditional spread, never `null`.** `...(x ? { p_field: x } : {})` matches generated `T | undefined`. Never `null as unknown as null` (silences local but fails strict build). RPC args that should be nullable need `DEFAULT NULL` in PL/pgSQL or generator marks them required.
-- **`as unknown as Json` for jsonb RPC args** — Supabase generated `Json` carries an index signature `[k: string]: Json | undefined` that hand-written interfaces lack.
 - **Defensive `??`-normalisation when persisted-state shape evolves** — adding a field deserialises legacy state with `undefined`; normalise every field in the read path rather than version-bumping.
 - **Allocate `ArrayBuffer` explicitly when typing-strict TS demands `Uint8Array<ArrayBuffer>`** — default `new Uint8Array(n)` returns the looser `Uint8Array<ArrayBufferLike>` (which can be `SharedArrayBuffer`); lib.dom strict typings on PushManager.subscribe.applicationServerKey and other `BufferSource`-strict APIs reject it. Pattern: `const buf = new ArrayBuffer(n); const view = new Uint8Array(buf);`.
 
 ## Auth + signup flow (S019–S020, S038)
 - **Supabase "Confirm email" must stay OFF for FFC Phase 1** (admin approval is the gate). Flipping ON re-breaks `Signup.tsx` Stage 1 silent-stuck — `signUp()` returns `session: null`, `onAuthStateChange` never fires. Fix the inbox-handler before flipping.
-- **Terminal roles auto-`signOut`** in `AppContext.tsx` — not just render flag. Pattern: stash sessionStorage message → signOut → `window.location.replace('/login?err=<code>')`. Hard redirect beats `navigate()` — bypasses onAuthStateChange races. Apply to `rejected`, `banned`, `suspended`, `session_expired`.
-- **Test emails: `m.muwahid+s###<role>@gmail.com`** — Supabase email validator rejects `example.com` and throwaway domains; Gmail `+tag` aliases pass and forward to main inbox.
 - **OAuth ghost-claim flow already exists** — `Signup.tsx` Stage 2 ghost-picker + `pending_signups.claim_profile_hint` + `approve_signup(p_pending_id, p_claim_profile_id)`. For OAuth users with no pending row, route HomeRoute → `<Navigate to="/signup" />` so Signup self-derives the right stage.
 - **Read existing code before designing the fix** — when reporting a bug in code untouched in days, read end-to-end first. S038 P2 plan was a full feature build; reading revealed 80% already shipped, final fix was 3 routing edits.
-- **Multi-statement SQL via Supabase CLI requires `DO $$ BEGIN … END $$`** — `db query --linked "UPDATE ...; UPDATE ...;"` errors out.
-- **Supabase Google OAuth consent screen shows backend domain** (`hylarwwsedjxwavuwjrn.supabase.co`) — Pro custom domain ($25/mo) is the only fix. Add logo on Google Branding page; URL string stays.
 
 ## Vercel deploy + verification (S015–S020)
 - **`vercel.json` SPA catch-all rewrite** — every Vite SPA needs `{"rewrites":[{"source":"/(.*)","destination":"/"}]}` from day one. Static assets (`/sw.js`, `/manifest.webmanifest`) take precedence automatically.
@@ -114,17 +105,12 @@ The original prose-heavy lessons (S008–S049) are archived at [`_archive/lesson
 - **`visibilitychange + focus` is a 5-line stale-data antidote for SPA tabs (S052).** When a tab's data dependency is implicit ("I'll see fresh data on next mount") but mount triggers don't fire on navigation between persistent route children, subscribe to `document.visibilitychange` + `window.focus` and re-trigger your loader. Combine with realtime subs to cover both tab-return AND mid-screen mutation.
 - **Back-compat alias when refactoring a component into a more general shape (S052).** When a component grows tabs/options and gets renamed (e.g. `IosInstallPrompt` → `InstallPrompt`), keep the original name as a thin wrapper — `export const IosInstallPrompt = (p) => <InstallPrompt {...p} initialTab="ios"/>` — so existing call sites stay untouched.
 - **Scroll-to-top on route mount needs both `window` AND `#root` scroll (S052).** When the app shell uses `#root` as the scroll container (CSS `overflow: auto` on `#root`), `window.scrollTo(0,0)` alone doesn't reset it. Pattern: `window.scrollTo(0,0); document.getElementById('root')?.scrollTo?.(0,0)`.
-- **`router.tsx` ≠ `App.tsx` — FFC routes are `createBrowserRouter` object literals (S053).** New screens add their entry as `{ path: 'awards', element: <Awards /> }` inside the `RoleLayout` children array, NOT as `<Route>` JSX. Plans referencing `<Route path=…>` should be auto-corrected when the implementer reads the actual file. The App.tsx file is just `<RouterProvider router={router} />`.
-- **`tsconfig.app.json` has BOTH `noUnusedLocals: true` AND `noUnusedParameters: true` (S053).** Skeleton commits that "pre-declare state for future tasks" won't compile. Pattern when implementing a multi-task scaffold: drop the unused symbols in the skeleton commit + comment-block document what later tasks must re-add + delete the comment block when the symbols come back.
 - **Defensive `as` cast in skeletons is a code smell (S053).** When `(season as SeasonRow).name` creeps in to keep an unused interface alive against `noUnusedLocals`, you're either dropping a real symbol you should keep OR you should temporarily delete the interface. Don't fight the linter with casts.
 - **Per-screen brand tokens declared at scope-root (S053).** `.aw-screen` declares `--gold`, `--gold-bright`, `--gold-deep`, `--bg`, `--surface`, `--surface-2`, `--text`, `--text-muted`, `--line`, `--line-strong` — downstream rules use `var(--gold)` etc. Generalises CLAUDE.md per-screen brand convention to new screens.
 - **A/B style preview as low-cost de-risk (S053).** When style-feel matters and the spec is silent, ship a 2-frame A/B thumbnail file before committing to a single direction. User picks elements from each ("mix elements from both, header from A, Wall of Fame from B"). Reusable any time a single mockup attempt could miss for unspecified style reasons.
 
 ## Realtime + Edge Functions (S030, S048, S049, S051)
-- **`ALTER PUBLICATION supabase_realtime ADD TABLE`** required before `postgres_changes` fires. Verify via `pg_publication_tables`. Filter supports ONE column; secondary filters apply client-side.
-- **Migration 0012 DEFAULT PRIVILEGES covers `authenticated` only, NOT `service_role`.** Any new table that needs Edge Function (service_role) DML access must emit explicit `GRANT … TO service_role` in the same migration.
 - **Two-bearer Edge Function auth** — `Authorization: Bearer <legacy-jwt>` for the Functions gateway + `X-<custom>-Secret` for function-internal caller-auth. Decouples function from Supabase's `sb_secret_*` vs legacy-JWT key model.
-- **Supabase auth-key dual model trap** — `Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')` returns `sb_secret_*` (length 41); the Functions gateway and `supabase-js` `createClient` both need legacy JWT. Maintain a separate `LEGACY_SERVICE_ROLE_JWT` env var.
 - **Vault paste-artifact verification** — `SELECT length, substring(., 1, 5) FROM vault.decrypted_secrets WHERE name = ?` after every secret create/update.
 - **Two-layer defense for SECURITY DEFINER RPCs** — Layer 1: helper-function NULL safety (`COALESCE(is_admin(), false)`). Layer 2: `REVOKE EXECUTE FROM PUBLIC` + `GRANT EXECUTE TO authenticated`. Either alone shuts out anon; both together survive helper bugs and signature regressions.
 - **base64url tokens via `gen_random_bytes` + 3 `replace()` calls** (URL-safe vs Postgres `encode(..., 'base64')` which produces `+`/`/`/`=`).
