@@ -4,7 +4,7 @@
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected HEAD: `main` at `<S067 close commit>`. Live DB: 69 migrations. 0 open PRs · 0 open issues.
+- Expected HEAD: `main` at `9e4cb8a` (or its descendant). Live DB: 69 migrations. 0 open PRs · 0 open issues.
 - **S066 close (04/MAY/2026, AM):** Token-efficiency audit shipped (closes #50). 3 chore commits `f6c674b..609ca3a`. ~72K tokens saved per session start. Active working set 359 KB → 79 KB. Session log backfilled in S067.
 - **S067 close (04/MAY/2026, PM):** Injury / Unavailable list — design spec + 12-task implementation plan written. No code. Spec at `docs/superpowers/specs/2026-05-04-injury-unavailable-design.md`. Plan at `docs/superpowers/plans/2026-05-04-injury-unavailable.md`. H2H comparison decomposed into a follow-up spec/plan.
 
