@@ -62,57 +62,23 @@ FFC/
 13. **Git repo temp clone path on Windows:** full path `C:/Users/UNHOEC03/AppData/Local/Temp/FFC`. Never use `/tmp/` inside Node `fs` calls — it resolves to `C:\tmp\` incorrectly.
 
 ## Cross-PC protocol
-Working across work PC (`UNHOEC03`) and home PC (`User`).
-- **OneDrive IS the main working tree.** Path: `C:/Users/UNHOEC03/OneDrive - United Engineering Construction/11 - AI & Digital/Works In Progress/FFC/`. Edit files here directly.
-- **Separate-git-dir architecture** — `.git/` lives OUTSIDE OneDrive, one per PC. Work PC: `C:/Users/UNHOEC03/FFC-git/`. Home PC: `C:/Users/User/FFC-git/`. The OneDrive `.git` file is a text pointer (`gitdir: <path>`) that must be rewritten on each PC. OneDrive syncs the pointer across PCs so it needs updating whenever you switch machines.
-- **Sync via git, not OneDrive file sync.** Authoritative state is `origin/main`.
-- **Git identity for FFC commits:** `git -c user.name="Mohammed Muwahid" -c user.email="m.muwahid@gmail.com"` (repo-local config already set on both PCs).
-- **Windows `gitdir:` pointer must use forward slashes.** Example on work PC: `gitdir: C:/Users/UNHOEC03/FFC-git`.
+Work PC = `UNHOEC03`, home PC = `User`. OneDrive holds working tree; `.git/` is external per-PC at `C:/Users/<user>/FFC-git/` (forward slashes); authoritative state is `origin/main`. The OneDrive `.git` is a text pointer rewritten when switching PCs. Git identity: `git -c user.name="Mohammed Muwahid" -c user.email="m.muwahid@gmail.com"` (repo-local config already set on both PCs).
 
-### Session-start sync protocol (MANDATORY — run before any work)
-Every session must begin with this check to detect cross-PC lag (OneDrive may have synced working-tree files from the other PC while local `.git/` stayed at an older HEAD).
+### Session-start sync (MANDATORY — run before any work)
+1. `echo $USERNAME` → confirm PC.
+2. `cat FFC/.git` → ensure `gitdir: C:/Users/<this-pc-username>/FFC-git` (forward slashes).
+3. `git fetch && git status -sb && git log --oneline -5 && git rev-parse --abbrev-ref HEAD`.
+4. **Branch check:** if NOT on `main` AND `git log --oneline HEAD..origin/main | wc -l` > 5 → STOP, ask user before any work.
+5. **Working tree:**
+   - Clean + up-to-date → proceed.
+   - Modifications match `git diff HEAD origin/main --stat` → cross-PC lag: `git stash push --include-untracked -m "<pc>-sync-s###" && git pull --ff-only && git stash drop`.
+   - Genuinely uncommitted local work (NOT on `origin/main`) → ask user.
+6. Announce PC + branch + HEAD in the session briefing.
 
-1. **Detect which PC** — `echo $USERNAME`. Work PC = `UNHOEC03`, Home PC = `User`.
-2. **Fix the `.git` pointer** — read `FFC/.git`; it must say `gitdir: C:/Users/<this-pc-username>/FFC-git`. Forward slashes only.
-3. **Fetch + inspect** — `git fetch` then `git status -sb` and `git log --oneline -5`.
-4. **Branch check (NEW — prevents stale-branch disaster):**
-   - Run `git rev-parse --abbrev-ref HEAD` to see the current branch.
-   - If NOT on `main`: run `git log --oneline origin/main..HEAD` (our unique commits) AND `git log --oneline HEAD..origin/main | wc -l` (how far behind main we are).
-   - **If the branch is more than 5 commits behind main → STOP and tell the user before doing any work.** Show them: branch name, how many commits behind, and the merge-base commit. Ask whether to switch to main or consciously continue on the stale branch.
-   - If the branch is ≤5 commits behind → safe to continue; note it in the session briefing.
-5. **Diagnose working tree:**
-   - **(a) On main, clean + up-to-date** → proceed.
-   - **(b) Behind origin/main AND working tree shows "modifications" matching the ahead commits** (cross-PC lag): `git stash push --include-untracked -m "<pc>-sync-s###"` → `git pull --ff-only` → `git stash drop`.
-   - **(c) Genuinely uncommitted local work** (modifications NOT on origin/main) → ask the user before touching it.
-6. **Announce the PC + branch + HEAD** in the session briefing.
+S053 post-mortem context (why the branch check exists) lives in `sessions/_archive/INDEX-pre-s060.md`.
 
-Differentiator (b) vs (c): `git diff HEAD origin/main --stat` — if the listed files match `git status` output, it's (b).
-
-**Why this matters (S053 post-mortem):** In S053 we spent a full session building AdminRosterSetup on `feature/fix-login`, which was 72 commits behind main. Main already had the feature built by S054–S059. PR #39 had to be closed without merging — all S053 code was abandoned. The branch check above catches this in 10 seconds at session start.
-
-## Live operational gotchas (durable)
-- **`ffc/vercel.json` SPA catch-all rewrite is LOAD-BEARING.** Deleting it 404s every non-root URL. Static-file precedence over rewrites is automatic, so it does NOT break `/sw.js`, `/manifest.webmanifest`, `/ffc-logo.png`.
-- **Supabase MCP PAT is scoped to PadelHub org only** — `execute_sql` returns 403 on FFC. Use Supabase CLI (`npx supabase db push`, `db query --linked`) throughout.
-- **`supabase gen types typescript --linked 2>/dev/null`** — the `2>/dev/null` redirect is mandatory; "Initialising login role…" diagnostic goes to stdout and corrupts the types file without it.
-- **Windows OneDrive `&`-in-path bug:** `.bin/*.cmd` batch wrappers truncate at `&` in "11 - AI & Digital". FFC's `package.json` uses `node ./node_modules/<pkg>/bin/<bin>` direct invocation, not `npm run`. Vercel Linux CI is unaffected.
-- **`supabase link`** uses cached auth token — no DB password needed on a machine already authenticated.
-- **Multi-statement SQL via Supabase CLI requires `DO $$ BEGIN … END $$` block** — `db query --linked "UPDATE ...; UPDATE ...;"` errors out otherwise.
-- **Supabase email validator rejects `example.com`** and throwaway domains. Test convention: `m.muwahid+s###<role>@gmail.com`.
-- **Supabase "Confirm email" must stay OFF for Phase 1.** Flipping it ON re-breaks `Signup.tsx` Stage 1 silent-stuck bug; add the "check your inbox" handler first.
-- **Google OAuth consent screen shows `hylarwwsedjxwavuwjrn.supabase.co`, not "FFC"** (Testing mode + default Supabase callback URL). Pro custom domain ($25/mo) would fix it — not worth it for a private league.
-- **Migration 0012 DEFAULT PRIVILEGES covers `authenticated` only, NOT `service_role`.** Any new table that needs Edge Function (service_role) DML access must emit explicit `GRANT … TO service_role` in the same migration.
-- **All admin SECURITY DEFINER RPCs need `is_admin()` body guard + `REVOKE EXECUTE FROM PUBLIC` + `GRANT EXECUTE TO authenticated`.** Two-layer defense: helper-function NULL safety (S043 `COALESCE(...,false)`) + PostgREST EXECUTE gate (S047 migration 0033).
-- **Supabase auth-key dual model trap:** `Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')` returns `sb_secret_*` (length 41) inside Edge Functions; the Functions gateway only accepts legacy JWT bearers AND `supabase-js`'s `createClient` only RLS-bypasses with the legacy JWT. Maintain a separate `LEGACY_SERVICE_ROLE_JWT` env var; for trigger-called Functions, use a custom shared-secret in a custom header for caller-auth.
-- **Supabase realtime requires explicit `ALTER PUBLICATION supabase_realtime ADD TABLE`** before `postgres_changes` will fire. Verify via `pg_publication_tables`. The `postgres_changes` filter supports ONE column; secondary filters apply client-side.
-- **`CREATE OR REPLACE FUNCTION` cannot change arg defaults or add parameters** — DROP + CREATE required (re-GRANT EXECUTE after).
-- **`CREATE OR REPLACE VIEW` requires identical column signature.** Adding a `WHERE` predicate while keeping the SELECT shape unchanged means dependent views don't need rebuilding.
-- **DATE columns need string-split, not `new Date(iso)`** — `new Date('2026-04-21')` parses as UTC midnight, renders as 20/APR on negative-offset TZs. Use inline `fmtDate(iso)` that splits and uses components directly.
-- **Audit BEFORE destructive update / DELETE** for self-delete and admin RPCs — the audit log entry needs to survive even if the destructive path rolls back.
-- **Terminal roles (`rejected`, future `banned`) must auto-`signOut` in `AppContext.tsx`** — not just render a display flag.
-- **`as unknown as Json` for jsonb RPC args** — Supabase's generated `Json` type carries a structural index signature `[k: string]: Json | undefined` that hand-written interfaces lack.
-- **Conditional-spread for optional RPC args:** `...(x ? { p_field: x } : {})` matches generated types' `T | undefined` without `as`-cast escape hatches. RPC args that are nullable must have `DEFAULT NULL` in PL/pgSQL or Supabase marks them required.
-- **Router lives in `ffc/src/router.tsx`, NOT `App.tsx`.** `App.tsx` is just `<RouterProvider router={router} />`. Routes are configured as `createBrowserRouter` object literals — new screens add `{ path: 'foo', element: <Foo /> }` inside the `RoleLayout` children array, not as JSX `<Route>` elements. Any plan that says "modify App.tsx" should be auto-corrected to `router.tsx` (caught in S053 Task 3 by the implementer).
-- **`tsconfig.app.json` has `noUnusedLocals: true` AND `noUnusedParameters: true`.** Skeleton commits that "pre-declare state for future tasks" won't compile. Pattern when implementing a multi-task scaffold: drop the unused symbols in the skeleton + comment-block document what later tasks must re-add + delete the comment block when the symbols come back (S053).
+## Live operational gotchas
+Durable debugging reference (Vercel SPA rewrite, Supabase auth-key dual model, RPC patterns, TS quirks, Windows `&`-in-path bug, etc.) lives in [`docs/platform/operational-gotchas.md`](docs/platform/operational-gotchas.md). Read on demand when something behaves unexpectedly.
 
 ## Per-screen brand tokens
-All in-app screens (`.po-screen` Poll, `.lb-screen` Leaderboard, `.pf-screen` Profile, `.mt-screen` Matches, `.lr-screen` Rules, `.st-screen` Settings, `.aw-screen` Awards [S053], `.admin-players`, `.admin-matches`, `.as-root` AdminSeasons, `.ah-root` AdminHome, `.ch-root` CaptainHelper, `.mer-screen` MatchEntryReview) declare a 12-token brand block at scope-root: `--bg:#0e1826` paper · `--surface` translucent panel · `--text:#f2ead6` cream ink · `--accent:#e5ba5b` gold · `--danger:#e63349` red · `--success:#4fbf93` · `--warn`/`--warning`. Auth screens (`.auth-screen`) and global `:root` defaults intentionally untouched. When existing CSS is already var()-based with fallbacks, scope-override at the screen root is a 20× better ROI than rule-by-rule editing.
+12-token brand block convention for in-app screens documented in [`docs/ui-conventions.md`](docs/ui-conventions.md) ("Per-screen brand tokens").

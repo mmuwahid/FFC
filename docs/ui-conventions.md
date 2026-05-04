@@ -37,3 +37,6 @@ Before approving any mockup, verify:
 3. `flex-shrink: 0` on statusbar, cards, and every direct child of `.phone-inner`.
 4. Dynamic-Island cutout rendered in phone-frame CSS.
 5. Button colours follow the green=safe / red=destructive rule.
+
+## Per-screen brand tokens
+All in-app screens (`.po-screen` Poll, `.lb-screen` Leaderboard, `.pf-screen` Profile, `.mt-screen` Matches, `.lr-screen` Rules, `.st-screen` Settings, `.aw-screen` Awards [S053], `.admin-players`, `.admin-matches`, `.as-root` AdminSeasons, `.ah-root` AdminHome, `.ch-root` CaptainHelper, `.mer-screen` MatchEntryReview) declare a 12-token brand block at scope-root: `--bg:#0e1826` paper · `--surface` translucent panel · `--text:#f2ead6` cream ink · `--accent:#e5ba5b` gold · `--danger:#e63349` red · `--success:#4fbf93` · `--warn`/`--warning`. Auth screens (`.auth-screen`) and global `:root` defaults intentionally untouched. When existing CSS is already var()-based with fallbacks, scope-override at the screen root is a 20× better ROI than rule-by-rule editing.
