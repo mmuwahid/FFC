@@ -2,17 +2,11 @@
 
 FFC is a mobile-first PWA for managing a weekly 7v7 friends football league: Monday poll → Thursday game cycle, with match history, leaderboard, seasons, awards, and WhatsApp share integration.
 
-## Current state (S065 close, 01/MAY/2026)
-- **Phase:** Phase 1 complete. Phase 2A + 2B code-complete (S051). Phase 2 live acceptance still owed on a real Thursday matchday. **S053** awards (V3.0:139). **S054** share PNG (V3.0:140). **S056** payment tracker (V3.0:147). **S058** all 4 GH issues (#22 #23 #25 #21). **S059** 9-issue GH sweep (#30–#38). **S060** payment-tracker verify + #41 ref-name/is_no_show (mig 0064) + #38 topbar fix. **S061** PR #42 merged + #40 formal_name (mig 0065) + #41 FIFA player table. **S062** #38 design-system polish (focus-visible / radius / skeletons / typography / spacing / state-flips). **S063** first-real-match-day diagnostic cascade — RefEntry submit cast bug + MatchEntryReview Approve + mig 0066–0068 + share PNG overhaul + 4 GH issues (#44 #45 #46 #47). **S064** PR #49 merged — #43 light/dark mode all 15 screens + #48 awards view friendly/noshows fix (mig 0069). **S065** NumberInput component — fixed backspace UX on all 13 numeric inputs (AdminMatches × 9, AdminPlayers × 1, MatchEntryReview × 2).
-- **Live:** https://ffc-gilt.vercel.app · `main` clean at `b5046fe`. **Open GitHub: 0 PRs · 0 issues.**
-- **Migrations on live DB:** 69 (unchanged from S064). S053 → 0047. S054 → 0048 / 0049 / 0051 / 0052 / 0053. S055 → 0054. S056 → 0055. S058 → 0056 / 0057 / 0058 / 0059. S059 → 0060 / 0061 / 0062 / 0063. S060 → 0064. S061 → 0065. S063 → 0066 / 0067 / 0068. S064 → 0069 (`v_season_award_winners_live` friendly + no-show filters).
-- **pg_cron jobs live:** `auto-lock-matchdays` (`* * * * *`) · `vote-reminders` (`*/5 * * * *`).
-- **Edge Functions live:** `notify-dispatch` (S048) · `purge-deleted-auth-user` (S051) · `notify-signup-outcome` (S051; `RESEND_API_KEY` set as Supabase project secret) · `render-match-card` (S054, redeployed 5× in S063; WOFF fonts via jsDelivr CDN fetch, crest base64 inline, twemoji `graphemeImages` for ⭐⚽🟨🟥, RENDER_VERSION = 3 cache key).
-- **Authoritative plan:** `planning/FFC-masterplan-V3.0.md` (Phase 3 backlog: V3.0:139–148; awards V3.0:139 shipped S053; share PNG V3.0:140 shipped S054).
-- **Session history:** `sessions/INDEX.md` + per-session logs at `sessions/S###/session-log.md`. Do not duplicate session narratives here.
-- **Durable lessons:** `tasks/lessons.md` (inherits PadelHub's lessons too).
-- **Open todo:** `tasks/todo.md` (`## NEXT SESSION` is the live agenda; older session blocks live in `tasks/_archive/`).
-- **Maintenance reminder:** if any of CLAUDE.md / todo.md / lessons.md / INDEX.md crosses 30 KB or 1,000 lines, re-run the S050 trim cycle.
+## Current state
+- **Phase:** Phase 1 done. Phase 2A + 2B code-complete; live acceptance owed on a real Thursday matchday. Phase 3 in progress (awards / share PNG / payment tracker shipped).
+- **Live:** https://ffc-gilt.vercel.app · `main` is authoritative. For latest HEAD, session details, and migration inventory see `sessions/INDEX.md`.
+- **Pointers:** plan → `planning/FFC-masterplan-V3.0.md` · sessions → `sessions/INDEX.md` (+ `sessions/S###/session-log.md`) · todo → `tasks/todo.md` (`## NEXT SESSION` is live agenda) · lessons → `tasks/lessons.md`.
+- **Maintenance:** if CLAUDE.md / todo.md / lessons.md / INDEX.md crosses 30 KB or 1,000 lines, re-run the S050 trim cycle.
 
 ## Stack
 - **Frontend:** React 19 + Vite 8 + TypeScript 6 (PWA via `vite-plugin-pwa`, `injectManifest` strategy + `src/sw.ts`)

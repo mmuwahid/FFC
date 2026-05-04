@@ -1,0 +1,81 @@
+# .claudeignore — excludes paths from Claude Code's Glob/Grep/Read tool surface.
+# Different from .gitignore (which controls git tracking). This controls what
+# Claude sees when exploring the repo — keeps tool output clean, avoids
+# accidental token spend reading huge or irrelevant files.
+
+# ── Dependencies ──
+node_modules/
+.pnpm-store/
+ffc/node_modules/
+
+# ── Build artifacts ──
+dist/
+build/
+.next/
+out/
+.vite/
+.turbo/
+ffc/dist/
+ffc/.vite/
+
+# ── Lock files (large, almost never edited by hand) ──
+package-lock.json
+ffc/package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ── Vercel + Supabase generated ──
+.vercel/
+supabase/.temp/
+supabase/.branches/
+
+# ── Stale worktrees + Claude Code internals ──
+.claude/worktrees/
+.claude/cache/
+.superpowers/
+.playwright-cli/
+
+# ── Generated TypeScript types (regenerable via `supabase gen types`) ──
+ffc/src/lib/database.types.ts
+
+# ── Binary assets and large media ──
+*.docx
+*.xlsx
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.ico
+*.woff
+*.woff2
+*.ttf
+docs/brief-screenshots/
+
+# ── Archived history — kept on disk, hidden from tool surface ──
+tasks/_archive/
+sessions/_archive/
+
+# ── Old planning versions — only newest version is current ──
+planning/FFC-masterplan-V1.0.md
+planning/FFC-masterplan-V2.0.md
+planning/FFC-masterplan-V2.1.md
+planning/FFC-masterplan-V2.2.md
+planning/FFC-masterplan-V2.3.md
+planning/FFC-masterplan-V2.4.md
+planning/FFC-masterplan-V2.5.md
+planning/FFC-masterplan-V2.6.md
+planning/FFC-masterplan-V2.7.md
+planning/FFC-masterplan-V2.8.md
+
+# ── Scratch and retired drafts ──
+_wip/
+archive/
+
+# ── Old superpowers spec/plans (resolved milestones; reference only) ──
+docs/superpowers/specs/2026-04-*.md
+docs/superpowers/plans/2026-04-23-*.md
+docs/superpowers/plans/2026-04-26-*.md
+docs/superpowers/plans/2026-04-27-*.md
+docs/superpowers/plans/2026-04-29-*.md
