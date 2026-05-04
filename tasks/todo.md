@@ -1,17 +1,34 @@
 # FFC Todo
 
-## NEXT SESSION — S066
+## NEXT SESSION — S068
 
 **Cold-start checklist:**
 - **MANDATORY session-start sync** per CLAUDE.md Cross-PC protocol.
-- Expected HEAD: `main` at `b5046fe`. Live DB: 69 migrations. 0 open PRs · 0 open issues.
-- **S065 close (01/MAY/2026):** NumberInput component shipped — fixed backspace UX on 13 numeric inputs across AdminMatches, AdminPlayers, MatchEntryReview. 1 commit `b5046fe`. No migrations.
+- Expected HEAD: `main` at `<S067 close commit>`. Live DB: 69 migrations. 0 open PRs · 0 open issues.
+- **S066 close (04/MAY/2026, AM):** Token-efficiency audit shipped (closes #50). 3 chore commits `f6c674b..609ca3a`. ~72K tokens saved per session start. Active working set 359 KB → 79 KB. Session log backfilled in S067.
+- **S067 close (04/MAY/2026, PM):** Injury / Unavailable list — design spec + 12-task implementation plan written. No code. Spec at `docs/superpowers/specs/2026-05-04-injury-unavailable-design.md`. Plan at `docs/superpowers/plans/2026-05-04-injury-unavailable.md`. H2H comparison decomposed into a follow-up spec/plan.
 
-**S066 agenda — net-new features + live verification:**
+**S068 agenda — execute injury/unavailable list, then brainstorm H2H:**
 
-1. ✅ ~~Execute NumberInput plan~~ — **DONE in S065** (`b5046fe`).
+1. **Execute the injury/unavailable plan** via subagent-driven-development:
+   - [ ] **Task 0 (mockup, Rule #1 gate)** — build `mockups/injury-unavailable.html` showing all 6 surfaces (Settings card available + out states · AdminPlayers row + modal · Poll exclusion footnote · Leaderboard mixed list · Profile banner · `<UnavailabilityPill>` swatch row). Verbatim live-CSS copy per S060 lesson. **STOP for user approval before any DB or code work.**
+   - [ ] **Task 1** — write `supabase/migrations/0070_unavailability.sql` (enum + 3 cols + CHECK + 4 RPCs + view update + 2 notification kinds + pg_cron 00:00 UAE schedule).
+   - [ ] **Task 2** — `npx supabase db push --linked`; verify schema landed; regen `ffc/src/lib/database.types.ts`; `tsc -b` EXIT 0.
+   - [ ] **Task 3** — create `ffc/src/components/UnavailabilityPill.tsx` + CSS tokens (light/dark variants).
+   - [ ] **Task 4** — extend AppContext profile selection with the 3 new columns.
+   - [ ] **Task 5** — Settings Availability card (self-serve form + "I'm back" button).
+   - [ ] **Task 6** — AdminPlayers Availability row + edit modal (silent admin override).
+   - [ ] **Task 7** — Poll query filter + render exclusion + clear poll vote on OUT-flip.
+   - [ ] **Task 8** — AdminRosterSetup pool filter (locked rosters NOT auto-modified).
+   - [ ] **Task 9** — Leaderboard `[data-unavailable]` dim + status pill.
+   - [ ] **Task 10** — Profile status banner.
+   - [ ] **Task 11** — full `tsc -b` + `eslint .` + dev-preview smoke walk + push to main + Vercel auto-deploy + live smoke.
 
-2. **Brainstorm + spec — net-new features (mockup-first per Rule #1):**
+2. **Then brainstorm + spec H2H comparison** (V3.0:144):
+   - Independent subsystem from injury list. Picks two players, surfaces side-by-side career stats + direct match-up record (games shared a side · games on opposing sides · win-rate together vs apart · goal differentials).
+   - Mockup-first per Rule #1.
+
+3. **Carry-over brainstorm queue (push to S069 unless time permits):**
    - [ ] **RefEntry live event-strip per-team split** (#8 in S063 backlog) — Option A picked: white/black columns + full-width row for halftime/fulltime/pause/resume/own-goal. Mockup pending.
    - [ ] **Scorer Picker tap-to-increment sheet** (#1 in S063 backlog) — S058 mockup tile B; reuses `<NumberInput stepper>`.
    - [ ] **AdminRosterSetup manual slot reorder UI** (#2 in S063 backlog) — S059 added `slot_index` column; UI for drag/swap on Saved-state team lists.
